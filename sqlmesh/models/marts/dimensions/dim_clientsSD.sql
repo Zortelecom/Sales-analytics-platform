@@ -2,7 +2,7 @@ MODEL (
   name marts.dim_clientsd,
   kind SCD_TYPE_2_BY_COLUMN (
     unique_key sd_id,
-    columns (region, subregion, city, key_partner_type, is_destocked),
+    columns (region, subregion, city, key_player, is_destocked),
     time_data_type TIMESTAMP
   ),
   cron '@daily',
@@ -18,7 +18,7 @@ WITH clients_with_versions AS (
     region,
     subregion,
     city,
-    key_partner_type,
+    key_player,
     phone_number,
     is_destocked
   FROM staging.stg_clientsd_data
@@ -36,7 +36,7 @@ SELECT
   region,
   subregion,
   city,
-  key_partner_type,
+  key_player,
   phone_number,
   is_destocked
 FROM clients_with_versions;

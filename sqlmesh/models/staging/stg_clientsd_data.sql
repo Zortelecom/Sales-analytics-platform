@@ -14,7 +14,7 @@ SELECT
   TRIM(region) AS region,
   TRIM(subregion) AS subregion,
   TRIM(city) AS city,
-  TRIM(kp) AS key_player_type,
+  TRIM(kp) AS key_player,
   TRIM(phone) AS phone_number,
   CASE 
     WHEN LOWER(TRIM(is_destocked)) IN ('true', 'yes', '1', 'oui') THEN TRUE

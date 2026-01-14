@@ -21,6 +21,7 @@ SELECT
   EXTRACT(MONTH FROM s.sale_date) AS sale_month,
   
   -- Product dimension FK (SCD Type 2 join)
+  p.product_key,
   p.sku AS product_sku,
   p.product_name,
   p.product_category,
@@ -28,6 +29,7 @@ SELECT
   p.is_innovation_product,
   
   -- Salesperson dimension FK (SCD Type 2 join)
+  sp.salesperson_key,
   sp.salesperson_id,
   sp.salesperson_name,
   sp.region AS salesperson_region,
@@ -41,7 +43,7 @@ SELECT
   c.region AS customer_region,
   c.subregion AS customer_subregion,
   c.city AS customer_city,
-  c.key_partner_type,
+  c.key_player AS key_player,
   c.is_destocked AS is_customer_destocked,
   
   -- MEASURES

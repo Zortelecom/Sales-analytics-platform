@@ -2,7 +2,7 @@ MODEL (
   name raw.sales_data,
   kind SEED (
     path '../../seeds/sales_data.csv'
-  )
+  ),
   columns (
     salesperson_id TEXT,
     clientsd_id TEXT,

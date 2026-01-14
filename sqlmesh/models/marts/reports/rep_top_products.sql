@@ -23,8 +23,8 @@ WITH last_30_days AS (
     COUNT(DISTINCT f.client_key) AS unique_customers,
     COUNT(DISTINCT f.region) AS regions_sold_in,
     AVG(f.unit_price) AS avg_unit_price
-  FROM facts.fact_sales f
-  JOIN marts.dim_product p 
+  FROM marts.fact_sales f
+  JOIN marts.dim_products p 
     ON f.product_key = p.product_key
   WHERE f.sale_date >= CURRENT_DATE - INTERVAL 30 DAYS
   GROUP BY 1, 2, 3, 4, 5

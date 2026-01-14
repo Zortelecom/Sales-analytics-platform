@@ -1,7 +1,7 @@
 MODEL (
   name staging.stg_sales_data,
   kind INCREMENTAL_BY_TIME_RANGE (
-    time_column sale_date
+    time_column sale_date,
     lookback 7
   ),
   cron '@daily',
@@ -40,7 +40,6 @@ SELECT
   TRIM(sd_destocke) AS sd_destocked,
   
   -- Geographic attributes
-  TRIM(region) AS region,
   TRIM(subregion) AS subregion,
   TRIM(city) AS city,
   TRIM(localisation) AS location,

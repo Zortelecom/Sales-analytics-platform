@@ -39,7 +39,7 @@ last_week_sales AS (
   SELECT
     f.salesperson_id,
     SUM(f.sales_amount) AS last_week_sales
-  FROM sales_lakehouse.facts.fact_sales f
+  FROM marts.fact_sales f
   CROSS JOIN date_context dc
   WHERE f.sale_date >= dc.last_week_start
     AND f.sale_date < dc.last_week_start + INTERVAL 7 DAYS

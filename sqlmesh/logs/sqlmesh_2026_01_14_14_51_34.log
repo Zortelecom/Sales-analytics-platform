@@ -1,0 +1,579 @@
+2026-01-14 14:51:35,948 - MainThread - sqlmesh.core.config.connection - INFO - Creating new DuckDB adapter for data files: {'../data/warehouse/catalog.ducklake'} (connection.py:496)
+2026-01-14 14:51:38,738 - MainThread - sqlmesh.core.config.connection - INFO - Creating new DuckDB adapter for data files: {'../data/warehouse/sqlmesh_state.db'} (connection.py:496)
+2026-01-14 14:51:59,875 - MainThread - sqlmesh.core.plan.evaluator - INFO - Evaluating plan stage CreateSnapshotRecordsStage (evaluator.py:123)
+2026-01-14 14:52:00,086 - MainThread - sqlmesh.core.plan.evaluator - INFO - Evaluating plan stage PhysicalLayerSchemaCreationStage (evaluator.py:123)
+2026-01-14 14:52:00,091 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Creating schema 'sales_lakehouse.sqlmesh__marts' (evaluator.py:1449)
+2026-01-14 14:52:00,092 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ CREATE SCHEMA IF NOT EXISTS "sales_lakehouse"."sqlmesh__marts" (base.py:2626)
+2026-01-14 14:52:01,502 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Creating schema 'sales_lakehouse.sqlmesh__raw' (evaluator.py:1449)
+2026-01-14 14:52:01,502 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ CREATE SCHEMA IF NOT EXISTS "sales_lakehouse"."sqlmesh__raw" (base.py:2626)
+2026-01-14 14:52:01,505 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Creating schema 'sales_lakehouse.sqlmesh__staging' (evaluator.py:1449)
+2026-01-14 14:52:01,505 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ CREATE SCHEMA IF NOT EXISTS "sales_lakehouse"."sqlmesh__staging" (base.py:2626)
+2026-01-14 14:52:01,507 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Creating schema 'sales_lakehouse.sqlmesh__reports' (evaluator.py:1449)
+2026-01-14 14:52:01,508 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ CREATE SCHEMA IF NOT EXISTS "sales_lakehouse"."sqlmesh__reports" (base.py:2626)
+2026-01-14 14:52:01,510 - MainThread - sqlmesh.core.plan.evaluator - INFO - Evaluating plan stage BackfillStage (evaluator.py:123)
+2026-01-14 14:52:01,525 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Listing data objects in schema sales_lakehouse.sqlmesh__reports (evaluator.py:1616)
+2026-01-14 14:52:01,525 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-14 14:52:01,529 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-14 14:52:01,533 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT table_name AS name, table_schema AS schema, CASE table_type WHEN 'BASE TABLE' THEN 'table' WHEN 'VIEW' THEN 'view' WHEN 'LOCAL TEMPORARY' THEN 'table' END AS type FROM system.information_schema.tables WHERE (table_catalog = 'sales_lakehouse' AND table_schema = 'sqlmesh__reports') AND table_name IN ('reports__rep_top_products__4083838474__dev', 'reports__rep_weekly_meeting__2329180000__dev', 'reports__rep_target_attainment__3979881369__dev') (base.py:2626)
+2026-01-14 14:52:01,562 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Listing data objects in schema sales_lakehouse.sqlmesh__staging (evaluator.py:1616)
+2026-01-14 14:52:01,563 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-14 14:52:01,565 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-14 14:52:01,571 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT table_name AS name, table_schema AS schema, CASE table_type WHEN 'BASE TABLE' THEN 'table' WHEN 'VIEW' THEN 'view' WHEN 'LOCAL TEMPORARY' THEN 'table' END AS type FROM system.information_schema.tables WHERE (table_catalog = 'sales_lakehouse' AND table_schema = 'sqlmesh__staging') AND table_name IN ('staging__stg_sales_data__1630069071', 'staging__stg_targets_data__1155525254__dev', 'staging__stg_salesteam_data__3527212438__dev', 'staging__stg_clientsd_data__1220349468__dev', 'staging__stg_products_data__3296088006__dev') (base.py:2626)
+2026-01-14 14:52:01,583 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Listing data objects in schema sales_lakehouse.sqlmesh__marts (evaluator.py:1616)
+2026-01-14 14:52:01,583 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-14 14:52:01,586 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-14 14:52:01,590 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT table_name AS name, table_schema AS schema, CASE table_type WHEN 'BASE TABLE' THEN 'table' WHEN 'VIEW' THEN 'view' WHEN 'LOCAL TEMPORARY' THEN 'table' END AS type FROM system.information_schema.tables WHERE (table_catalog = 'sales_lakehouse' AND table_schema = 'sqlmesh__marts') AND table_name IN ('marts__fact_targets__3818688260__dev', 'marts__dim_salesperson__1049679837__dev', 'marts__fact_sales__1186795561__dev', 'marts__dim_products__469896174__dev', 'marts__dim_date__2600068558__dev', 'marts__dim_clientsd__2869353902__dev') (base.py:2626)
+2026-01-14 14:52:01,603 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Listing data objects in schema sales_lakehouse.sqlmesh__raw (evaluator.py:1616)
+2026-01-14 14:52:01,603 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-14 14:52:01,607 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-14 14:52:01,611 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT table_name AS name, table_schema AS schema, CASE table_type WHEN 'BASE TABLE' THEN 'table' WHEN 'VIEW' THEN 'view' WHEN 'LOCAL TEMPORARY' THEN 'table' END AS type FROM system.information_schema.tables WHERE (table_catalog = 'sales_lakehouse' AND table_schema = 'sqlmesh__raw') AND table_name IN ('raw__salesteam_data__3905789317', 'raw__clientsd_data__1402190618', 'raw__products_data__377788166', 'raw__targets_data__2048545939', 'raw__sales_data__1933981874') (base.py:2626)
+2026-01-14 14:52:01,625 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Creating a physical table for snapshot SnapshotId<"sales_lakehouse"."marts"."dim_date": 2184063302> (evaluator.py:870)
+2026-01-14 14:52:01,658 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Creating table 'sales_lakehouse.sqlmesh__marts.marts__dim_date__2600068558__dev' (evaluator.py:2042)
+2026-01-14 14:52:01,658 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-14 14:52:01,661 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT type FROM DUCKDB_DATABASES() WHERE database_name = 'sales_lakehouse' (base.py:2626)
+2026-01-14 14:52:01,668 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ CREATE TABLE IF NOT EXISTS "sales_lakehouse"."sqlmesh__marts"."marts__dim_date__2600068558__dev" AS WITH "date_spine" AS (SELECT UNNEST(GENERATE_SERIES(CAST('2020-01-01' AS DATE), CAST('2030-12-31' AS DATE), INTERVAL '1' DAY)) AS "date_value") SELECT CAST(STRFTIME("date_spine"."date_value", '%Y%m%d') AS INT) AS "date_key", "date_spine"."date_value" AS "date", EXTRACT('year' FROM "date_spine"."date_value") AS "year", EXTRACT('quarter' FROM "date_spine"."date_value") AS "quarter", EXTRACT('month' FROM "date_spine"."date_value") AS "month", EXTRACT('week' FROM "date_spine"."date_value") AS "week_of_year", EXTRACT('day' FROM "date_spine"."date_value") AS "day_of_month", EXTRACT('DAYOFWEEK' FROM "date_spine"."date_value") AS "day_of_week", STRFTIME("date_spine"."date_value", '%Y') AS "year_name", CONCAT(STRFTIME("date_spine"."date_value", '%Y'), '-Q', EXTRACT('quarter' FROM "date_spine"."date_value")) AS "quarter_name", STRFTIME("date_spine"."date_value", '%Y-%m') AS "year_month", STRFTIME("date_spine"."date_value", '%B %Y') AS "month_name", STRFTIME("date_spine"."date_value", '%A') AS "day_name", DATE_TRUNC('MONTH', "date_spine"."date_value") AS "month_start_date", DATE_TRUNC('QUARTER', "date_spine"."date_value") AS "quarter_start_date", DATE_TRUNC('YEAR', "date_spine"."date_value") AS "year_start_date", CASE WHEN EXTRACT('DAYOFWEEK' FROM "date_spine"."date_value") IN (0, 6) THEN TRUE ELSE FALSE END AS "is_weekend", CASE WHEN "date_spine"."date_value" = DATE_TRUNC('MONTH', "date_spine"."date_value") THEN TRUE ELSE FALSE END AS "is_month_start", CASE WHEN "date_spine"."date_value" = LAST_DAY("date_spine"."date_value") THEN TRUE ELSE FALSE END AS "is_month_end" FROM "date_spine" AS "date_spine" WHERE FALSE LIMIT 0 (base.py:2626)
+2026-01-14 14:52:01,704 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Evaluating snapshot SnapshotId<"sales_lakehouse"."raw"."clientsd_data": 1825999408> (evaluator.py:711)
+2026-01-14 14:52:01,706 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Creating table 'sales_lakehouse.sqlmesh__raw.raw__clientsd_data__1402190618' (evaluator.py:2042)
+2026-01-14 14:52:01,708 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-14 14:52:01,760 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT type FROM DUCKDB_DATABASES() WHERE database_name = 'sales_lakehouse' (base.py:2626)
+2026-01-14 14:52:01,768 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ CREATE TABLE IF NOT EXISTS "sales_lakehouse"."sqlmesh__raw"."raw__clientsd_data__1402190618" ("sd_name" TEXT, "sd_id" TEXT, "region" TEXT, "kp" TEXT, "subregion" TEXT, "phone" TEXT, "city" TEXT, "is_destocked" TEXT, "client_sd_ref_id" TEXT) (base.py:2626)
+2026-01-14 14:52:01,845 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-14 14:52:01,901 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-14 14:52:01,909 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT table_name AS name, table_schema AS schema, CASE table_type WHEN 'BASE TABLE' THEN 'table' WHEN 'VIEW' THEN 'view' WHEN 'LOCAL TEMPORARY' THEN 'table' END AS type FROM system.information_schema.tables WHERE (table_catalog = 'sales_lakehouse' AND table_schema = 'sqlmesh__raw') AND table_name IN ('raw__clientsd_data__1402190618') (base.py:2626)
+2026-01-14 14:52:01,966 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-14 14:52:02,005 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT type FROM DUCKDB_DATABASES() WHERE database_name = 'sales_lakehouse' (base.py:2626)
+2026-01-14 14:52:02,010 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ CREATE OR REPLACE TABLE "sales_lakehouse"."sqlmesh__raw"."raw__clientsd_data__1402190618" AS SELECT CAST("sd_name" AS TEXT) AS "sd_name", CAST("sd_id" AS TEXT) AS "sd_id", CAST("region" AS TEXT) AS "region", CAST("kp" AS TEXT) AS "kp", CAST("subregion" AS TEXT) AS "subregion", CAST("phone" AS TEXT) AS "phone", CAST("city" AS TEXT) AS "city", CAST("is_destocked" AS TEXT) AS "is_destocked", CAST("client_sd_ref_id" AS TEXT) AS "client_sd_ref_id" FROM (SELECT "sd_name", "sd_id", "region", "kp", "subregion", "phone", "city", "is_destocked", "client_sd_ref_id" FROM "sales_lakehouse"."sqlmesh__raw"."__temp_raw__clientsd_data__1402190618_mtbbuwbh") AS "_subquery" (base.py:2626)
+2026-01-14 14:52:02,081 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ DROP TABLE IF EXISTS "sales_lakehouse"."sqlmesh__raw"."__temp_raw__clientsd_data__1402190618_mtbbuwbh" (base.py:2626)
+2026-01-14 14:52:02,139 - MainThread - sqlmesh.core.state_sync.db.facade - INFO - Adding interval (2026-01-13 00:00:00, 2026-01-14 00:00:00) for snapshot SnapshotId<"sales_lakehouse"."raw"."clientsd_data": 1825999408> (facade.py:637)
+2026-01-14 14:52:02,139 - MainThread - sqlmesh.core.state_sync.db.interval - INFO - Pushing intervals for snapshot SnapshotId<"sales_lakehouse"."raw"."clientsd_data": 1825999408> (interval.py:215)
+2026-01-14 14:52:02,171 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Evaluating snapshot SnapshotId<"sales_lakehouse"."raw"."products_data": 2685279940> (evaluator.py:711)
+2026-01-14 14:52:02,172 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Creating table 'sales_lakehouse.sqlmesh__raw.raw__products_data__377788166' (evaluator.py:2042)
+2026-01-14 14:52:02,173 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-14 14:52:02,212 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT type FROM DUCKDB_DATABASES() WHERE database_name = 'sales_lakehouse' (base.py:2626)
+2026-01-14 14:52:02,217 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ CREATE TABLE IF NOT EXISTS "sales_lakehouse"."sqlmesh__raw"."raw__products_data__377788166" ("sku" TEXT, "product_name" TEXT, "product_category" TEXT, "product_subcategory" TEXT, "unit_price" TEXT, "unit_weight" TEXT, "is_innovation" TEXT, "product_ref_id" TEXT) (base.py:2626)
+2026-01-14 14:52:02,248 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-14 14:52:02,279 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-14 14:52:02,288 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT table_name AS name, table_schema AS schema, CASE table_type WHEN 'BASE TABLE' THEN 'table' WHEN 'VIEW' THEN 'view' WHEN 'LOCAL TEMPORARY' THEN 'table' END AS type FROM system.information_schema.tables WHERE (table_catalog = 'sales_lakehouse' AND table_schema = 'sqlmesh__raw') AND table_name IN ('raw__products_data__377788166') (base.py:2626)
+2026-01-14 14:52:02,335 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-14 14:52:02,364 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT type FROM DUCKDB_DATABASES() WHERE database_name = 'sales_lakehouse' (base.py:2626)
+2026-01-14 14:52:02,372 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ CREATE OR REPLACE TABLE "sales_lakehouse"."sqlmesh__raw"."raw__products_data__377788166" AS SELECT CAST("sku" AS TEXT) AS "sku", CAST("product_name" AS TEXT) AS "product_name", CAST("product_category" AS TEXT) AS "product_category", CAST("product_subcategory" AS TEXT) AS "product_subcategory", CAST("unit_price" AS TEXT) AS "unit_price", CAST("unit_weight" AS TEXT) AS "unit_weight", CAST("is_innovation" AS TEXT) AS "is_innovation", CAST("product_ref_id" AS TEXT) AS "product_ref_id" FROM (SELECT "sku", "product_name", "product_category", "product_subcategory", "unit_price", "unit_weight", "is_innovation", "product_ref_id" FROM "sales_lakehouse"."sqlmesh__raw"."__temp_raw__products_data__377788166_m7ekvddi") AS "_subquery" (base.py:2626)
+2026-01-14 14:52:02,415 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ DROP TABLE IF EXISTS "sales_lakehouse"."sqlmesh__raw"."__temp_raw__products_data__377788166_m7ekvddi" (base.py:2626)
+2026-01-14 14:52:02,460 - MainThread - sqlmesh.core.state_sync.db.facade - INFO - Adding interval (2026-01-13 00:00:00, 2026-01-14 00:00:00) for snapshot SnapshotId<"sales_lakehouse"."raw"."products_data": 2685279940> (facade.py:637)
+2026-01-14 14:52:02,460 - MainThread - sqlmesh.core.state_sync.db.interval - INFO - Pushing intervals for snapshot SnapshotId<"sales_lakehouse"."raw"."products_data": 2685279940> (interval.py:215)
+2026-01-14 14:52:02,484 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Evaluating snapshot SnapshotId<"sales_lakehouse"."raw"."sales_data": 63819142> (evaluator.py:711)
+2026-01-14 14:52:02,487 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Creating table 'sales_lakehouse.sqlmesh__raw.raw__sales_data__1933981874' (evaluator.py:2042)
+2026-01-14 14:52:02,488 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-14 14:52:02,523 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT type FROM DUCKDB_DATABASES() WHERE database_name = 'sales_lakehouse' (base.py:2626)
+2026-01-14 14:52:02,528 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ CREATE TABLE IF NOT EXISTS "sales_lakehouse"."sqlmesh__raw"."raw__sales_data__1933981874" ("salesperson_id" TEXT, "clientsd_id" TEXT, "sd_destocke" TEXT, "date" DATE, "sku" TEXT, "product_name" TEXT, "unit_price" TEXT, "qty" TEXT, "amount" TEXT, "subregion" TEXT, "salesperson" TEXT, "supervisor" TEXT, "channel" TEXT, "product_cat" TEXT, "product_subcat" TEXT, "unit_weight" TEXT, "is_innovation" TEXT, "localisation" TEXT, "city" TEXT, "sales_line_id" TEXT, "filename_subregion" TEXT) (base.py:2626)
+2026-01-14 14:52:02,670 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-14 14:52:02,719 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-14 14:52:02,725 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT table_name AS name, table_schema AS schema, CASE table_type WHEN 'BASE TABLE' THEN 'table' WHEN 'VIEW' THEN 'view' WHEN 'LOCAL TEMPORARY' THEN 'table' END AS type FROM system.information_schema.tables WHERE (table_catalog = 'sales_lakehouse' AND table_schema = 'sqlmesh__raw') AND table_name IN ('raw__sales_data__1933981874') (base.py:2626)
+2026-01-14 14:52:02,803 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-14 14:52:02,845 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT type FROM DUCKDB_DATABASES() WHERE database_name = 'sales_lakehouse' (base.py:2626)
+2026-01-14 14:52:02,856 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ CREATE OR REPLACE TABLE "sales_lakehouse"."sqlmesh__raw"."raw__sales_data__1933981874" AS SELECT CAST("salesperson_id" AS TEXT) AS "salesperson_id", CAST("clientsd_id" AS TEXT) AS "clientsd_id", CAST("sd_destocke" AS TEXT) AS "sd_destocke", CAST("date" AS DATE) AS "date", CAST("sku" AS TEXT) AS "sku", CAST("product_name" AS TEXT) AS "product_name", CAST("unit_price" AS TEXT) AS "unit_price", CAST("qty" AS TEXT) AS "qty", CAST("amount" AS TEXT) AS "amount", CAST("subregion" AS TEXT) AS "subregion", CAST("salesperson" AS TEXT) AS "salesperson", CAST("supervisor" AS TEXT) AS "supervisor", CAST("channel" AS TEXT) AS "channel", CAST("product_cat" AS TEXT) AS "product_cat", CAST("product_subcat" AS TEXT) AS "product_subcat", CAST("unit_weight" AS TEXT) AS "unit_weight", CAST("is_innovation" AS TEXT) AS "is_innovation", CAST("localisation" AS TEXT) AS "localisation", CAST("city" AS TEXT) AS "city", CAST("sales_line_id" AS TEXT) AS "sales_line_id", CAST("filename_subregion" AS TEXT) AS "filename_subregion" FROM (SELECT "salesperson_id", "clientsd_id", "sd_destocke", "date", "sku", "product_name", "unit_price", "qty", "amount", "subregion", "salesperson", "supervisor", "channel", "product_cat", "product_subcat", "unit_weight", "is_innovation", "localisation", "city", "sales_line_id", "filename_subregion" FROM "sales_lakehouse"."sqlmesh__raw"."__temp_raw__sales_data__1933981874_drxw6wuy") AS "_subquery" (base.py:2626)
+2026-01-14 14:52:02,943 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ DROP TABLE IF EXISTS "sales_lakehouse"."sqlmesh__raw"."__temp_raw__sales_data__1933981874_drxw6wuy" (base.py:2626)
+2026-01-14 14:52:03,177 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ INSERT INTO "sales_lakehouse"."sqlmesh__raw"."raw__sales_data__1933981874" ("salesperson_id", "clientsd_id", "sd_destocke", "date", "sku", "product_name", "unit_price", "qty", "amount", "subregion", "salesperson", "supervisor", "channel", "product_cat", "product_subcat", "unit_weight", "is_innovation", "localisation", "city", "sales_line_id", "filename_subregion") SELECT "salesperson_id", "clientsd_id", "sd_destocke", "date", "sku", "product_name", "unit_price", "qty", "amount", "subregion", "salesperson", "supervisor", "channel", "product_cat", "product_subcat", "unit_weight", "is_innovation", "localisation", "city", "sales_line_id", "filename_subregion" FROM "sales_lakehouse"."sqlmesh__raw"."__temp_raw__sales_data__1933981874_qw2yafic" (base.py:2626)
+2026-01-14 14:52:03,290 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ DROP TABLE IF EXISTS "sales_lakehouse"."sqlmesh__raw"."__temp_raw__sales_data__1933981874_qw2yafic" (base.py:2626)
+2026-01-14 14:52:03,592 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ INSERT INTO "sales_lakehouse"."sqlmesh__raw"."raw__sales_data__1933981874" ("salesperson_id", "clientsd_id", "sd_destocke", "date", "sku", "product_name", "unit_price", "qty", "amount", "subregion", "salesperson", "supervisor", "channel", "product_cat", "product_subcat", "unit_weight", "is_innovation", "localisation", "city", "sales_line_id", "filename_subregion") SELECT "salesperson_id", "clientsd_id", "sd_destocke", "date", "sku", "product_name", "unit_price", "qty", "amount", "subregion", "salesperson", "supervisor", "channel", "product_cat", "product_subcat", "unit_weight", "is_innovation", "localisation", "city", "sales_line_id", "filename_subregion" FROM "sales_lakehouse"."sqlmesh__raw"."__temp_raw__sales_data__1933981874_76k1ezqb" (base.py:2626)
+2026-01-14 14:52:03,700 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ DROP TABLE IF EXISTS "sales_lakehouse"."sqlmesh__raw"."__temp_raw__sales_data__1933981874_76k1ezqb" (base.py:2626)
+2026-01-14 14:52:03,970 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ INSERT INTO "sales_lakehouse"."sqlmesh__raw"."raw__sales_data__1933981874" ("salesperson_id", "clientsd_id", "sd_destocke", "date", "sku", "product_name", "unit_price", "qty", "amount", "subregion", "salesperson", "supervisor", "channel", "product_cat", "product_subcat", "unit_weight", "is_innovation", "localisation", "city", "sales_line_id", "filename_subregion") SELECT "salesperson_id", "clientsd_id", "sd_destocke", "date", "sku", "product_name", "unit_price", "qty", "amount", "subregion", "salesperson", "supervisor", "channel", "product_cat", "product_subcat", "unit_weight", "is_innovation", "localisation", "city", "sales_line_id", "filename_subregion" FROM "sales_lakehouse"."sqlmesh__raw"."__temp_raw__sales_data__1933981874_l2bkisee" (base.py:2626)
+2026-01-14 14:52:04,059 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ DROP TABLE IF EXISTS "sales_lakehouse"."sqlmesh__raw"."__temp_raw__sales_data__1933981874_l2bkisee" (base.py:2626)
+2026-01-14 14:52:04,231 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ INSERT INTO "sales_lakehouse"."sqlmesh__raw"."raw__sales_data__1933981874" ("salesperson_id", "clientsd_id", "sd_destocke", "date", "sku", "product_name", "unit_price", "qty", "amount", "subregion", "salesperson", "supervisor", "channel", "product_cat", "product_subcat", "unit_weight", "is_innovation", "localisation", "city", "sales_line_id", "filename_subregion") SELECT "salesperson_id", "clientsd_id", "sd_destocke", "date", "sku", "product_name", "unit_price", "qty", "amount", "subregion", "salesperson", "supervisor", "channel", "product_cat", "product_subcat", "unit_weight", "is_innovation", "localisation", "city", "sales_line_id", "filename_subregion" FROM "sales_lakehouse"."sqlmesh__raw"."__temp_raw__sales_data__1933981874_ttky79tu" (base.py:2626)
+2026-01-14 14:52:04,314 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ DROP TABLE IF EXISTS "sales_lakehouse"."sqlmesh__raw"."__temp_raw__sales_data__1933981874_ttky79tu" (base.py:2626)
+2026-01-14 14:52:04,472 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ INSERT INTO "sales_lakehouse"."sqlmesh__raw"."raw__sales_data__1933981874" ("salesperson_id", "clientsd_id", "sd_destocke", "date", "sku", "product_name", "unit_price", "qty", "amount", "subregion", "salesperson", "supervisor", "channel", "product_cat", "product_subcat", "unit_weight", "is_innovation", "localisation", "city", "sales_line_id", "filename_subregion") SELECT "salesperson_id", "clientsd_id", "sd_destocke", "date", "sku", "product_name", "unit_price", "qty", "amount", "subregion", "salesperson", "supervisor", "channel", "product_cat", "product_subcat", "unit_weight", "is_innovation", "localisation", "city", "sales_line_id", "filename_subregion" FROM "sales_lakehouse"."sqlmesh__raw"."__temp_raw__sales_data__1933981874_7q153q45" (base.py:2626)
+2026-01-14 14:52:04,556 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ DROP TABLE IF EXISTS "sales_lakehouse"."sqlmesh__raw"."__temp_raw__sales_data__1933981874_7q153q45" (base.py:2626)
+2026-01-14 14:52:04,707 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ INSERT INTO "sales_lakehouse"."sqlmesh__raw"."raw__sales_data__1933981874" ("salesperson_id", "clientsd_id", "sd_destocke", "date", "sku", "product_name", "unit_price", "qty", "amount", "subregion", "salesperson", "supervisor", "channel", "product_cat", "product_subcat", "unit_weight", "is_innovation", "localisation", "city", "sales_line_id", "filename_subregion") SELECT "salesperson_id", "clientsd_id", "sd_destocke", "date", "sku", "product_name", "unit_price", "qty", "amount", "subregion", "salesperson", "supervisor", "channel", "product_cat", "product_subcat", "unit_weight", "is_innovation", "localisation", "city", "sales_line_id", "filename_subregion" FROM "sales_lakehouse"."sqlmesh__raw"."__temp_raw__sales_data__1933981874_cj0ihsty" (base.py:2626)
+2026-01-14 14:52:04,804 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ DROP TABLE IF EXISTS "sales_lakehouse"."sqlmesh__raw"."__temp_raw__sales_data__1933981874_cj0ihsty" (base.py:2626)
+2026-01-14 14:52:04,951 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ INSERT INTO "sales_lakehouse"."sqlmesh__raw"."raw__sales_data__1933981874" ("salesperson_id", "clientsd_id", "sd_destocke", "date", "sku", "product_name", "unit_price", "qty", "amount", "subregion", "salesperson", "supervisor", "channel", "product_cat", "product_subcat", "unit_weight", "is_innovation", "localisation", "city", "sales_line_id", "filename_subregion") SELECT "salesperson_id", "clientsd_id", "sd_destocke", "date", "sku", "product_name", "unit_price", "qty", "amount", "subregion", "salesperson", "supervisor", "channel", "product_cat", "product_subcat", "unit_weight", "is_innovation", "localisation", "city", "sales_line_id", "filename_subregion" FROM "sales_lakehouse"."sqlmesh__raw"."__temp_raw__sales_data__1933981874_a4nl8dcg" (base.py:2626)
+2026-01-14 14:52:05,026 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ DROP TABLE IF EXISTS "sales_lakehouse"."sqlmesh__raw"."__temp_raw__sales_data__1933981874_a4nl8dcg" (base.py:2626)
+2026-01-14 14:52:05,150 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ INSERT INTO "sales_lakehouse"."sqlmesh__raw"."raw__sales_data__1933981874" ("salesperson_id", "clientsd_id", "sd_destocke", "date", "sku", "product_name", "unit_price", "qty", "amount", "subregion", "salesperson", "supervisor", "channel", "product_cat", "product_subcat", "unit_weight", "is_innovation", "localisation", "city", "sales_line_id", "filename_subregion") SELECT "salesperson_id", "clientsd_id", "sd_destocke", "date", "sku", "product_name", "unit_price", "qty", "amount", "subregion", "salesperson", "supervisor", "channel", "product_cat", "product_subcat", "unit_weight", "is_innovation", "localisation", "city", "sales_line_id", "filename_subregion" FROM "sales_lakehouse"."sqlmesh__raw"."__temp_raw__sales_data__1933981874_lys3kbup" (base.py:2626)
+2026-01-14 14:52:05,236 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ DROP TABLE IF EXISTS "sales_lakehouse"."sqlmesh__raw"."__temp_raw__sales_data__1933981874_lys3kbup" (base.py:2626)
+2026-01-14 14:52:05,372 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ INSERT INTO "sales_lakehouse"."sqlmesh__raw"."raw__sales_data__1933981874" ("salesperson_id", "clientsd_id", "sd_destocke", "date", "sku", "product_name", "unit_price", "qty", "amount", "subregion", "salesperson", "supervisor", "channel", "product_cat", "product_subcat", "unit_weight", "is_innovation", "localisation", "city", "sales_line_id", "filename_subregion") SELECT "salesperson_id", "clientsd_id", "sd_destocke", "date", "sku", "product_name", "unit_price", "qty", "amount", "subregion", "salesperson", "supervisor", "channel", "product_cat", "product_subcat", "unit_weight", "is_innovation", "localisation", "city", "sales_line_id", "filename_subregion" FROM "sales_lakehouse"."sqlmesh__raw"."__temp_raw__sales_data__1933981874_ixc4atvb" (base.py:2626)
+2026-01-14 14:52:05,449 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ DROP TABLE IF EXISTS "sales_lakehouse"."sqlmesh__raw"."__temp_raw__sales_data__1933981874_ixc4atvb" (base.py:2626)
+2026-01-14 14:52:05,576 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ INSERT INTO "sales_lakehouse"."sqlmesh__raw"."raw__sales_data__1933981874" ("salesperson_id", "clientsd_id", "sd_destocke", "date", "sku", "product_name", "unit_price", "qty", "amount", "subregion", "salesperson", "supervisor", "channel", "product_cat", "product_subcat", "unit_weight", "is_innovation", "localisation", "city", "sales_line_id", "filename_subregion") SELECT "salesperson_id", "clientsd_id", "sd_destocke", "date", "sku", "product_name", "unit_price", "qty", "amount", "subregion", "salesperson", "supervisor", "channel", "product_cat", "product_subcat", "unit_weight", "is_innovation", "localisation", "city", "sales_line_id", "filename_subregion" FROM "sales_lakehouse"."sqlmesh__raw"."__temp_raw__sales_data__1933981874_poj1z1fr" (base.py:2626)
+2026-01-14 14:52:05,660 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ DROP TABLE IF EXISTS "sales_lakehouse"."sqlmesh__raw"."__temp_raw__sales_data__1933981874_poj1z1fr" (base.py:2626)
+2026-01-14 14:52:05,812 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ INSERT INTO "sales_lakehouse"."sqlmesh__raw"."raw__sales_data__1933981874" ("salesperson_id", "clientsd_id", "sd_destocke", "date", "sku", "product_name", "unit_price", "qty", "amount", "subregion", "salesperson", "supervisor", "channel", "product_cat", "product_subcat", "unit_weight", "is_innovation", "localisation", "city", "sales_line_id", "filename_subregion") SELECT "salesperson_id", "clientsd_id", "sd_destocke", "date", "sku", "product_name", "unit_price", "qty", "amount", "subregion", "salesperson", "supervisor", "channel", "product_cat", "product_subcat", "unit_weight", "is_innovation", "localisation", "city", "sales_line_id", "filename_subregion" FROM "sales_lakehouse"."sqlmesh__raw"."__temp_raw__sales_data__1933981874_cowi0did" (base.py:2626)
+2026-01-14 14:52:05,899 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ DROP TABLE IF EXISTS "sales_lakehouse"."sqlmesh__raw"."__temp_raw__sales_data__1933981874_cowi0did" (base.py:2626)
+2026-01-14 14:52:06,043 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ INSERT INTO "sales_lakehouse"."sqlmesh__raw"."raw__sales_data__1933981874" ("salesperson_id", "clientsd_id", "sd_destocke", "date", "sku", "product_name", "unit_price", "qty", "amount", "subregion", "salesperson", "supervisor", "channel", "product_cat", "product_subcat", "unit_weight", "is_innovation", "localisation", "city", "sales_line_id", "filename_subregion") SELECT "salesperson_id", "clientsd_id", "sd_destocke", "date", "sku", "product_name", "unit_price", "qty", "amount", "subregion", "salesperson", "supervisor", "channel", "product_cat", "product_subcat", "unit_weight", "is_innovation", "localisation", "city", "sales_line_id", "filename_subregion" FROM "sales_lakehouse"."sqlmesh__raw"."__temp_raw__sales_data__1933981874_m0rbl26a" (base.py:2626)
+2026-01-14 14:52:06,121 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ DROP TABLE IF EXISTS "sales_lakehouse"."sqlmesh__raw"."__temp_raw__sales_data__1933981874_m0rbl26a" (base.py:2626)
+2026-01-14 14:52:06,269 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ INSERT INTO "sales_lakehouse"."sqlmesh__raw"."raw__sales_data__1933981874" ("salesperson_id", "clientsd_id", "sd_destocke", "date", "sku", "product_name", "unit_price", "qty", "amount", "subregion", "salesperson", "supervisor", "channel", "product_cat", "product_subcat", "unit_weight", "is_innovation", "localisation", "city", "sales_line_id", "filename_subregion") SELECT "salesperson_id", "clientsd_id", "sd_destocke", "date", "sku", "product_name", "unit_price", "qty", "amount", "subregion", "salesperson", "supervisor", "channel", "product_cat", "product_subcat", "unit_weight", "is_innovation", "localisation", "city", "sales_line_id", "filename_subregion" FROM "sales_lakehouse"."sqlmesh__raw"."__temp_raw__sales_data__1933981874_u79mf8mb" (base.py:2626)
+2026-01-14 14:52:06,346 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ DROP TABLE IF EXISTS "sales_lakehouse"."sqlmesh__raw"."__temp_raw__sales_data__1933981874_u79mf8mb" (base.py:2626)
+2026-01-14 14:52:06,468 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ INSERT INTO "sales_lakehouse"."sqlmesh__raw"."raw__sales_data__1933981874" ("salesperson_id", "clientsd_id", "sd_destocke", "date", "sku", "product_name", "unit_price", "qty", "amount", "subregion", "salesperson", "supervisor", "channel", "product_cat", "product_subcat", "unit_weight", "is_innovation", "localisation", "city", "sales_line_id", "filename_subregion") SELECT "salesperson_id", "clientsd_id", "sd_destocke", "date", "sku", "product_name", "unit_price", "qty", "amount", "subregion", "salesperson", "supervisor", "channel", "product_cat", "product_subcat", "unit_weight", "is_innovation", "localisation", "city", "sales_line_id", "filename_subregion" FROM "sales_lakehouse"."sqlmesh__raw"."__temp_raw__sales_data__1933981874_ar17ntw1" (base.py:2626)
+2026-01-14 14:52:06,532 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ DROP TABLE IF EXISTS "sales_lakehouse"."sqlmesh__raw"."__temp_raw__sales_data__1933981874_ar17ntw1" (base.py:2626)
+2026-01-14 14:52:06,544 - MainThread - sqlmesh.core.state_sync.db.facade - INFO - Adding interval (2026-01-13 00:00:00, 2026-01-14 00:00:00) for snapshot SnapshotId<"sales_lakehouse"."raw"."sales_data": 63819142> (facade.py:637)
+2026-01-14 14:52:06,544 - MainThread - sqlmesh.core.state_sync.db.interval - INFO - Pushing intervals for snapshot SnapshotId<"sales_lakehouse"."raw"."sales_data": 63819142> (interval.py:215)
+2026-01-14 14:52:06,567 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Evaluating snapshot SnapshotId<"sales_lakehouse"."raw"."salesteam_data": 4095288380> (evaluator.py:711)
+2026-01-14 14:52:06,568 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Creating table 'sales_lakehouse.sqlmesh__raw.raw__salesteam_data__3905789317' (evaluator.py:2042)
+2026-01-14 14:52:06,568 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-14 14:52:06,595 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT type FROM DUCKDB_DATABASES() WHERE database_name = 'sales_lakehouse' (base.py:2626)
+2026-01-14 14:52:06,599 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ CREATE TABLE IF NOT EXISTS "sales_lakehouse"."sqlmesh__raw"."raw__salesteam_data__3905789317" ("fullname" TEXT, "salesperson_id" TEXT, "region" TEXT, "subregion" TEXT, "channel" TEXT, "supervisor" TEXT, "salesteam_ref_id" TEXT) (base.py:2626)
+2026-01-14 14:52:06,614 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-14 14:52:06,641 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-14 14:52:06,644 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT table_name AS name, table_schema AS schema, CASE table_type WHEN 'BASE TABLE' THEN 'table' WHEN 'VIEW' THEN 'view' WHEN 'LOCAL TEMPORARY' THEN 'table' END AS type FROM system.information_schema.tables WHERE (table_catalog = 'sales_lakehouse' AND table_schema = 'sqlmesh__raw') AND table_name IN ('raw__salesteam_data__3905789317') (base.py:2626)
+2026-01-14 14:52:06,682 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-14 14:52:06,705 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT type FROM DUCKDB_DATABASES() WHERE database_name = 'sales_lakehouse' (base.py:2626)
+2026-01-14 14:52:06,709 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ CREATE OR REPLACE TABLE "sales_lakehouse"."sqlmesh__raw"."raw__salesteam_data__3905789317" AS SELECT CAST("fullname" AS TEXT) AS "fullname", CAST("salesperson_id" AS TEXT) AS "salesperson_id", CAST("region" AS TEXT) AS "region", CAST("subregion" AS TEXT) AS "subregion", CAST("channel" AS TEXT) AS "channel", CAST("supervisor" AS TEXT) AS "supervisor", CAST("salesteam_ref_id" AS TEXT) AS "salesteam_ref_id" FROM (SELECT "fullname", "salesperson_id", "region", "subregion", "channel", "supervisor", "salesteam_ref_id" FROM "sales_lakehouse"."sqlmesh__raw"."__temp_raw__salesteam_data__3905789317_zilzh64q") AS "_subquery" (base.py:2626)
+2026-01-14 14:52:06,752 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ DROP TABLE IF EXISTS "sales_lakehouse"."sqlmesh__raw"."__temp_raw__salesteam_data__3905789317_zilzh64q" (base.py:2626)
+2026-01-14 14:52:06,789 - MainThread - sqlmesh.core.state_sync.db.facade - INFO - Adding interval (2026-01-13 00:00:00, 2026-01-14 00:00:00) for snapshot SnapshotId<"sales_lakehouse"."raw"."salesteam_data": 4095288380> (facade.py:637)
+2026-01-14 14:52:06,789 - MainThread - sqlmesh.core.state_sync.db.interval - INFO - Pushing intervals for snapshot SnapshotId<"sales_lakehouse"."raw"."salesteam_data": 4095288380> (interval.py:215)
+2026-01-14 14:52:06,812 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Evaluating snapshot SnapshotId<"sales_lakehouse"."raw"."targets_data": 3469482582> (evaluator.py:711)
+2026-01-14 14:52:06,813 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Creating table 'sales_lakehouse.sqlmesh__raw.raw__targets_data__2048545939' (evaluator.py:2042)
+2026-01-14 14:52:06,814 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-14 14:52:06,842 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT type FROM DUCKDB_DATABASES() WHERE database_name = 'sales_lakehouse' (base.py:2626)
+2026-01-14 14:52:06,846 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ CREATE TABLE IF NOT EXISTS "sales_lakehouse"."sqlmesh__raw"."raw__targets_data__2048545939" ("month_year" TEXT, "salesperson_id" TEXT, "product_category" TEXT, "target_amount" TEXT, "target_line_id" TEXT) (base.py:2626)
+2026-01-14 14:52:06,873 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-14 14:52:06,899 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-14 14:52:06,903 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT table_name AS name, table_schema AS schema, CASE table_type WHEN 'BASE TABLE' THEN 'table' WHEN 'VIEW' THEN 'view' WHEN 'LOCAL TEMPORARY' THEN 'table' END AS type FROM system.information_schema.tables WHERE (table_catalog = 'sales_lakehouse' AND table_schema = 'sqlmesh__raw') AND table_name IN ('raw__targets_data__2048545939') (base.py:2626)
+2026-01-14 14:52:06,940 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-14 14:52:06,964 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT type FROM DUCKDB_DATABASES() WHERE database_name = 'sales_lakehouse' (base.py:2626)
+2026-01-14 14:52:06,971 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ CREATE OR REPLACE TABLE "sales_lakehouse"."sqlmesh__raw"."raw__targets_data__2048545939" AS SELECT CAST("month_year" AS TEXT) AS "month_year", CAST("salesperson_id" AS TEXT) AS "salesperson_id", CAST("product_category" AS TEXT) AS "product_category", CAST("target_amount" AS TEXT) AS "target_amount", CAST("target_line_id" AS TEXT) AS "target_line_id" FROM (SELECT "month_year", "salesperson_id", "product_category", "target_amount", "target_line_id" FROM "sales_lakehouse"."sqlmesh__raw"."__temp_raw__targets_data__2048545939_4sej486c") AS "_subquery" (base.py:2626)
+2026-01-14 14:52:07,019 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ DROP TABLE IF EXISTS "sales_lakehouse"."sqlmesh__raw"."__temp_raw__targets_data__2048545939_4sej486c" (base.py:2626)
+2026-01-14 14:52:07,052 - MainThread - sqlmesh.core.state_sync.db.facade - INFO - Adding interval (2026-01-13 00:00:00, 2026-01-14 00:00:00) for snapshot SnapshotId<"sales_lakehouse"."raw"."targets_data": 3469482582> (facade.py:637)
+2026-01-14 14:52:07,053 - MainThread - sqlmesh.core.state_sync.db.interval - INFO - Pushing intervals for snapshot SnapshotId<"sales_lakehouse"."raw"."targets_data": 3469482582> (interval.py:215)
+2026-01-14 14:52:07,077 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Creating a physical table for snapshot SnapshotId<"sales_lakehouse"."staging"."stg_sales_data": 748854977> (evaluator.py:870)
+2026-01-14 14:52:07,114 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Creating table 'sales_lakehouse.sqlmesh__staging.staging__stg_sales_data__1630069071' (evaluator.py:2042)
+2026-01-14 14:52:07,115 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-14 14:52:07,144 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT type FROM DUCKDB_DATABASES() WHERE database_name = 'sales_lakehouse' (base.py:2626)
+2026-01-14 14:52:07,151 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ CREATE TABLE IF NOT EXISTS "sales_lakehouse"."sqlmesh__staging"."staging__stg_sales_data__1630069071" AS SELECT "sales_line_id" AS "sales_line_id", TRY_CAST("date" AS DATE) AS "sale_date", TRIM(UPPER("sku")) AS "sku", TRIM("product_name") AS "product_name", TRIM("product_cat") AS "product_category", TRIM("product_subcat") AS "product_subcategory", TRY_CAST(NULLIF(TRIM("qty"), '') AS DECIMAL(10, 2)) AS "quantity", TRY_CAST(NULLIF(TRIM("unit_price"), '') AS INT) AS "unit_price", TRY_CAST(NULLIF(TRIM("amount"), '') AS DECIMAL(12, 2)) AS "sales_amount", TRY_CAST(NULLIF(TRIM("unit_weight"), '') AS DECIMAL(10, 2)) AS "unit_weight_kg", TRIM("salesperson_id") AS "salesperson_id", TRIM("salesperson") AS "salesperson_name", TRIM("supervisor") AS "supervisor_name", TRIM("channel") AS "sales_channel", TRIM("clientsd_id") AS "client_id", TRIM("sd_destocke") AS "sd_destocked", TRIM("region") AS "region", TRIM("subregion") AS "subregion", TRIM("city") AS "city", TRIM("localisation") AS "location", TRIM("filename_subregion") AS "filename_subregion", CASE WHEN LOWER(TRIM("is_innovation")) IN ('true', 'yes', '1', 'oui') THEN TRUE ELSE FALSE END AS "is_innovation_product" FROM "sales_lakehouse"."sqlmesh__raw"."raw__sales_data__1933981874" AS "sales_data" WHERE (NOT TRY_CAST("date" AS DATE) IS NULL AND TRY_CAST("date" AS DATE) >= CAST('1970-01-01' AS DATE) AND TRY_CAST("date" AS DATE) < CAST('1970-01-01' AS DATE) AND NOT TRIM("sku") IS NULL AND TRIM("sku") <> '') AND FALSE LIMIT 0 (base.py:2626)
+2026-01-14 14:52:07,171 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Evaluating snapshot SnapshotId<"sales_lakehouse"."staging"."stg_clientsd_data": 3439117413> (evaluator.py:711)
+2026-01-14 14:52:07,172 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Inserting data for snapshot SnapshotId<"sales_lakehouse"."staging"."stg_clientsd_data": 3439117413> (evaluator.py:952)
+2026-01-14 14:52:07,182 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Inserting batch (2026-01-13 00:00:00, 2026-01-14 00:00:00) into sales_lakehouse.sqlmesh__staging.staging__stg_clientsd_data__1220349468__dev' (evaluator.py:984)
+2026-01-14 14:52:07,184 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-14 14:52:07,188 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT type FROM DUCKDB_DATABASES() WHERE database_name = 'sales_lakehouse' (base.py:2626)
+2026-01-14 14:52:07,194 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ CREATE OR REPLACE TABLE "sales_lakehouse"."sqlmesh__staging"."staging__stg_clientsd_data__1220349468__dev" AS SELECT CAST("client_sd_ref_id" AS TEXT) AS "client_sd_ref_id", CAST("sd_id" AS TEXT) AS "sd_id", CAST("sd_name" AS TEXT) AS "sd_name", CAST("region" AS TEXT) AS "region", CAST("subregion" AS TEXT) AS "subregion", CAST("city" AS TEXT) AS "city", CAST("key_player_type" AS TEXT) AS "key_player_type", CAST("phone_number" AS TEXT) AS "phone_number", CAST("is_destocked" AS BOOLEAN) AS "is_destocked" FROM (SELECT "clientsd_data"."client_sd_ref_id" AS "client_sd_ref_id", TRIM("clientsd_data"."sd_id") AS "sd_id", TRIM("clientsd_data"."sd_name") AS "sd_name", TRIM("clientsd_data"."region") AS "region", TRIM("clientsd_data"."subregion") AS "subregion", TRIM("clientsd_data"."city") AS "city", TRIM("clientsd_data"."kp") AS "key_player_type", TRIM("clientsd_data"."phone") AS "phone_number", CASE WHEN LOWER(TRIM("clientsd_data"."is_destocked")) IN ('true', 'yes', '1', 'oui') THEN TRUE ELSE FALSE END AS "is_destocked" FROM "sales_lakehouse"."sqlmesh__raw"."raw__clientsd_data__1402190618" AS "clientsd_data" WHERE NOT TRIM("clientsd_data"."sd_id") IS NULL AND TRIM("clientsd_data"."sd_id") <> '') AS "_subquery" (base.py:2626)
+2026-01-14 14:52:07,233 - MainThread - sqlmesh.core.state_sync.db.facade - INFO - Adding dev interval (2026-01-13 00:00:00, 2026-01-14 00:00:00) for snapshot SnapshotId<"sales_lakehouse"."staging"."stg_clientsd_data": 3439117413> (facade.py:637)
+2026-01-14 14:52:07,233 - MainThread - sqlmesh.core.state_sync.db.interval - INFO - Pushing intervals for snapshot SnapshotId<"sales_lakehouse"."staging"."stg_clientsd_data": 3439117413> (interval.py:215)
+2026-01-14 14:52:07,256 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Evaluating snapshot SnapshotId<"sales_lakehouse"."staging"."stg_products_data": 346333947> (evaluator.py:711)
+2026-01-14 14:52:07,257 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Inserting data for snapshot SnapshotId<"sales_lakehouse"."staging"."stg_products_data": 346333947> (evaluator.py:952)
+2026-01-14 14:52:07,265 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Inserting batch (2026-01-13 00:00:00, 2026-01-14 00:00:00) into sales_lakehouse.sqlmesh__staging.staging__stg_products_data__3296088006__dev' (evaluator.py:984)
+2026-01-14 14:52:07,266 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ DESCRIBE "sales_lakehouse"."sqlmesh__staging"."staging__stg_products_data__3296088006__dev" (base.py:2626)
+2026-01-14 14:52:07,296 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-14 14:52:07,302 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT type FROM DUCKDB_DATABASES() WHERE database_name = 'sales_lakehouse' (base.py:2626)
+2026-01-14 14:52:07,307 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ CREATE OR REPLACE TABLE "sales_lakehouse"."sqlmesh__staging"."staging__stg_products_data__3296088006__dev" AS SELECT "product_ref_id" AS "product_ref_id", TRIM(UPPER("sku")) AS "sku", TRIM("product_name") AS "product_name", TRIM("product_category") AS "product_category", TRIM("product_subcategory") AS "product_subcategory", TRY_CAST(NULLIF("unit_price", "") AS INT) AS "unit_price", TRY_CAST(NULLIF("unit_weight", "") AS DECIMAL(10, 2)) AS "unit_weight_kg", CASE WHEN LOWER(TRIM("is_innovation")) IN ('true', 'yes', '1', 'oui') THEN TRUE ELSE FALSE END AS "is_innovation_product" FROM "sales_lakehouse"."sqlmesh__raw"."raw__products_data__377788166" AS "products_data" WHERE NOT TRIM("sku") IS NULL AND TRIM("sku") <> '' (base.py:2626)
+2026-01-14 14:52:07,310 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Evaluating snapshot SnapshotId<"sales_lakehouse"."staging"."stg_salesteam_data": 769081588> (evaluator.py:711)
+2026-01-14 14:52:07,310 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Inserting data for snapshot SnapshotId<"sales_lakehouse"."staging"."stg_salesteam_data": 769081588> (evaluator.py:952)
+2026-01-14 14:52:07,318 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Inserting batch (2026-01-13 00:00:00, 2026-01-14 00:00:00) into sales_lakehouse.sqlmesh__staging.staging__stg_salesteam_data__3527212438__dev' (evaluator.py:984)
+2026-01-14 14:52:07,320 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-14 14:52:07,324 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT type FROM DUCKDB_DATABASES() WHERE database_name = 'sales_lakehouse' (base.py:2626)
+2026-01-14 14:52:07,328 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ CREATE OR REPLACE TABLE "sales_lakehouse"."sqlmesh__staging"."staging__stg_salesteam_data__3527212438__dev" AS SELECT CAST("salesteam_ref_id" AS TEXT) AS "salesteam_ref_id", CAST("salesperson_id" AS TEXT) AS "salesperson_id", CAST("salesperson_name" AS TEXT) AS "salesperson_name", CAST("region" AS TEXT) AS "region", CAST("subregion" AS TEXT) AS "subregion", CAST("sales_channel" AS TEXT) AS "sales_channel", CAST("supervisor_name" AS TEXT) AS "supervisor_name" FROM (SELECT "salesteam_data"."salesteam_ref_id" AS "salesteam_ref_id", TRIM("salesteam_data"."salesperson_id") AS "salesperson_id", TRIM("salesteam_data"."fullname") AS "salesperson_name", TRIM("salesteam_data"."region") AS "region", TRIM("salesteam_data"."subregion") AS "subregion", TRIM("salesteam_data"."channel") AS "sales_channel", TRIM("salesteam_data"."supervisor") AS "supervisor_name" FROM "sales_lakehouse"."sqlmesh__raw"."raw__salesteam_data__3905789317" AS "salesteam_data" WHERE NOT TRIM("salesteam_data"."salesperson_id") IS NULL) AS "_subquery" (base.py:2626)
+2026-01-14 14:52:07,362 - MainThread - sqlmesh.core.state_sync.db.facade - INFO - Adding dev interval (2026-01-13 00:00:00, 2026-01-14 00:00:00) for snapshot SnapshotId<"sales_lakehouse"."staging"."stg_salesteam_data": 769081588> (facade.py:637)
+2026-01-14 14:52:07,363 - MainThread - sqlmesh.core.state_sync.db.interval - INFO - Pushing intervals for snapshot SnapshotId<"sales_lakehouse"."staging"."stg_salesteam_data": 769081588> (interval.py:215)
+2026-01-14 14:52:07,388 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Evaluating snapshot SnapshotId<"sales_lakehouse"."staging"."stg_targets_data": 919452182> (evaluator.py:711)
+2026-01-14 14:52:07,389 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Inserting data for snapshot SnapshotId<"sales_lakehouse"."staging"."stg_targets_data": 919452182> (evaluator.py:952)
+2026-01-14 14:52:07,396 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Inserting batch (2026-01-13 00:00:00, 2026-01-14 00:00:00) into sales_lakehouse.sqlmesh__staging.staging__stg_targets_data__1155525254__dev' (evaluator.py:984)
+2026-01-14 14:52:07,398 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-14 14:52:07,428 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT type FROM DUCKDB_DATABASES() WHERE database_name = 'sales_lakehouse' (base.py:2626)
+2026-01-14 14:52:07,435 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ CREATE OR REPLACE TABLE "sales_lakehouse"."sqlmesh__staging"."staging__stg_targets_data__1155525254__dev" AS SELECT CAST("target_line_id" AS TEXT) AS "target_line_id", CAST("target_month" AS DATE) AS "target_month", CAST("salesperson_id" AS TEXT) AS "salesperson_id", CAST("product_category" AS TEXT) AS "product_category", CAST("target_amount" AS DECIMAL(12, 2)) AS "target_amount" FROM (SELECT "targets_data"."target_line_id" AS "target_line_id", TRY_CAST("targets_data"."month_year" AS DATE) AS "target_month", TRIM("targets_data"."salesperson_id") AS "salesperson_id", TRIM("targets_data"."product_category") AS "product_category", TRY_CAST(NULLIF(TRIM("targets_data"."target_amount"), '') AS DECIMAL(12, 2)) AS "target_amount" FROM "sales_lakehouse"."sqlmesh__raw"."raw__targets_data__2048545939" AS "targets_data" WHERE NOT TRIM("targets_data"."product_category") IS NULL AND NOT TRIM("targets_data"."salesperson_id") IS NULL) AS "_subquery" (base.py:2626)
+2026-01-14 14:52:07,487 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ COMMENT ON COLUMN "sales_lakehouse"."sqlmesh__staging"."staging__stg_targets_data__1155525254__dev"."target_month" IS 'Parse month_year (format: YYYY-MM-01)' (base.py:2626)
+2026-01-14 14:52:07,523 - MainThread - sqlmesh.core.state_sync.db.facade - INFO - Adding dev interval (2026-01-13 00:00:00, 2026-01-14 00:00:00) for snapshot SnapshotId<"sales_lakehouse"."staging"."stg_targets_data": 919452182> (facade.py:637)
+2026-01-14 14:52:07,523 - MainThread - sqlmesh.core.state_sync.db.interval - INFO - Pushing intervals for snapshot SnapshotId<"sales_lakehouse"."staging"."stg_targets_data": 919452182> (interval.py:215)
+2026-01-14 14:52:07,547 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Evaluating snapshot SnapshotId<"sales_lakehouse"."marts"."dim_clientsd": 121085605> (evaluator.py:711)
+2026-01-14 14:52:07,558 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Creating table 'sales_lakehouse.sqlmesh__marts.marts__dim_clientsd__2869353902__dev' (evaluator.py:2042)
+2026-01-14 14:52:07,558 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-14 14:52:07,647 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT type FROM DUCKDB_DATABASES() WHERE database_name = 'sales_lakehouse' (base.py:2626)
+2026-01-14 14:52:07,663 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ CREATE TABLE IF NOT EXISTS "sales_lakehouse"."sqlmesh__marts"."marts__dim_clientsd__2869353902__dev" AS WITH "clients_with_versions" AS (SELECT "sd_id", "sd_name", "region", "subregion", "city", "key_partner_type", "phone_number", "is_destocked" FROM "sales_lakehouse"."sqlmesh__staging"."staging__stg_clientsd_data__1220349468__dev" AS "stg_clientsd_data" WHERE FALSE) SELECT ROW_NUMBER() OVER (ORDER BY "sd_id", CURRENT_TIMESTAMP) AS "client_key", "sd_id" AS "sd_id", "sd_name" AS "sd_name", "region" AS "region", "subregion" AS "subregion", "city" AS "city", "key_partner_type" AS "key_partner_type", "phone_number" AS "phone_number", "is_destocked" AS "is_destocked", CAST(NULL AS TIMESTAMP) AS "valid_from", CAST(NULL AS TIMESTAMP) AS "valid_to" FROM "clients_with_versions" AS "clients_with_versions" WHERE FALSE LIMIT 0 (base.py:2626)
+2026-01-14 14:52:07,670 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Evaluating snapshot SnapshotId<"sales_lakehouse"."marts"."dim_salesperson": 444400756> (evaluator.py:711)
+2026-01-14 14:52:07,684 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Creating table 'sales_lakehouse.sqlmesh__marts.marts__dim_salesperson__1049679837__dev' (evaluator.py:2042)
+2026-01-14 14:52:07,685 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-14 14:52:07,689 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT type FROM DUCKDB_DATABASES() WHERE database_name = 'sales_lakehouse' (base.py:2626)
+2026-01-14 14:52:07,694 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ CREATE TABLE IF NOT EXISTS "sales_lakehouse"."sqlmesh__marts"."marts__dim_salesperson__1049679837__dev" AS WITH "salespersons_with_versions" AS (SELECT "stg_salesteam_data"."salesperson_id" AS "salesperson_id", "stg_salesteam_data"."salesperson_name" AS "salesperson_name", "stg_salesteam_data"."region" AS "region", "stg_salesteam_data"."subregion" AS "subregion", "stg_salesteam_data"."sales_channel" AS "sales_channel", "stg_salesteam_data"."supervisor_name" AS "supervisor_name" FROM "sales_lakehouse"."sqlmesh__staging"."staging__stg_salesteam_data__3527212438__dev" AS "stg_salesteam_data" WHERE FALSE) SELECT ROW_NUMBER() OVER (ORDER BY "salespersons_with_versions"."salesperson_id", CURRENT_TIMESTAMP) AS "salesperson_key", "salespersons_with_versions"."salesperson_id" AS "salesperson_id", "salespersons_with_versions"."salesperson_name" AS "salesperson_name", "salespersons_with_versions"."region" AS "region", "salespersons_with_versions"."subregion" AS "subregion", "salespersons_with_versions"."sales_channel" AS "sales_channel", "salespersons_with_versions"."supervisor_name" AS "supervisor_name", CAST(NULL AS TIMESTAMP) AS "valid_from", CAST(NULL AS TIMESTAMP) AS "valid_to" FROM "salespersons_with_versions" AS "salespersons_with_versions" WHERE FALSE LIMIT 0 (base.py:2626)
+2026-01-14 14:52:07,710 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Inserting data for snapshot SnapshotId<"sales_lakehouse"."marts"."dim_salesperson": 444400756> (evaluator.py:952)
+2026-01-14 14:52:07,722 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Inserting batch (2026-01-13 00:00:00, 2026-01-14 00:00:00) into sales_lakehouse.sqlmesh__marts.marts__dim_salesperson__1049679837__dev' (evaluator.py:984)
+2026-01-14 14:52:07,722 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ DESCRIBE "sales_lakehouse"."sqlmesh__marts"."marts__dim_salesperson__1049679837__dev" (base.py:2626)
+2026-01-14 14:52:07,788 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-14 14:52:07,791 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-14 14:52:07,794 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT table_name AS name, table_schema AS schema, CASE table_type WHEN 'BASE TABLE' THEN 'table' WHEN 'VIEW' THEN 'view' WHEN 'LOCAL TEMPORARY' THEN 'table' END AS type FROM system.information_schema.tables WHERE (table_catalog = 'sales_lakehouse' AND table_schema = 'sqlmesh__marts') AND table_name IN ('marts__dim_salesperson__1049679837__dev') (base.py:2626)
+2026-01-14 14:52:07,807 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-14 14:52:07,810 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT type FROM DUCKDB_DATABASES() WHERE database_name = 'sales_lakehouse' (base.py:2626)
+2026-01-14 14:52:07,815 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ CREATE TABLE IF NOT EXISTS "sales_lakehouse"."sqlmesh__marts"."marts__dim_salesperson__1049679837__dev" ("salesperson_key" BIGINT, "salesperson_id" TEXT, "salesperson_name" TEXT, "region" TEXT, "subregion" TEXT, "sales_channel" TEXT, "supervisor_name" TEXT, "valid_from" TIMESTAMP, "valid_to" TIMESTAMP) (base.py:2626)
+2026-01-14 14:52:07,819 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ COMMENT ON COLUMN "sales_lakehouse"."sqlmesh__marts"."marts__dim_salesperson__1049679837__dev"."salesperson_key" IS 'Surrogate key - Integer for Power BI relationships' (base.py:2626)
+2026-01-14 14:52:07,830 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ COMMENT ON COLUMN "sales_lakehouse"."sqlmesh__marts"."marts__dim_salesperson__1049679837__dev"."salesperson_id" IS 'Natural key (business key)' (base.py:2626)
+2026-01-14 14:52:07,870 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ COMMENT ON COLUMN "sales_lakehouse"."sqlmesh__marts"."marts__dim_salesperson__1049679837__dev"."salesperson_name" IS 'Salesperson attributes' (base.py:2626)
+2026-01-14 14:52:07,911 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-14 14:52:07,943 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT type FROM DUCKDB_DATABASES() WHERE database_name = 'sales_lakehouse' (base.py:2626)
+2026-01-14 14:52:07,961 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ CREATE OR REPLACE TABLE "sales_lakehouse"."sqlmesh__marts"."marts__dim_salesperson__1049679837__dev" AS WITH "source" AS (SELECT DISTINCT ON ("salesperson_id") TRUE AS "_exists", "salesperson_key", "salesperson_id", "salesperson_name", "region", "subregion", "sales_channel", "supervisor_name" FROM (WITH "salespersons_with_versions" AS (SELECT "stg_salesteam_data"."salesperson_id" AS "salesperson_id", "stg_salesteam_data"."salesperson_name" AS "salesperson_name", "stg_salesteam_data"."region" AS "region", "stg_salesteam_data"."subregion" AS "subregion", "stg_salesteam_data"."sales_channel" AS "sales_channel", "stg_salesteam_data"."supervisor_name" AS "supervisor_name" FROM "sales_lakehouse"."sqlmesh__staging"."staging__stg_salesteam_data__3527212438__dev" AS "stg_salesteam_data") SELECT ROW_NUMBER() OVER (ORDER BY "salespersons_with_versions"."salesperson_id", CURRENT_TIMESTAMP) AS "salesperson_key", "salespersons_with_versions"."salesperson_id" AS "salesperson_id", "salespersons_with_versions"."salesperson_name" AS "salesperson_name", "salespersons_with_versions"."region" AS "region", "salespersons_with_versions"."subregion" AS "subregion", "salespersons_with_versions"."sales_channel" AS "sales_channel", "salespersons_with_versions"."supervisor_name" AS "supervisor_name" FROM "salespersons_with_versions" AS "salespersons_with_versions") AS "raw_source"), "static" AS (SELECT "salesperson_key", "salesperson_id", "salesperson_name", "region", "subregion", "sales_channel", "supervisor_name", "valid_from", "valid_to", TRUE AS "_exists" FROM "sales_lakehouse"."sqlmesh__marts"."marts__dim_salesperson__1049679837__dev" WHERE NOT "valid_to" IS NULL LIMIT 0), "latest" AS (SELECT "salesperson_key", "salesperson_id", "salesperson_name", "region", "subregion", "sales_channel", "supervisor_name", "valid_from", "valid_to", TRUE AS "_exists" FROM "sales_lakehouse"."sqlmesh__marts"."marts__dim_salesperson__1049679837__dev" WHERE "valid_to" IS NULL LIMIT 0), "deleted" AS (SELECT "static"."salesperson_key", "static"."salesperson_id", "static"."salesperson_name", "static"."region", "static"."subregion", "static"."sales_channel", "static"."supervisor_name", "static"."valid_from", "static"."valid_to" FROM "static" LEFT JOIN "latest" ON "static"."salesperson_id" = "latest"."salesperson_id" WHERE "latest"."valid_to" IS NULL), "latest_deleted" AS (SELECT TRUE AS "_exists", "salesperson_id" AS "_key0", MAX("valid_to") AS "valid_to" FROM "deleted" GROUP BY "salesperson_id"), "joined" AS (SELECT "source"."_exists" AS "_exists", "latest"."salesperson_key" AS "t_salesperson_key", "latest"."salesperson_id" AS "t_salesperson_id", "latest"."salesperson_name" AS "t_salesperson_name", "latest"."region" AS "t_region", "latest"."subregion" AS "t_subregion", "latest"."sales_channel" AS "t_sales_channel", "latest"."supervisor_name" AS "t_supervisor_name", "latest"."valid_from" AS "t_valid_from", "latest"."valid_to" AS "t_valid_to", "source"."salesperson_key" AS "salesperson_key", "source"."salesperson_id" AS "salesperson_id", "source"."salesperson_name" AS "salesperson_name", "source"."region" AS "region", "source"."subregion" AS "subregion", "source"."sales_channel" AS "sales_channel", "source"."supervisor_name" AS "supervisor_name" FROM "latest" LEFT JOIN "source" ON "latest"."salesperson_id" = "source"."salesperson_id" UNION ALL SELECT "source"."_exists" AS "_exists", "latest"."salesperson_key" AS "t_salesperson_key", "latest"."salesperson_id" AS "t_salesperson_id", "latest"."salesperson_name" AS "t_salesperson_name", "latest"."region" AS "t_region", "latest"."subregion" AS "t_subregion", "latest"."sales_channel" AS "t_sales_channel", "latest"."supervisor_name" AS "t_supervisor_name", "latest"."valid_from" AS "t_valid_from", "latest"."valid_to" AS "t_valid_to", "source"."salesperson_key" AS "salesperson_key", "source"."salesperson_id" AS "salesperson_id", "source"."salesperson_name" AS "salesperson_name", "source"."region" AS "region", "source"."subregion" AS "subregion", "source"."sales_channel" AS "sales_channel", "source"."supervisor_name" AS "supervisor_name" FROM "latest" RIGHT JOIN "source" ON "latest"."salesperson_id" = "source"."salesperson_id" WHERE "latest"."_exists" IS NULL), "updated_rows" AS (SELECT COALESCE("joined"."t_salesperson_key", "joined"."salesperson_key") AS "salesperson_key", COALESCE("joined"."t_salesperson_id", "joined"."salesperson_id") AS "salesperson_id", COALESCE("joined"."t_salesperson_name", "joined"."salesperson_name") AS "salesperson_name", COALESCE("joined"."t_region", "joined"."region") AS "region", COALESCE("joined"."t_subregion", "joined"."subregion") AS "subregion", COALESCE("joined"."t_sales_channel", "joined"."sales_channel") AS "sales_channel", COALESCE("joined"."t_supervisor_name", "joined"."supervisor_name") AS "supervisor_name", COALESCE("t_valid_from", CAST('1970-01-01 00:00:00' AS TIMESTAMP)) AS "valid_from", CASE WHEN (NOT "joined"."t_salesperson_id" IS NULL AND NOT "joined"."salesperson_id" IS NULL) AND ("joined"."region" <> "joined"."t_region" OR ("joined"."t_region" IS NULL AND NOT "joined"."region" IS NULL) OR (NOT "joined"."t_region" IS NULL AND "joined"."region" IS NULL) OR "joined"."subregion" <> "joined"."t_subregion" OR ("joined"."t_subregion" IS NULL AND NOT "joined"."subregion" IS NULL) OR (NOT "joined"."t_subregion" IS NULL AND "joined"."subregion" IS NULL) OR "joined"."sales_channel" <> "joined"."t_sales_channel" OR ("joined"."t_sales_channel" IS NULL AND NOT "joined"."sales_channel" IS NULL) OR (NOT "joined"."t_sales_channel" IS NULL AND "joined"."sales_channel" IS NULL) OR "joined"."supervisor_name" <> "joined"."t_supervisor_name" OR ("joined"."t_supervisor_name" IS NULL AND NOT "joined"."supervisor_name" IS NULL) OR (NOT "joined"."t_supervisor_name" IS NULL AND "joined"."supervisor_name" IS NULL)) THEN CAST('2026-01-14 13:51:00' AS TIMESTAMP) ELSE "t_valid_to" END AS "valid_to" FROM "joined" LEFT JOIN "latest_deleted" ON "joined"."salesperson_id" = "latest_deleted"."_key0"), "inserted_rows" AS (SELECT "salesperson_key", "salesperson_id", "salesperson_name", "region", "subregion", "sales_channel", "supervisor_name", CAST('2026-01-14 13:51:00' AS TIMESTAMP) AS "valid_from", CAST(NULL AS TIMESTAMP) AS "valid_to" FROM "joined" WHERE (NOT "joined"."t_salesperson_id" IS NULL AND NOT "joined"."salesperson_id" IS NULL) AND ("joined"."region" <> "joined"."t_region" OR ("joined"."t_region" IS NULL AND NOT "joined"."region" IS NULL) OR (NOT "joined"."t_region" IS NULL AND "joined"."region" IS NULL) OR "joined"."subregion" <> "joined"."t_subregion" OR ("joined"."t_subregion" IS NULL AND NOT "joined"."subregion" IS NULL) OR (NOT "joined"."t_subregion" IS NULL AND "joined"."subregion" IS NULL) OR "joined"."sales_channel" <> "joined"."t_sales_channel" OR ("joined"."t_sales_channel" IS NULL AND NOT "joined"."sales_channel" IS NULL) OR (NOT "joined"."t_sales_channel" IS NULL AND "joined"."sales_channel" IS NULL) OR "joined"."supervisor_name" <> "joined"."t_supervisor_name" OR ("joined"."t_supervisor_name" IS NULL AND NOT "joined"."supervisor_name" IS NULL) OR (NOT "joined"."t_supervisor_name" IS NULL AND "joined"."supervisor_name" IS NULL))) SELECT CAST("salesperson_key" AS BIGINT) AS "salesperson_key", CAST("salesperson_id" AS TEXT) AS "salesperson_id", CAST("salesperson_name" AS TEXT) AS "salesperson_name", CAST("region" AS TEXT) AS "region", CAST("subregion" AS TEXT) AS "subregion", CAST("sales_channel" AS TEXT) AS "sales_channel", CAST("supervisor_name" AS TEXT) AS "supervisor_name", CAST("valid_from" AS TIMESTAMP) AS "valid_from", CAST("valid_to" AS TIMESTAMP) AS "valid_to" FROM (SELECT "salesperson_key", "salesperson_id", "salesperson_name", "region", "subregion", "sales_channel", "supervisor_name", "valid_from", "valid_to" FROM "static" UNION ALL SELECT "salesperson_key", "salesperson_id", "salesperson_name", "region", "subregion", "sales_channel", "supervisor_name", "valid_from", "valid_to" FROM "updated_rows" UNION ALL SELECT "salesperson_key", "salesperson_id", "salesperson_name", "region", "subregion", "sales_channel", "supervisor_name", "valid_from", "valid_to" FROM "inserted_rows") AS "_subquery" (base.py:2626)
+2026-01-14 14:52:08,054 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ COMMENT ON COLUMN "sales_lakehouse"."sqlmesh__marts"."marts__dim_salesperson__1049679837__dev"."salesperson_key" IS 'Surrogate key - Integer for Power BI relationships' (base.py:2626)
+2026-01-14 14:52:08,092 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ COMMENT ON COLUMN "sales_lakehouse"."sqlmesh__marts"."marts__dim_salesperson__1049679837__dev"."salesperson_id" IS 'Natural key (business key)' (base.py:2626)
+2026-01-14 14:52:08,130 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ COMMENT ON COLUMN "sales_lakehouse"."sqlmesh__marts"."marts__dim_salesperson__1049679837__dev"."salesperson_name" IS 'Salesperson attributes' (base.py:2626)
+2026-01-14 14:52:08,167 - MainThread - sqlmesh.core.state_sync.db.facade - INFO - Adding dev interval (2026-01-13 00:00:00, 2026-01-14 00:00:00) for snapshot SnapshotId<"sales_lakehouse"."marts"."dim_salesperson": 444400756> (facade.py:637)
+2026-01-14 14:52:08,167 - MainThread - sqlmesh.core.state_sync.db.interval - INFO - Pushing intervals for snapshot SnapshotId<"sales_lakehouse"."marts"."dim_salesperson": 444400756> (interval.py:215)
+2026-01-14 14:52:08,189 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Evaluating snapshot SnapshotId<"sales_lakehouse"."marts"."fact_targets": 730198768> (evaluator.py:711)
+2026-01-14 14:52:08,190 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Inserting data for snapshot SnapshotId<"sales_lakehouse"."marts"."fact_targets": 730198768> (evaluator.py:952)
+2026-01-14 14:52:08,214 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Inserting batch (2026-01-13 00:00:00, 2026-01-14 00:00:00) into sales_lakehouse.sqlmesh__marts.marts__fact_targets__3818688260__dev' (evaluator.py:984)
+2026-01-14 14:52:08,221 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-14 14:52:08,247 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ SELECT type FROM DUCKDB_DATABASES() WHERE database_name = 'sales_lakehouse' (base.py:2626)
+2026-01-14 14:52:08,255 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ CREATE OR REPLACE TABLE "sales_lakehouse"."sqlmesh__marts"."marts__fact_targets__3818688260__dev" AS SELECT CAST("target_line_id" AS TEXT) AS "target_line_id", CAST("date_key" AS INT) AS "date_key", CAST("target_month" AS DATE) AS "target_month", CAST("target_year" AS INT) AS "target_year", CAST("target_month_num" AS INT) AS "target_month_num", CAST("salesperson_id" AS TEXT) AS "salesperson_id", CAST("salesperson_name" AS TEXT) AS "salesperson_name", CAST("region" AS TEXT) AS "region", CAST("subregion" AS TEXT) AS "subregion", CAST("sales_channel" AS TEXT) AS "sales_channel", CAST("supervisor_name" AS TEXT) AS "supervisor_name", CAST("product_category" AS TEXT) AS "product_category", CAST("target_amount" AS DECIMAL(12, 2)) AS "target_amount" FROM (SELECT "t"."target_line_id" AS "target_line_id", CAST(STRFTIME("t"."target_month", '%Y%m%d') AS INT) AS "date_key", "t"."target_month" AS "target_month", EXTRACT(YEAR FROM "t"."target_month") AS "target_year", EXTRACT(MONTH FROM "t"."target_month") AS "target_month_num", "t"."salesperson_id" AS "salesperson_id", "sp"."salesperson_name" AS "salesperson_name", "sp"."region" AS "region", "sp"."subregion" AS "subregion", "sp"."sales_channel" AS "sales_channel", "sp"."supervisor_name" AS "supervisor_name", "t"."product_category" AS "product_category", "t"."target_amount" AS "target_amount" FROM "sales_lakehouse"."sqlmesh__staging"."staging__stg_targets_data__1155525254__dev" AS "t" LEFT JOIN "sales_lakehouse"."sqlmesh__marts"."marts__dim_salesperson__1049679837__dev" AS "sp" ON "sp"."salesperson_id" = "t"."salesperson_id" AND "sp"."valid_from" <= "t"."target_month" AND ("sp"."valid_to" > "t"."target_month" OR "sp"."valid_to" IS NULL)) AS "_subquery" (base.py:2626)
+2026-01-14 14:52:08,325 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ ALTER TABLE "sales_lakehouse"."sqlmesh__marts"."marts__fact_targets__3818688260__dev" SET PARTITIONED BY ("target_year"); (base.py:2626)
+2026-01-14 14:52:08,381 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ COMMENT ON COLUMN "sales_lakehouse"."sqlmesh__marts"."marts__fact_targets__3818688260__dev"."date_key" IS 'Date dimension FK' (base.py:2626)
+2026-01-14 14:52:08,417 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ COMMENT ON COLUMN "sales_lakehouse"."sqlmesh__marts"."marts__fact_targets__3818688260__dev"."salesperson_id" IS 'Salesperson dimension FK (join to version valid at target month)' (base.py:2626)
+2026-01-14 14:52:08,450 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ COMMENT ON COLUMN "sales_lakehouse"."sqlmesh__marts"."marts__fact_targets__3818688260__dev"."product_category" IS 'Product category' (base.py:2626)
+2026-01-14 14:52:08,483 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 030743a9d53e40e18ef9b71ffcee28da */ COMMENT ON COLUMN "sales_lakehouse"."sqlmesh__marts"."marts__fact_targets__3818688260__dev"."target_amount" IS 'MEASURES' (base.py:2626)
+2026-01-14 14:52:08,518 - MainThread - sqlmesh.core.state_sync.db.facade - INFO - Adding dev interval (2026-01-13 00:00:00, 2026-01-14 00:00:00) for snapshot SnapshotId<"sales_lakehouse"."marts"."fact_targets": 730198768> (facade.py:637)
+2026-01-14 14:52:08,518 - MainThread - sqlmesh.core.state_sync.db.interval - INFO - Pushing intervals for snapshot SnapshotId<"sales_lakehouse"."marts"."fact_targets": 730198768> (interval.py:215)
+2026-01-14 14:52:08,548 - MainThread - sqlmesh.core.scheduler - INFO - SKIPPED snapshot "sales_lakehouse"."reports"."rep_weekly_meeting"
+ (scheduler.py:613)
+2026-01-14 14:52:08,548 - MainThread - sqlmesh.core.scheduler - INFO - SKIPPED snapshot "sales_lakehouse"."marts"."fact_sales"
+ (scheduler.py:613)
+2026-01-14 14:52:08,548 - MainThread - sqlmesh.core.scheduler - INFO - SKIPPED snapshot "sales_lakehouse"."marts"."dim_products"
+ (scheduler.py:613)
+2026-01-14 14:52:08,548 - MainThread - sqlmesh.core.scheduler - INFO - SKIPPED snapshot "sales_lakehouse"."staging"."stg_sales_data"
+ (scheduler.py:613)
+2026-01-14 14:52:08,548 - MainThread - sqlmesh.core.scheduler - INFO - SKIPPED snapshot "sales_lakehouse"."reports"."rep_top_products"
+ (scheduler.py:613)
+2026-01-14 14:52:08,548 - MainThread - sqlmesh.core.scheduler - INFO - SKIPPED snapshot "sales_lakehouse"."reports"."rep_target_attainment"
+ (scheduler.py:613)
+2026-01-14 14:52:08,548 - MainThread - sqlmesh.core.scheduler - INFO - Execution failed for node CreateNode(snapshot_name='"sales_lakehouse"."staging"."stg_sales_data"') (scheduler.py:618)
+Traceback (most recent call last):
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\utils\concurrency.py", line 234, in sequential_apply_to_dag
+    fn(node)
+    ~~^^^^^^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\scheduler.py", line 590, in run_node
+    self.snapshot_evaluator.create_snapshot(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        snapshot=snapshot,
+        ^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+        allow_additive_snapshots=allow_additive_snapshots or set(),
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\snapshot\evaluator.py", line 906, in create_snapshot
+    self._execute_create(
+    ~~~~~~~~~~~~~~~~~~~~^
+        snapshot=snapshot,
+        ^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+        dry_run=True,
+        ^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\snapshot\evaluator.py", line 1496, in _execute_create
+    evaluation_strategy.create(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        table_name=table_name,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    ...<9 lines>...
+        deployability_index=deployability_index,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\snapshot\evaluator.py", line 2067, in create
+    self.adapter.ctas(
+    ~~~~~~~~~~~~~~~~~^
+        table_name,
+        ^^^^^^^^^^^
+    ...<9 lines>...
+        column_descriptions=model.column_descriptions if is_table_deployable else None,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\engine_adapter\shared.py", line 318, in internal_wrapper
+    return func(*list_args, **kwargs)
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\engine_adapter\base.py", line 708, in ctas
+    return self._create_table_from_source_queries(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        table_name,
+        ^^^^^^^^^^^
+    ...<5 lines>...
+        **kwargs,
+        ^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\engine_adapter\base.py", line 934, in _create_table_from_source_queries
+    self._create_table(
+    ~~~~~~~~~~~~~~~~~~^
+        schema if schema else table,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+        **kwargs,
+        ^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\engine_adapter\duckdb.py", line 188, in _create_table
+    super()._create_table(
+    ~~~~~~~~~~~~~~~~~~~~~^
+        table_name_or_schema,
+        ^^^^^^^^^^^^^^^^^^^^^
+    ...<8 lines>...
+        **kwargs,
+        ^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\engine_adapter\base.py", line 977, in _create_table
+    self.execute(
+    ~~~~~~~~~~~~^
+        self._build_create_table_exp(
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<13 lines>...
+        track_rows_processed=track_rows_processed,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\engine_adapter\base.py", line 2603, in execute
+    self._execute(sql, track_rows_processed, **kwargs)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\engine_adapter\base.py", line 2635, in _execute
+    self.cursor.execute(sql, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+_duckdb.BinderException: Binder Error: Column "region" referenced that exists in the SELECT clause - but this column cannot be referenced before it is defined
+
+The above exception was the direct cause of the following exception:
+
+sqlmesh.utils.concurrency.NodeExecutionFailedError: Execution failed for node CreateNode(snapshot_name='"sales_lakehouse"."staging"."stg_sales_data"')
+2026-01-14 14:52:08,654 - MainThread - sqlmesh.core.scheduler - INFO - Execution failed for node EvaluateNode(snapshot_name='"sales_lakehouse"."staging"."stg_products_data"', interval=(1768262400000, 1768348800000), batch_index=0) (scheduler.py:618)
+Traceback (most recent call last):
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\utils\concurrency.py", line 234, in sequential_apply_to_dag
+    fn(node)
+    ~~^^^^^^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\scheduler.py", line 554, in run_node
+    audit_results = self.evaluate(
+        snapshot=snapshot,
+    ...<9 lines>...
+        selected_models=selected_models,
+    )
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\scheduler.py", line 229, in evaluate
+    wap_id = self.snapshot_evaluator.evaluate(
+        snapshot,
+    ...<9 lines>...
+        **kwargs,
+    )
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\snapshot\evaluator.py", line 186, in evaluate
+    result = self._evaluate_snapshot(
+        start=start,
+    ...<9 lines>...
+        **kwargs,
+    )
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\snapshot\evaluator.py", line 821, in _evaluate_snapshot
+    self._render_and_insert_snapshot(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        start=start,
+        ^^^^^^^^^^^^
+    ...<10 lines>...
+        batch_index=batch_index,
+        ^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\snapshot\evaluator.py", line 1041, in _render_and_insert_snapshot
+    apply(query_or_df, index)
+    ~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\snapshot\evaluator.py", line 990, in apply
+    evaluation_strategy.insert(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        table_name=target_table_name,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<12 lines>...
+        is_snapshot_deployable=is_snapshot_deployable,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\snapshot\evaluator.py", line 2418, in insert
+    self._replace_query_for_model(model, table_name, query_or_df, render_kwargs, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\snapshot\evaluator.py", line 2155, in _replace_query_for_model
+    self.adapter.replace_query(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        name,
+        ^^^^^
+    ...<10 lines>...
+        source_columns=source_columns,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\engine_adapter\shared.py", line 318, in internal_wrapper
+    return func(*list_args, **kwargs)
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\engine_adapter\base.py", line 524, in replace_query
+    return self._create_table_from_source_queries(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        target_table,
+        ^^^^^^^^^^^^^
+    ...<5 lines>...
+        **kwargs,
+        ^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\engine_adapter\base.py", line 934, in _create_table_from_source_queries
+    self._create_table(
+    ~~~~~~~~~~~~~~~~~~^
+        schema if schema else table,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+        **kwargs,
+        ^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\engine_adapter\duckdb.py", line 188, in _create_table
+    super()._create_table(
+    ~~~~~~~~~~~~~~~~~~~~~^
+        table_name_or_schema,
+        ^^^^^^^^^^^^^^^^^^^^^
+    ...<8 lines>...
+        **kwargs,
+        ^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\engine_adapter\base.py", line 977, in _create_table
+    self.execute(
+    ~~~~~~~~~~~~^
+        self._build_create_table_exp(
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<13 lines>...
+        track_rows_processed=track_rows_processed,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\engine_adapter\base.py", line 2603, in execute
+    self._execute(sql, track_rows_processed, **kwargs)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\engine_adapter\base.py", line 2635, in _execute
+    self.cursor.execute(sql, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+_duckdb.ParserException: Parser Error: zero-length delimited identifier at or near """"
+
+LINE 1: ...") AS "product_subcategory", TRY_CAST(NULLIF("unit_price", "") AS INT) AS "unit_price", TRY_CAST(NULLIF("unit_weight...
+                                                                      ^
+
+The above exception was the direct cause of the following exception:
+
+sqlmesh.utils.concurrency.NodeExecutionFailedError: Execution failed for node EvaluateNode(snapshot_name='"sales_lakehouse"."staging"."stg_products_data"', interval=(1768262400000, 1768348800000), batch_index=0)
+2026-01-14 14:52:08,657 - MainThread - sqlmesh.core.scheduler - INFO - Execution failed for node EvaluateNode(snapshot_name='"sales_lakehouse"."marts"."dim_clientsd"', interval=(1768262400000, 1768348800000), batch_index=0) (scheduler.py:618)
+Traceback (most recent call last):
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\utils\concurrency.py", line 234, in sequential_apply_to_dag
+    fn(node)
+    ~~^^^^^^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\scheduler.py", line 554, in run_node
+    audit_results = self.evaluate(
+        snapshot=snapshot,
+    ...<9 lines>...
+        selected_models=selected_models,
+    )
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\scheduler.py", line 229, in evaluate
+    wap_id = self.snapshot_evaluator.evaluate(
+        snapshot,
+    ...<9 lines>...
+        **kwargs,
+    )
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\snapshot\evaluator.py", line 186, in evaluate
+    result = self._evaluate_snapshot(
+        start=start,
+    ...<9 lines>...
+        **kwargs,
+    )
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\snapshot\evaluator.py", line 791, in _evaluate_snapshot
+    self._execute_create(
+    ~~~~~~~~~~~~~~~~~~~~^
+        snapshot=snapshot,
+        ^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+        run_pre_post_statements=False,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\snapshot\evaluator.py", line 1496, in _execute_create
+    evaluation_strategy.create(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        table_name=table_name,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    ...<9 lines>...
+        deployability_index=deployability_index,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\snapshot\evaluator.py", line 2545, in create
+    super().create(
+    ~~~~~~~~~~~~~~^
+        table_name,
+        ^^^^^^^^^^^
+    ...<4 lines>...
+        **kwargs,
+        ^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\snapshot\evaluator.py", line 2067, in create
+    self.adapter.ctas(
+    ~~~~~~~~~~~~~~~~~^
+        table_name,
+        ^^^^^^^^^^^
+    ...<9 lines>...
+        column_descriptions=model.column_descriptions if is_table_deployable else None,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\engine_adapter\shared.py", line 318, in internal_wrapper
+    return func(*list_args, **kwargs)
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\engine_adapter\base.py", line 708, in ctas
+    return self._create_table_from_source_queries(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        table_name,
+        ^^^^^^^^^^^
+    ...<5 lines>...
+        **kwargs,
+        ^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\engine_adapter\base.py", line 934, in _create_table_from_source_queries
+    self._create_table(
+    ~~~~~~~~~~~~~~~~~~^
+        schema if schema else table,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+        **kwargs,
+        ^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\engine_adapter\duckdb.py", line 188, in _create_table
+    super()._create_table(
+    ~~~~~~~~~~~~~~~~~~~~~^
+        table_name_or_schema,
+        ^^^^^^^^^^^^^^^^^^^^^
+    ...<8 lines>...
+        **kwargs,
+        ^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\engine_adapter\base.py", line 977, in _create_table
+    self.execute(
+    ~~~~~~~~~~~~^
+        self._build_create_table_exp(
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<13 lines>...
+        track_rows_processed=track_rows_processed,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\engine_adapter\base.py", line 2603, in execute
+    self._execute(sql, track_rows_processed, **kwargs)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\engine_adapter\base.py", line 2635, in _execute
+    self.cursor.execute(sql, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+_duckdb.BinderException: Binder Error: Referenced column "key_partner_type" not found in FROM clause!
+Candidate bindings: "key_player_type", "sd_name"
+
+LINE 1: ... AS (SELECT "sd_id", "sd_name", "region", "subregion", "city", "key_partner_type", "phone_number", "is_destocked" FROM...
+                                                                          ^
+
+The above exception was the direct cause of the following exception:
+
+sqlmesh.utils.concurrency.NodeExecutionFailedError: Execution failed for node EvaluateNode(snapshot_name='"sales_lakehouse"."marts"."dim_clientsd"', interval=(1768262400000, 1768348800000), batch_index=0)
+2026-01-14 14:52:08,689 - MainThread - sqlmesh.core.context - INFO - Plan application failed. (context.py:1797)
+Traceback (most recent call last):
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\context.py", line 1789, in apply
+    self._apply(plan, circuit_breaker)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\context.py", line 2582, in _apply
+    self._scheduler.create_plan_evaluator(self).evaluate(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        plan.to_evaluatable(), circuit_breaker=circuit_breaker
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\plan\evaluator.py", line 105, in evaluate
+    self._evaluate_stages(plan_stages, plan)
+    ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\plan\evaluator.py", line 125, in _evaluate_stages
+    handler(stage, plan)
+    ~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\plan\evaluator.py", line 264, in visit_backfill_stage
+    raise PlanError("Plan application failed.")
+sqlmesh.utils.errors.PlanError: Plan application failed.
+2026-01-14 14:52:08,872 - MainThread - root - INFO - Shutting down the event dispatcher (dispatcher.py:159)

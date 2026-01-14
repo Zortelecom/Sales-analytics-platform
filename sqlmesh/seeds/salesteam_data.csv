@@ -1,0 +1,25 @@
+fullname,salesperson_id,region,subregion,channel,supervisor,salesteam_ref_id
+Akamse Rose,SPC001,Centre,Yde Sud-Ouest,DETAILLANT,Tokam Albert,d3980afe-c1cd-4814-b640-a6231d12f867
+Akomba Elodie,SPC002,Centre,Yde Centre,TABLE-TOP,Maguy Lobe,cf142643-1725-4ecb-aac8-e36aeee058db
+Alaka Elodie,SPC003,Centre,Yde Sud-Ouest,DETAILLANT,Tokam Albert,f644fbc3-f355-4d79-9c05-f4069f31a4b2
+Bangobet Anthony,SPC004,Centre,Est,DETAILLANT,Kemtchoum,4147654b-d2a7-4e3e-a8d9-89ff832e442a
+Banok Serge,SPC005,Centre,Est,DETAILLANT,Kemtchoum,7b7c542d-e338-4122-a997-c32d3164eeb7
+Bayiha Robert,SPC006,Centre,Yde Centre,DEMI-GROS,Maguy Lobe,3046d595-286e-45cf-a6bc-8ea31917587e
+Dikoume Daniel,SPC007,Centre,Yde Centre,DETAILLANT,Maguy Lobe,5cd2cd09-39e6-4958-807d-a4ac430349ac
+Endenele Simplice,SPC008,Centre,Yde Centre,DEMI-GROS,Maguy Lobe,7025c79b-fe68-4b53-98d7-e32dc94e8923
+Endougou Emile,SPC009,Centre,Yde Nord,DEMI-GROS,Ndo Eko-man,737c1338-6330-48f3-a540-64c23ab0afed
+Kegne Marthe,SPC010,Centre,Yde Sud-Ouest,TABLE-TOP,Tokam Albert,afb43c15-a5b0-4b3b-8df2-2ef169d76f09
+Kouomou Basile,SPC011,Centre,Yde Peripherie,TABLE-TOP,Maguy Lobe,021e7d43-5475-4e08-9161-293f5a69e806
+Mbala Eric,SPC012,Centre,Yde Centre,TABLE-TOP,Maguy Lobe,0cd34a8d-0e3b-44f1-a7b7-582da7fffcbf
+Momo Charlene,SPC013,Centre,Yde Nord,TABLE-TOP,Ndo Eko-man,d6d5b8cf-5c33-4452-88b0-eb15b7bd2b04
+Ngando Simon,SPC014,Centre,Yde Sud-Ouest,TABLE-TOP,Ndo Eko-man,8d840274-41e4-4ddd-b1e0-303e969aec7d
+Ngo-Lissock Alice,SPC015,Centre,Sud Ebolowa,TABLE-TOP,Ndo Eko-man,5f2c7f90-28de-485a-89a7-9b5f7b534238
+Ngono Marie,SPC016,Centre,Yde Nord,TABLE-TOP,Ndo Eko-man,679f9731-fb10-4fa6-acf0-9b700738b6ed
+Nzongue Charmita,SPC017,Centre,Yde Centre,TABLE-TOP,Ndo Eko-man,3ae83ca3-cd53-49d9-91b2-4a68e75c2092
+Peck Samuel,SPC018,Centre,Est,DETAILLANT,Ndo Eko-man,ec2bcce0-a03c-405d-b97e-85e8bf79e970
+Tcheutchoua Armelle,SPC019,Centre,Yde Nord,DETAILLANT,Ndo Eko-man,e050f87c-7a93-4717-840b-37acdccf3d58
+Tchidjio Claire,SPC020,Centre,Yde,GMS,Ndo Eko-man,c8ad0e3d-0c28-48de-a1e7-8cf215736626
+Tonga Martin,SPC021,Centre,Yde Sud-Ouest,DEMI-GROS,Ndo Eko-man,b297c913-6c53-4c52-8c3b-416fdb4cc3df
+Tsasse Gilbert,SPC022,Centre,Yde Centre,DEMI-GROS,Ndo Eko-man,f4cac930-b0fa-45f1-90c6-8e5ad099e95b
+Waindo Conscience,SPC023,Centre,Yde Sud-Ouest,DETAILLANT,Tokam Albert,8bf8d52a-bfcb-4ea9-9086-29669e985d16
+Dzonnet Jeomalliel,SPC024,Centre,Yde Sud-Ouest,DETAILLANT,Tokam Albert,fc8eb521-2575-4e23-a497-380ec5b3dc5c

@@ -1,7 +1,7 @@
 MODEL (
   name marts.dim_date,
   kind FULL,
-  cron '@once',
+  cron '@monthly',
   grain (date_key),
   owner analytics_team,
   storage_format 'parquet',
