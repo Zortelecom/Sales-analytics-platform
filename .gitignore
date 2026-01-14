@@ -1,6 +1,5 @@
 ﻿# Data
 data/
-sqlmesh/*.csv
 
 # Python
 __pycache__/
