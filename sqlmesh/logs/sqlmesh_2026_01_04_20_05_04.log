@@ -1,0 +1,549 @@
+2026-01-04 20:05:05,727 - MainThread - sqlmesh.core.config.connection - INFO - Creating new DuckDB adapter for data files: {'../data/warehouse/catalog.ducklake'} (connection.py:496)
+2026-01-04 20:05:08,224 - MainThread - sqlmesh.core.config.connection - INFO - Creating new DuckDB adapter for data files: {'../data/warehouse/sqlmesh_state.db'} (connection.py:496)
+2026-01-04 20:27:38,366 - MainThread - sqlmesh.core.plan.evaluator - INFO - Evaluating plan stage CreateSnapshotRecordsStage (evaluator.py:123)
+2026-01-04 20:27:38,489 - MainThread - sqlmesh.core.plan.evaluator - INFO - Evaluating plan stage PhysicalLayerSchemaCreationStage (evaluator.py:123)
+2026-01-04 20:27:38,495 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Creating schema 'sales_lakehouse.sqlmesh__reports' (evaluator.py:1449)
+2026-01-04 20:27:38,496 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 7108925b913c4603bc66057c87685d72 */ CREATE SCHEMA IF NOT EXISTS "sales_lakehouse"."sqlmesh__reports" (base.py:2626)
+2026-01-04 20:27:40,884 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Creating schema 'sales_lakehouse.sqlmesh__marts' (evaluator.py:1449)
+2026-01-04 20:27:40,885 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 7108925b913c4603bc66057c87685d72 */ CREATE SCHEMA IF NOT EXISTS "sales_lakehouse"."sqlmesh__marts" (base.py:2626)
+2026-01-04 20:27:40,888 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Creating schema 'sales_lakehouse.sqlmesh__seeds' (evaluator.py:1449)
+2026-01-04 20:27:40,888 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 7108925b913c4603bc66057c87685d72 */ CREATE SCHEMA IF NOT EXISTS "sales_lakehouse"."sqlmesh__seeds" (base.py:2626)
+2026-01-04 20:27:40,891 - MainThread - sqlmesh.core.plan.evaluator - INFO - Evaluating plan stage BackfillStage (evaluator.py:123)
+2026-01-04 20:27:40,905 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Listing data objects in schema sales_lakehouse.sqlmesh__marts (evaluator.py:1616)
+2026-01-04 20:27:40,906 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 7108925b913c4603bc66057c87685d72 */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-04 20:27:40,910 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 7108925b913c4603bc66057c87685d72 */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-04 20:27:40,916 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 7108925b913c4603bc66057c87685d72 */ SELECT table_name AS name, table_schema AS schema, CASE table_type WHEN 'BASE TABLE' THEN 'table' WHEN 'VIEW' THEN 'view' WHEN 'LOCAL TEMPORARY' THEN 'table' END AS type FROM system.information_schema.tables WHERE (table_catalog = 'sales_lakehouse' AND table_schema = 'sqlmesh__marts') AND table_name IN ('marts__dim_product__3310486365', 'marts__fact_sales__4224824537', 'marts__fact_targets__134669067', 'marts__dim_date__1961067534', 'marts__dim_client__4010011967') (base.py:2626)
+2026-01-04 20:27:40,936 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Listing data objects in schema sales_lakehouse.sqlmesh__reports (evaluator.py:1616)
+2026-01-04 20:27:40,936 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 7108925b913c4603bc66057c87685d72 */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-04 20:27:40,938 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 7108925b913c4603bc66057c87685d72 */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-04 20:27:40,942 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 7108925b913c4603bc66057c87685d72 */ SELECT table_name AS name, table_schema AS schema, CASE table_type WHEN 'BASE TABLE' THEN 'table' WHEN 'VIEW' THEN 'view' WHEN 'LOCAL TEMPORARY' THEN 'table' END AS type FROM system.information_schema.tables WHERE (table_catalog = 'sales_lakehouse' AND table_schema = 'sqlmesh__reports') AND table_name IN ('reports__rep_weekly_meeting__4060037708', 'reports__rep_target_attainment__4251402637', 'reports__rep_top_products__25826822') (base.py:2626)
+2026-01-04 20:27:40,952 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Evaluating snapshot SnapshotId<"sales_lakehouse"."marts"."dim_client": 155827253> (evaluator.py:711)
+2026-01-04 20:27:40,953 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Inserting data for snapshot SnapshotId<"sales_lakehouse"."marts"."dim_client": 155827253> (evaluator.py:952)
+2026-01-04 20:27:40,965 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Inserting batch (2024-01-01 00:00:00, 2026-01-04 00:00:00) into sales_lakehouse.sqlmesh__marts.marts__dim_client__4010011967' (evaluator.py:984)
+2026-01-04 20:27:40,967 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 7108925b913c4603bc66057c87685d72 */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-04 20:27:40,970 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 7108925b913c4603bc66057c87685d72 */ SELECT type FROM DUCKDB_DATABASES() WHERE database_name = 'sales_lakehouse' (base.py:2626)
+2026-01-04 20:27:40,976 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 7108925b913c4603bc66057c87685d72 */ CREATE OR REPLACE TABLE "sales_lakehouse"."sqlmesh__marts"."marts__dim_client__4010011967" AS SELECT CAST("client_key" AS TEXT) AS "client_key", CAST("client_id" AS TEXT) AS "client_id", CAST("client_name" AS TEXT) AS "client_name", CAST("key_partner_type" AS TEXT) AS "key_partner_type", CAST("region" AS TEXT) AS "region", CAST("subregion" AS TEXT) AS "subregion", CAST("city" AS TEXT) AS "city", CAST("location" AS TEXT) AS "location", CAST("phone_number" AS TEXT) AS "phone_number", CAST("is_stockout_location" AS BOOLEAN) AS "is_stockout_location", CAST("loaded_at" AS TIMESTAMP) AS "loaded_at" FROM (SELECT CAST(MD5(TRIM("clientsd_data"."sd_id")) AS TEXT) AS "client_key", TRIM("clientsd_data"."sd_id") AS "client_id", TRIM("clientsd_data"."sd_name") AS "client_name", TRIM("clientsd_data"."kp") AS "key_partner_type", TRIM("clientsd_data"."region") AS "region", TRIM("clientsd_data"."subregion") AS "subregion", TRIM("clientsd_data"."city") AS "city", TRIM("clientsd_data"."location") AS "location", TRIM("clientsd_data"."phone") AS "phone_number", CASE WHEN LOWER(TRIM("clientsd_data"."is_stockout")) IN ('true', 'yes', '1', 'oui') THEN TRUE ELSE FALSE END AS "is_stockout_location", CURRENT_TIMESTAMP AS "loaded_at" FROM "sales_lakehouse"."sqlmesh__seeds"."seeds__clientsd_data__3756881100" AS "clientsd_data" WHERE NOT TRIM("clientsd_data"."sd_id") IS NULL AND TRIM("clientsd_data"."sd_id") <> '') AS "_subquery" (base.py:2626)
+2026-01-04 20:27:40,990 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Evaluating snapshot SnapshotId<"sales_lakehouse"."marts"."dim_date": 2105458300> (evaluator.py:711)
+2026-01-04 20:27:40,991 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Inserting data for snapshot SnapshotId<"sales_lakehouse"."marts"."dim_date": 2105458300> (evaluator.py:952)
+2026-01-04 20:27:41,005 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Inserting batch (2024-01-01 00:00:00, 2026-01-04 00:00:00) into sales_lakehouse.sqlmesh__marts.marts__dim_date__1961067534' (evaluator.py:984)
+2026-01-04 20:27:41,006 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 7108925b913c4603bc66057c87685d72 */ DESCRIBE "sales_lakehouse"."sqlmesh__marts"."marts__dim_date__1961067534" (base.py:2626)
+2026-01-04 20:27:41,013 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 7108925b913c4603bc66057c87685d72 */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-04 20:27:41,016 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 7108925b913c4603bc66057c87685d72 */ SELECT type FROM DUCKDB_DATABASES() WHERE database_name = 'sales_lakehouse' (base.py:2626)
+2026-01-04 20:27:41,022 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 7108925b913c4603bc66057c87685d72 */ CREATE OR REPLACE TABLE "sales_lakehouse"."sqlmesh__marts"."marts__dim_date__1961067534" AS WITH "date_spine" AS (SELECT UNNEST(GENERATE_SERIES(CAST('2020-01-01' AS DATE), CAST('2030-12-31' AS DATE), INTERVAL '1' DAY)) AS "date_value") SELECT CAST(STRFTIME("date_spine"."date_value", '%Y%m%d') AS INT) AS "date_key", "date_spine"."date_value" AS "date", EXTRACT(YEAR FROM "date_spine"."date_value") AS "year", EXTRACT(QUARTER FROM "date_spine"."date_value") AS "quarter", EXTRACT(MONTH FROM "date_spine"."date_value") AS "month", EXTRACT(WEEK FROM "date_spine"."date_value") AS "week_of_year", EXTRACT(DAY FROM "date_spine"."date_value") AS "day_of_month", EXTRACT(DAYOFWEEK FROM "date_spine"."date_value") AS "day_of_week", STRFTIME("date_spine"."date_value", '%Y') AS "year_name", STRFTIME("date_spine"."date_value", '%Y-Q%q') AS "quarter_name", STRFTIME("date_spine"."date_value", '%Y-%m') AS "year_month", STRFTIME("date_spine"."date_value", '%B %Y') AS "month_name", STRFTIME("date_spine"."date_value", '%A') AS "day_name", DATE_TRUNC('MONTH', "date_spine"."date_value") AS "month_start_date", DATE_TRUNC('QUARTER', "date_spine"."date_value") AS "quarter_start_date", DATE_TRUNC('YEAR', "date_spine"."date_value") AS "year_start_date", CASE WHEN EXTRACT(DAYOFWEEK FROM "date_spine"."date_value") IN (0, 6) THEN TRUE ELSE FALSE END AS "is_weekend", CASE WHEN "date_spine"."date_value" = DATE_TRUNC('MONTH', "date_spine"."date_value") THEN TRUE ELSE FALSE END AS "is_month_start", CASE WHEN "date_spine"."date_value" = LAST_DAY("date_spine"."date_value") THEN TRUE ELSE FALSE END AS "is_month_end" FROM "date_spine" AS "date_spine" (base.py:2626)
+2026-01-04 20:27:41,031 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Evaluating snapshot SnapshotId<"sales_lakehouse"."marts"."dim_product": 4154270206> (evaluator.py:711)
+2026-01-04 20:27:41,031 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Inserting data for snapshot SnapshotId<"sales_lakehouse"."marts"."dim_product": 4154270206> (evaluator.py:952)
+2026-01-04 20:27:41,060 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Inserting batch (2024-01-01 00:00:00, 2026-01-04 00:00:00) into sales_lakehouse.sqlmesh__marts.marts__dim_product__3310486365' (evaluator.py:984)
+2026-01-04 20:27:41,061 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 7108925b913c4603bc66057c87685d72 */ DESCRIBE "sales_lakehouse"."sqlmesh__marts"."marts__dim_product__3310486365" (base.py:2626)
+2026-01-04 20:27:41,065 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 7108925b913c4603bc66057c87685d72 */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-04 20:27:41,069 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 7108925b913c4603bc66057c87685d72 */ SELECT type FROM DUCKDB_DATABASES() WHERE database_name = 'sales_lakehouse' (base.py:2626)
+2026-01-04 20:27:41,090 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 7108925b913c4603bc66057c87685d72 */ CREATE OR REPLACE TABLE "sales_lakehouse"."sqlmesh__marts"."marts__dim_product__3310486365" AS WITH "source_data" AS (SELECT TRIM(UPPER("products_data"."sku")) AS "sku", TRIM("products_data"."product_name") AS "product_name", TRIM("products_data"."product_category") AS "product_category", TRIM("products_data"."product_subcategory") AS "product_subcategory", TRY_CAST(NULLIF(TRIM("products_data"."unit_price"), '') AS DECIMAL(10, 2)) AS "unit_price", TRY_CAST(NULLIF(TRIM("products_data"."unit_weight"), '') AS DECIMAL(10, 3)) AS "unit_weight_kg", CASE WHEN LOWER(TRIM("products_data"."is_innovation")) IN ('true', 'yes', '1', 'oui') THEN TRUE ELSE FALSE END AS "is_innovation_product" FROM "sales_lakehouse"."sqlmesh__seeds"."seeds__products_data__865533224" AS "products_data" WHERE NOT TRIM("products_data"."sku") IS NULL AND TRIM("products_data"."sku") <> ''), "changes_detected" AS (SELECT "s"."sku" AS "sku", "s"."product_name" AS "product_name", "s"."product_category" AS "product_category", "s"."product_subcategory" AS "product_subcategory", "s"."unit_price" AS "unit_price", "s"."unit_weight_kg" AS "unit_weight_kg", "s"."is_innovation_product" AS "is_innovation_product", CAST(MD5(CONCAT(COALESCE(CAST("s"."unit_price" AS TEXT), 'NULL'), '|', COALESCE(CAST("s"."unit_weight_kg" AS TEXT), 'NULL'))) AS TEXT) AS "attribute_hash", COALESCE((SELECT MIN(TRY_CAST("sales_data"."date" AS DATE)) AS "_col_0" FROM "sales_lakehouse"."sqlmesh__seeds"."seeds__sales_data__467525904" AS "sales_data"), CAST('2024-01-01' AS DATE)) AS "effective_date" FROM "source_data" AS "s"), "scd_records" AS (SELECT CAST(MD5(CONCAT("changes_detected"."sku", '|', "changes_detected"."attribute_hash")) AS TEXT) AS "product_key", "changes_detected"."sku" AS "sku", "changes_detected"."product_name" AS "product_name", "changes_detected"."product_category" AS "product_category", "changes_detected"."product_subcategory" AS "product_subcategory", "changes_detected"."is_innovation_product" AS "is_innovation_product", "changes_detected"."unit_price" AS "current_unit_price", "changes_detected"."unit_weight_kg" AS "current_unit_weight_kg", "changes_detected"."effective_date" AS "effective_date", NULL AS "expiration_date", TRUE AS "is_current_version", "changes_detected"."attribute_hash" AS "version_hash", CURRENT_TIMESTAMP AS "loaded_at" FROM "changes_detected" AS "changes_detected") SELECT "scd_records"."product_key" AS "product_key", "scd_records"."sku" AS "sku", "scd_records"."product_name" AS "product_name", "scd_records"."product_category" AS "product_category", "scd_records"."product_subcategory" AS "product_subcategory", "scd_records"."is_innovation_product" AS "is_innovation_product", "scd_records"."current_unit_price" AS "current_unit_price", "scd_records"."current_unit_weight_kg" AS "current_unit_weight_kg", "scd_records"."effective_date" AS "effective_date", "scd_records"."expiration_date" AS "expiration_date", "scd_records"."is_current_version" AS "is_current_version", "scd_records"."version_hash" AS "version_hash", "scd_records"."loaded_at" AS "loaded_at" FROM "scd_records" AS "scd_records" (base.py:2626)
+2026-01-04 20:27:41,122 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Evaluating snapshot SnapshotId<"sales_lakehouse"."marts"."fact_targets": 2345380984> (evaluator.py:711)
+2026-01-04 20:27:41,124 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Inserting data for snapshot SnapshotId<"sales_lakehouse"."marts"."fact_targets": 2345380984> (evaluator.py:952)
+2026-01-04 20:27:41,178 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Inserting batch (2024-01-01 00:00:00, 2026-01-04 00:00:00) into sales_lakehouse.sqlmesh__marts.marts__fact_targets__134669067' (evaluator.py:984)
+2026-01-04 20:27:41,183 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 7108925b913c4603bc66057c87685d72 */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-04 20:27:41,186 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 7108925b913c4603bc66057c87685d72 */ SELECT type FROM DUCKDB_DATABASES() WHERE database_name = 'sales_lakehouse' (base.py:2626)
+2026-01-04 20:27:41,197 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 7108925b913c4603bc66057c87685d72 */ CREATE OR REPLACE TABLE "sales_lakehouse"."sqlmesh__marts"."marts__fact_targets__134669067" AS WITH "cleaned_targets" AS (SELECT "targets_data"."target_line_id" AS "target_line_id", CASE WHEN "targets_data"."month_year" LIKE '%-%' AND LENGTH("targets_data"."month_year") <= 8 THEN TRY_CAST(CONCAT(RIGHT("targets_data"."month_year", 4), '-', CASE WHEN SUBSTRING("targets_data"."month_year", 1, 3) = 'Jan' THEN '01' WHEN SUBSTRING("targets_data"."month_year", 1, 3) = 'Feb' THEN '02' WHEN SUBSTRING("targets_data"."month_year", 1, 3) = 'Mar' THEN '03' WHEN SUBSTRING("targets_data"."month_year", 1, 3) = 'Apr' THEN '04' WHEN SUBSTRING("targets_data"."month_year", 1, 3) = 'May' THEN '05' WHEN SUBSTRING("targets_data"."month_year", 1, 3) = 'Jun' THEN '06' WHEN SUBSTRING("targets_data"."month_year", 1, 3) = 'Jul' THEN '07' WHEN SUBSTRING("targets_data"."month_year", 1, 3) = 'Aug' THEN '08' WHEN SUBSTRING("targets_data"."month_year", 1, 3) = 'Sep' THEN '09' WHEN SUBSTRING("targets_data"."month_year", 1, 3) = 'Oct' THEN '10' WHEN SUBSTRING("targets_data"."month_year", 1, 3) = 'Nov' THEN '11' WHEN SUBSTRING("targets_data"."month_year", 1, 3) = 'Dec' THEN '12' END, '-01') AS DATE) ELSE TRY_CAST(CONCAT("targets_data"."month_year", '-01') AS DATE) END AS "target_month", TRIM("targets_data"."salesperson_id") AS "salesperson_id", TRIM("targets_data"."product_category") AS "product_category", TRY_CAST(NULLIF(TRIM("targets_data"."target_amount"), '') AS DECIMAL(12, 2)) AS "target_amount" FROM "sales_lakehouse"."sqlmesh__seeds"."seeds__targets_data__1262756407" AS "targets_data" WHERE NOT TRIM("targets_data"."product_category") IS NULL AND NOT TRIM("targets_data"."salesperson_id") IS NULL) SELECT CAST("target_line_id" AS TEXT) AS "target_line_id", CAST("date_key" AS INT) AS "date_key", CAST("target_month" AS DATE) AS "target_month", CAST("target_year" AS INT) AS "target_year", CAST("target_month_num" AS INT) AS "target_month_num", CAST("salesperson_key" AS TEXT) AS "salesperson_key", CAST("salesperson_id" AS TEXT) AS "salesperson_id", CAST("product_category" AS TEXT) AS "product_category", CAST("target_amount" AS DECIMAL(12, 2)) AS "target_amount", CAST("salesperson_name" AS TEXT) AS "salesperson_name", CAST("region" AS TEXT) AS "region", CAST("subregion" AS TEXT) AS "subregion", CAST("sales_channel" AS TEXT) AS "sales_channel" FROM (SELECT "t"."target_line_id" AS "target_line_id", CAST(STRFTIME("t"."target_month", '%Y%m%d') AS INT) AS "date_key", "t"."target_month" AS "target_month", EXTRACT(YEAR FROM "t"."target_month") AS "target_year", EXTRACT(MONTH FROM "t"."target_month") AS "target_month_num", "sp"."salesperson_key" AS "salesperson_key", "t"."salesperson_id" AS "salesperson_id", "t"."product_category" AS "product_category", "t"."target_amount" AS "target_amount", "sp"."salesperson_name" AS "salesperson_name", "sp"."region" AS "region", "sp"."subregion" AS "subregion", "sp"."sales_channel" AS "sales_channel" FROM "cleaned_targets" AS "t" LEFT JOIN "sales_lakehouse"."sqlmesh__marts"."marts__dim_salesperson__1968249609" AS "sp" ON "sp"."effective_date_key" <= CAST(STRFTIME("t"."target_month", '%Y%m%d') AS INT) AND "sp"."expiration_date_key" > CAST(STRFTIME("t"."target_month", '%Y%m%d') AS INT) AND "sp"."salesperson_id" = "t"."salesperson_id") AS "_subquery" (base.py:2626)
+2026-01-04 20:27:41,209 - MainThread - sqlmesh.core.scheduler - INFO - SKIPPED snapshot "sales_lakehouse"."reports"."rep_top_products"
+ (scheduler.py:613)
+2026-01-04 20:27:41,209 - MainThread - sqlmesh.core.scheduler - INFO - SKIPPED snapshot "sales_lakehouse"."reports"."rep_weekly_meeting"
+ (scheduler.py:613)
+2026-01-04 20:27:41,209 - MainThread - sqlmesh.core.scheduler - INFO - SKIPPED snapshot "sales_lakehouse"."marts"."fact_sales"
+ (scheduler.py:613)
+2026-01-04 20:27:41,210 - MainThread - sqlmesh.core.scheduler - INFO - SKIPPED snapshot "sales_lakehouse"."reports"."rep_target_attainment"
+ (scheduler.py:613)
+2026-01-04 20:27:41,210 - MainThread - sqlmesh.core.scheduler - INFO - Execution failed for node EvaluateNode(snapshot_name='"sales_lakehouse"."marts"."dim_client"', interval=(1704067200000, 1767484800000), batch_index=0) (scheduler.py:618)
+Traceback (most recent call last):
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\utils\concurrency.py", line 234, in sequential_apply_to_dag
+    fn(node)
+    ~~^^^^^^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\scheduler.py", line 554, in run_node
+    audit_results = self.evaluate(
+        snapshot=snapshot,
+    ...<9 lines>...
+        selected_models=selected_models,
+    )
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\scheduler.py", line 229, in evaluate
+    wap_id = self.snapshot_evaluator.evaluate(
+        snapshot,
+    ...<9 lines>...
+        **kwargs,
+    )
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\snapshot\evaluator.py", line 186, in evaluate
+    result = self._evaluate_snapshot(
+        start=start,
+    ...<9 lines>...
+        **kwargs,
+    )
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\snapshot\evaluator.py", line 821, in _evaluate_snapshot
+    self._render_and_insert_snapshot(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        start=start,
+        ^^^^^^^^^^^^
+    ...<10 lines>...
+        batch_index=batch_index,
+        ^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\snapshot\evaluator.py", line 1041, in _render_and_insert_snapshot
+    apply(query_or_df, index)
+    ~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\snapshot\evaluator.py", line 990, in apply
+    evaluation_strategy.insert(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        table_name=target_table_name,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<12 lines>...
+        is_snapshot_deployable=is_snapshot_deployable,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\snapshot\evaluator.py", line 2418, in insert
+    self._replace_query_for_model(model, table_name, query_or_df, render_kwargs, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\snapshot\evaluator.py", line 2155, in _replace_query_for_model
+    self.adapter.replace_query(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        name,
+        ^^^^^
+    ...<10 lines>...
+        source_columns=source_columns,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\engine_adapter\shared.py", line 318, in internal_wrapper
+    return func(*list_args, **kwargs)
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\engine_adapter\base.py", line 524, in replace_query
+    return self._create_table_from_source_queries(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        target_table,
+        ^^^^^^^^^^^^^
+    ...<5 lines>...
+        **kwargs,
+        ^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\engine_adapter\base.py", line 934, in _create_table_from_source_queries
+    self._create_table(
+    ~~~~~~~~~~~~~~~~~~^
+        schema if schema else table,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+        **kwargs,
+        ^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\engine_adapter\duckdb.py", line 188, in _create_table
+    super()._create_table(
+    ~~~~~~~~~~~~~~~~~~~~~^
+        table_name_or_schema,
+        ^^^^^^^^^^^^^^^^^^^^^
+    ...<8 lines>...
+        **kwargs,
+        ^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\engine_adapter\base.py", line 977, in _create_table
+    self.execute(
+    ~~~~~~~~~~~~^
+        self._build_create_table_exp(
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<13 lines>...
+        track_rows_processed=track_rows_processed,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\engine_adapter\base.py", line 2603, in execute
+    self._execute(sql, track_rows_processed, **kwargs)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\engine_adapter\base.py", line 2635, in _execute
+    self.cursor.execute(sql, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+_duckdb.BinderException: Binder Error: No function matches the given name and argument types 'trim(DOUBLE)'. You might need to add explicit type casts.
+	Candidate functions:
+	trim(VARCHAR) -> VARCHAR
+	trim(VARCHAR, VARCHAR) -> VARCHAR
+
+
+LINE 1: ...") AS "city", TRIM("clientsd_data"."location") AS "location", TRIM("clientsd_data"."phone") AS "phone_number", CASE WHEN...
+                                                                         ^
+
+The above exception was the direct cause of the following exception:
+
+sqlmesh.utils.concurrency.NodeExecutionFailedError: Execution failed for node EvaluateNode(snapshot_name='"sales_lakehouse"."marts"."dim_client"', interval=(1704067200000, 1767484800000), batch_index=0)
+2026-01-04 20:27:41,552 - MainThread - sqlmesh.core.scheduler - INFO - Execution failed for node EvaluateNode(snapshot_name='"sales_lakehouse"."marts"."dim_date"', interval=(1704067200000, 1767484800000), batch_index=0) (scheduler.py:618)
+Traceback (most recent call last):
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\utils\concurrency.py", line 234, in sequential_apply_to_dag
+    fn(node)
+    ~~^^^^^^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\scheduler.py", line 554, in run_node
+    audit_results = self.evaluate(
+        snapshot=snapshot,
+    ...<9 lines>...
+        selected_models=selected_models,
+    )
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\scheduler.py", line 229, in evaluate
+    wap_id = self.snapshot_evaluator.evaluate(
+        snapshot,
+    ...<9 lines>...
+        **kwargs,
+    )
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\snapshot\evaluator.py", line 186, in evaluate
+    result = self._evaluate_snapshot(
+        start=start,
+    ...<9 lines>...
+        **kwargs,
+    )
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\snapshot\evaluator.py", line 821, in _evaluate_snapshot
+    self._render_and_insert_snapshot(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        start=start,
+        ^^^^^^^^^^^^
+    ...<10 lines>...
+        batch_index=batch_index,
+        ^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\snapshot\evaluator.py", line 1041, in _render_and_insert_snapshot
+    apply(query_or_df, index)
+    ~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\snapshot\evaluator.py", line 990, in apply
+    evaluation_strategy.insert(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        table_name=target_table_name,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<12 lines>...
+        is_snapshot_deployable=is_snapshot_deployable,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\snapshot\evaluator.py", line 2418, in insert
+    self._replace_query_for_model(model, table_name, query_or_df, render_kwargs, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\snapshot\evaluator.py", line 2155, in _replace_query_for_model
+    self.adapter.replace_query(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        name,
+        ^^^^^
+    ...<10 lines>...
+        source_columns=source_columns,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\engine_adapter\shared.py", line 318, in internal_wrapper
+    return func(*list_args, **kwargs)
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\engine_adapter\base.py", line 524, in replace_query
+    return self._create_table_from_source_queries(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        target_table,
+        ^^^^^^^^^^^^^
+    ...<5 lines>...
+        **kwargs,
+        ^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\engine_adapter\base.py", line 934, in _create_table_from_source_queries
+    self._create_table(
+    ~~~~~~~~~~~~~~~~~~^
+        schema if schema else table,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+        **kwargs,
+        ^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\engine_adapter\duckdb.py", line 188, in _create_table
+    super()._create_table(
+    ~~~~~~~~~~~~~~~~~~~~~^
+        table_name_or_schema,
+        ^^^^^^^^^^^^^^^^^^^^^
+    ...<8 lines>...
+        **kwargs,
+        ^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\engine_adapter\base.py", line 977, in _create_table
+    self.execute(
+    ~~~~~~~~~~~~^
+        self._build_create_table_exp(
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<13 lines>...
+        track_rows_processed=track_rows_processed,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\engine_adapter\base.py", line 2603, in execute
+    self._execute(sql, track_rows_processed, **kwargs)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\engine_adapter\base.py", line 2635, in _execute
+    self.cursor.execute(sql, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+_duckdb.InvalidInputException: Invalid Input Error: Failed to parse format specifier %Y-Q%q: Unrecognized format for strftime/strptime: %q
+
+LINE 1: ...", '%Y') AS "year_name", STRFTIME("date_spine"."date_value", '%Y-Q%q') AS "quarter_name", STRFTIME("date_spine"."date_value...
+                                                                        ^
+
+The above exception was the direct cause of the following exception:
+
+sqlmesh.utils.concurrency.NodeExecutionFailedError: Execution failed for node EvaluateNode(snapshot_name='"sales_lakehouse"."marts"."dim_date"', interval=(1704067200000, 1767484800000), batch_index=0)
+2026-01-04 20:27:41,556 - MainThread - sqlmesh.core.scheduler - INFO - Execution failed for node EvaluateNode(snapshot_name='"sales_lakehouse"."marts"."dim_product"', interval=(1704067200000, 1767484800000), batch_index=0) (scheduler.py:618)
+Traceback (most recent call last):
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\utils\concurrency.py", line 234, in sequential_apply_to_dag
+    fn(node)
+    ~~^^^^^^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\scheduler.py", line 554, in run_node
+    audit_results = self.evaluate(
+        snapshot=snapshot,
+    ...<9 lines>...
+        selected_models=selected_models,
+    )
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\scheduler.py", line 229, in evaluate
+    wap_id = self.snapshot_evaluator.evaluate(
+        snapshot,
+    ...<9 lines>...
+        **kwargs,
+    )
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\snapshot\evaluator.py", line 186, in evaluate
+    result = self._evaluate_snapshot(
+        start=start,
+    ...<9 lines>...
+        **kwargs,
+    )
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\snapshot\evaluator.py", line 821, in _evaluate_snapshot
+    self._render_and_insert_snapshot(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        start=start,
+        ^^^^^^^^^^^^
+    ...<10 lines>...
+        batch_index=batch_index,
+        ^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\snapshot\evaluator.py", line 1041, in _render_and_insert_snapshot
+    apply(query_or_df, index)
+    ~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\snapshot\evaluator.py", line 990, in apply
+    evaluation_strategy.insert(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        table_name=target_table_name,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<12 lines>...
+        is_snapshot_deployable=is_snapshot_deployable,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\snapshot\evaluator.py", line 2418, in insert
+    self._replace_query_for_model(model, table_name, query_or_df, render_kwargs, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\snapshot\evaluator.py", line 2155, in _replace_query_for_model
+    self.adapter.replace_query(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        name,
+        ^^^^^
+    ...<10 lines>...
+        source_columns=source_columns,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\engine_adapter\shared.py", line 318, in internal_wrapper
+    return func(*list_args, **kwargs)
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\engine_adapter\base.py", line 524, in replace_query
+    return self._create_table_from_source_queries(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        target_table,
+        ^^^^^^^^^^^^^
+    ...<5 lines>...
+        **kwargs,
+        ^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\engine_adapter\base.py", line 934, in _create_table_from_source_queries
+    self._create_table(
+    ~~~~~~~~~~~~~~~~~~^
+        schema if schema else table,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+        **kwargs,
+        ^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\engine_adapter\duckdb.py", line 188, in _create_table
+    super()._create_table(
+    ~~~~~~~~~~~~~~~~~~~~~^
+        table_name_or_schema,
+        ^^^^^^^^^^^^^^^^^^^^^
+    ...<8 lines>...
+        **kwargs,
+        ^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\engine_adapter\base.py", line 977, in _create_table
+    self.execute(
+    ~~~~~~~~~~~~^
+        self._build_create_table_exp(
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<13 lines>...
+        track_rows_processed=track_rows_processed,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\engine_adapter\base.py", line 2603, in execute
+    self._execute(sql, track_rows_processed, **kwargs)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\engine_adapter\base.py", line 2635, in _execute
+    self.cursor.execute(sql, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+_duckdb.BinderException: Binder Error: No function matches the given name and argument types 'trim(BIGINT)'. You might need to add explicit type casts.
+	Candidate functions:
+	trim(VARCHAR) -> VARCHAR
+	trim(VARCHAR, VARCHAR) -> VARCHAR
+
+
+LINE 1: ...ct_subcategory") AS "product_subcategory", TRY_CAST(NULLIF(TRIM("products_data"."unit_price"), '') AS DECIMAL(10, 2...
+                                                                      ^
+
+The above exception was the direct cause of the following exception:
+
+sqlmesh.utils.concurrency.NodeExecutionFailedError: Execution failed for node EvaluateNode(snapshot_name='"sales_lakehouse"."marts"."dim_product"', interval=(1704067200000, 1767484800000), batch_index=0)
+2026-01-04 20:27:41,559 - MainThread - sqlmesh.core.scheduler - INFO - Execution failed for node EvaluateNode(snapshot_name='"sales_lakehouse"."marts"."fact_targets"', interval=(1704067200000, 1767484800000), batch_index=0) (scheduler.py:618)
+Traceback (most recent call last):
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\utils\concurrency.py", line 234, in sequential_apply_to_dag
+    fn(node)
+    ~~^^^^^^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\scheduler.py", line 554, in run_node
+    audit_results = self.evaluate(
+        snapshot=snapshot,
+    ...<9 lines>...
+        selected_models=selected_models,
+    )
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\scheduler.py", line 229, in evaluate
+    wap_id = self.snapshot_evaluator.evaluate(
+        snapshot,
+    ...<9 lines>...
+        **kwargs,
+    )
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\snapshot\evaluator.py", line 186, in evaluate
+    result = self._evaluate_snapshot(
+        start=start,
+    ...<9 lines>...
+        **kwargs,
+    )
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\snapshot\evaluator.py", line 821, in _evaluate_snapshot
+    self._render_and_insert_snapshot(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        start=start,
+        ^^^^^^^^^^^^
+    ...<10 lines>...
+        batch_index=batch_index,
+        ^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\snapshot\evaluator.py", line 1041, in _render_and_insert_snapshot
+    apply(query_or_df, index)
+    ~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\snapshot\evaluator.py", line 990, in apply
+    evaluation_strategy.insert(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        table_name=target_table_name,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<12 lines>...
+        is_snapshot_deployable=is_snapshot_deployable,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\snapshot\evaluator.py", line 2418, in insert
+    self._replace_query_for_model(model, table_name, query_or_df, render_kwargs, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\snapshot\evaluator.py", line 2155, in _replace_query_for_model
+    self.adapter.replace_query(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        name,
+        ^^^^^
+    ...<10 lines>...
+        source_columns=source_columns,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\engine_adapter\shared.py", line 318, in internal_wrapper
+    return func(*list_args, **kwargs)
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\engine_adapter\base.py", line 524, in replace_query
+    return self._create_table_from_source_queries(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        target_table,
+        ^^^^^^^^^^^^^
+    ...<5 lines>...
+        **kwargs,
+        ^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\engine_adapter\base.py", line 934, in _create_table_from_source_queries
+    self._create_table(
+    ~~~~~~~~~~~~~~~~~~^
+        schema if schema else table,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+        **kwargs,
+        ^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\engine_adapter\duckdb.py", line 188, in _create_table
+    super()._create_table(
+    ~~~~~~~~~~~~~~~~~~~~~^
+        table_name_or_schema,
+        ^^^^^^^^^^^^^^^^^^^^^
+    ...<8 lines>...
+        **kwargs,
+        ^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\engine_adapter\base.py", line 977, in _create_table
+    self.execute(
+    ~~~~~~~~~~~~^
+        self._build_create_table_exp(
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<13 lines>...
+        track_rows_processed=track_rows_processed,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\engine_adapter\base.py", line 2603, in execute
+    self._execute(sql, track_rows_processed, **kwargs)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\engine_adapter\base.py", line 2635, in _execute
+    self.cursor.execute(sql, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+_duckdb.BinderException: Binder Error: No function matches the given name and argument types 'trim(DOUBLE)'. You might need to add explicit type casts.
+	Candidate functions:
+	trim(VARCHAR) -> VARCHAR
+	trim(VARCHAR, VARCHAR) -> VARCHAR
+
+
+LINE 1: ..."."product_category") AS "product_category", TRY_CAST(NULLIF(TRIM("targets_data"."target_amount"), '') AS DECIMAL(12...
+                                                                        ^
+
+The above exception was the direct cause of the following exception:
+
+sqlmesh.utils.concurrency.NodeExecutionFailedError: Execution failed for node EvaluateNode(snapshot_name='"sales_lakehouse"."marts"."fact_targets"', interval=(1704067200000, 1767484800000), batch_index=0)
+2026-01-04 20:27:41,612 - MainThread - sqlmesh.core.context - INFO - Plan application failed. (context.py:1797)
+Traceback (most recent call last):
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\context.py", line 1789, in apply
+    self._apply(plan, circuit_breaker)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\context.py", line 2582, in _apply
+    self._scheduler.create_plan_evaluator(self).evaluate(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        plan.to_evaluatable(), circuit_breaker=circuit_breaker
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\plan\evaluator.py", line 105, in evaluate
+    self._evaluate_stages(plan_stages, plan)
+    ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\plan\evaluator.py", line 125, in _evaluate_stages
+    handler(stage, plan)
+    ~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\plan\evaluator.py", line 264, in visit_backfill_stage
+    raise PlanError("Plan application failed.")
+sqlmesh.utils.errors.PlanError: Plan application failed.
+2026-01-04 20:27:41,696 - MainThread - root - INFO - Shutting down the event dispatcher (dispatcher.py:159)
+2026-01-04 20:27:49,617 - event-emitter - sqlmesh.core.analytics.dispatcher - INFO - Failed to emit events: HTTPSConnectionPool(host='analytics.tobikodata.com', port=443): Max retries exceeded with url: /v1/sqlmesh/ (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000001BDC2BB9A90>: Failed to resolve 'analytics.tobikodata.com' ([Errno 11001] getaddrinfo failed)")) (dispatcher.py:138)
+2026-01-04 20:27:49,630 - MainThread - sqlmesh.core.analytics.dispatcher - INFO - Failed to emit events: HTTPSConnectionPool(host='analytics.tobikodata.com', port=443): Max retries exceeded with url: /v1/sqlmesh/ (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000001BDC2B165D0>: Failed to resolve 'analytics.tobikodata.com' ([Errno 11001] getaddrinfo failed)")) (dispatcher.py:138)

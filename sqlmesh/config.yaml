@@ -1,0 +1,35 @@
+# Sales Analytics - Practical Configuration
+gateways:
+  local_gateway:
+    connection:
+      type: duckdb
+      
+      # DuckLake catalog configuration
+      catalogs:
+        sales_lakehouse:
+          type: ducklake
+          path: ../data/warehouse/catalog.ducklake
+          data_path: ../data/warehouse/parquet/
+      
+      # Install DuckLake extension
+      extensions:
+        - ducklake
+    
+    # SQLMesh state management
+    state_connection:
+      type: duckdb
+      database: ../data/warehouse/sqlmesh_state.db
+
+# Default gateway
+default_gateway: local_gateway
+
+# Model defaults
+model_defaults:
+  dialect: duckdb
+  start: 2024-01-01
+  cron: "@daily"
+  
+# Plan behavior
+plan:
+  auto_apply: false
+  include_unmodified: false

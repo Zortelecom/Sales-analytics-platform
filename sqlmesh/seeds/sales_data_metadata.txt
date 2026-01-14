@@ -1,0 +1,41 @@
+Seed Metadata
+==================================================
+
+Seed Name: sales_data
+Batch ID: batch_20260111_183550
+Timestamp: 2026-01-11T18:37:39.361250+00:00
+Rows Written: 14,006
+Columns: 21
+
+Column Names:
+  - salesperson_id
+  - clientsd_id
+  - sd destocke
+  - date
+  - sku
+  - product_name
+  - unit_price
+  - qty
+  - amount
+  - subregion
+  - salesperson
+  - supervisor
+  - channel
+  - product_cat
+  - product_subcat
+  - unit_weight
+  - is_innovation
+  - localisation
+  - city
+  - sales_line_id
+  - filename_subregion
+
+Source Files:
+  - ExSD-Sales-Est.xlsx
+  - ExSD-Sales-Sud_Ebolowa.xlsx
+  - ExSD-Sales-Yde_Centre.xlsx
+  - ExSD-Sales-Yde_Nord.xlsx
+  - ExSD-Sales-Yde_Sud-Ouest.xlsx
+
+Ingestion Batch IDs:
+  - batch_20260111_183550

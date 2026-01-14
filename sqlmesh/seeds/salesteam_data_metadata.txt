@@ -1,0 +1,23 @@
+Seed Metadata
+==================================================
+
+Seed Name: salesteam_data
+Batch ID: batch_20260111_183550
+Timestamp: 2026-01-11T18:37:39.361250+00:00
+Rows Written: 24
+Columns: 7
+
+Column Names:
+  - fullname
+  - salesperson_id
+  - region
+  - subregion
+  - channel
+  - supervisor
+  - salesteam_ref_id
+
+Source Files:
+  - References.xlsx
+
+Ingestion Batch IDs:
+  - batch_20260111_183550

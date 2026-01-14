@@ -1,0 +1,397 @@
+# Sales Analytics Platform - Project Structure (Seed-Based)
+
+## 📁 Complete Directory Structure
+
+```
+sales-analytics-platform-v0.3/
+│
+├── ingestion/                           # Data extraction layer
+│   ├── __init__.py
+│   ├── main.py                          # ⭐ Main orchestrator (updated)
+│   │
+│   ├── config/
+│   │   ├── __init__.py
+│   │   ├── settings.py                  # Centralized configuration
+│   │   └── sources.yaml                 # Source definitions
+│   │
+│   ├── extract/                         # Excel extraction modules
+│   │   ├── __init__.py
+│   │   ├── base_extractor.py           # Base class for extractors
+│   │   ├── sales_extractor.py          # Sales-specific extraction
+│   │   └── target_extractor.py         # Targets-specific extraction
+│   │
+│   └── load/                            # CSV seed writing
+│       ├── __init__.py
+│       └── seed_writer.py               # ⭐ NEW: Handles CSV seed writing
+│
+├── sqlmesh/                             # Transformation & orchestration
+│   ├── config.yaml                      # SQLMesh + DuckLake configuration
+│   │
+│   ├── seeds/                           # ⭐ CSV data written by ingestion
+│   │   ├── sales_data.csv               # Sales seed (written by ingestion)
+│   │   ├── sales_data_metadata.txt     # Tracking metadata
+│   │   ├── targets_data.csv            # Targets seed (written by ingestion)
+│   │   └── targets_data_metadata.txt   # Tracking metadata
+│   │
+│   ├── models/                          # SQL transformation models
+│   │   ├── raw_sales.sql                # ⭐ SEED model (loads sales_data.csv)
+│   │   ├── raw_targets.sql              # ⭐ SEED model (loads targets_data.csv)
+│   │   │
+│   │   ├── staging/                     # Bronze → Silver transformations
+│   │   │   ├── stg_sales.sql           # Clean sales (FROM raw.sales)
+│   │   │   └── stg_targets.sql         # Clean targets (FROM raw.targets)
+│   │   │
+│   │   ├── marts/                       # Silver → Gold transformations
+│   │   │   └── facts/
+│   │   │       └── f_sales.sql         # Sales fact table (incremental)
+│   │   │
+│   │   └── reports/                     # Gold → Analytics
+│   │       ├── rep_weekly_meeting.sql  # Weekly performance report
+│   │       └── rep_top_products.sql    # Product performance report
+│   │
+│   ├── macros/                          # Reusable SQL logic
+│   │   └── clean_currency.sql          # Example: XAF formatting
+│   │
+│   └── tests/                           # Data quality tests
+│       └── ...
+│
+├── data/                                # Local data storage (gitignored)
+│   ├── input/                           # Excel files land here
+│   │   ├── sales/
+│   │   │   └── *.xlsx
+│   │   └── targets/
+│   │       └── *.xlsx
+│   │
+│   ├── archive/                         # Processed Excel files
+│   │   └── batch_YYYYMMDD_HHMMSS/
+│   │       ├── sales_file.xlsx
+│   │       └── targets_file.xlsx
+│   │
+│   ├── catalog.ducklake                 # ⭐ DuckLake catalog (SQLMesh creates)
+│   ├── storage/                         # ⭐ Parquet files (SQLMesh writes)
+│   │   ├── raw__dev.sales/
+│   │   │   └── data_0.parquet
+│   │   └── staging__dev.stg_sales/
+│   │       └── data_0.parquet
+│   │
+│   └── sqlmesh_state.db                 # ⭐ SQLMesh state tracking
+│
+├── demo_dashboard.py                    # Streamlit dashboard
+├── generate_sample_data.py              # Test data generator
+├── diagnose_excel_files.py              # Diagnostic tool
+│
+├── requirements.txt                     # Python dependencies
+├── .gitignore                           # Ignore data/ directory
+└── README.md                            # Project documentation
+```
+
+## 🔄 Data Flow
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     PHASE 1: EXTRACTION                          │
+├─────────────────────────────────────────────────────────────────┤
+│  Excel Files                                                     │
+│  (data/input/)                                                   │
+│       ↓                                                          │
+│  BaseExcelExtractor                                              │
+│  ├── SalesExtractor    → DataFrame (sales)                      │
+│  └── TargetExtractor   → DataFrame (targets)                    │
+└─────────────────────────────────────────────────────────────────┘
+                             ↓
+┌─────────────────────────────────────────────────────────────────┐
+│                  PHASE 2: WRITE CSV SEEDS                        │
+├─────────────────────────────────────────────────────────────────┤
+│  SeedWriter                                                      │
+│  ├── write_seed('sales_data', df_sales)                         │
+│  │   → sqlmesh/seeds/sales_data.csv                             │
+│  │   → sqlmesh/seeds/sales_data_metadata.txt                    │
+│  └── write_seed('targets_data', df_targets)                     │
+│      → sqlmesh/seeds/targets_data.csv                           │
+│      → sqlmesh/seeds/targets_data_metadata.txt                  │
+└─────────────────────────────────────────────────────────────────┘
+                             ↓
+┌─────────────────────────────────────────────────────────────────┐
+│                   PHASE 3: SQLMESH LOAD                          │
+├─────────────────────────────────────────────────────────────────┤
+│  SQLMesh SEED Models                                             │
+│  ├── raw.sales (SEED)      → Loads sales_data.csv               │
+│  │   ↓ SQLMesh writes to DuckLake                               │
+│  │   → data/storage/raw__dev.sales/*.parquet                    │
+│  └── raw.targets (SEED)    → Loads targets_data.csv             │
+│      ↓ SQLMesh writes to DuckLake                               │
+│      → data/storage/raw__dev.targets/*.parquet                  │
+└─────────────────────────────────────────────────────────────────┘
+                             ↓
+┌─────────────────────────────────────────────────────────────────┐
+│                PHASE 4: SQLMESH TRANSFORMATIONS                  │
+├─────────────────────────────────────────────────────────────────┤
+│  Staging Layer (Bronze → Silver)                                │
+│  ├── staging.stg_sales    ← FROM raw.sales                      │
+│  └── staging.stg_targets  ← FROM raw.targets                    │
+│                             ↓                                    │
+│  Marts Layer (Silver → Gold)                                    │
+│  └── marts.f_sales        ← FROM staging.stg_sales (incremental)│
+│                             ↓                                    │
+│  Reports Layer (Gold → Analytics)                               │
+│  ├── reports.rep_weekly_meeting  ← FROM marts.f_sales           │
+│  └── reports.rep_top_products    ← FROM marts.f_sales           │
+└─────────────────────────────────────────────────────────────────┘
+                             ↓
+┌─────────────────────────────────────────────────────────────────┐
+│                    PHASE 5: VISUALIZATION                        │
+├─────────────────────────────────────────────────────────────────┤
+│  Streamlit Dashboard                                             │
+│  ├── Connects to DuckDB (data/catalog.ducklake)                 │
+│  ├── Queries reports.rep_weekly_meeting                         │
+│  └── Displays interactive charts & tables                       │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## 🔑 Key Components
+
+### Ingestion Layer (`ingestion/`)
+
+#### `main.py` - Orchestrator
+- Generates unique batch ID
+- Coordinates extraction, seed writing, and archiving
+- Provides detailed logging and statistics
+- No direct DuckLake interaction (simplified!)
+
+#### `extract/base_extractor.py` - Base Extraction Logic
+- Handles Excel file reading with openpyxl
+- Finds and extracts Excel Table objects
+- Adds metadata (source_file, sheet_name, batch_id)
+- Error handling and logging
+
+#### `extract/sales_extractor.py` - Sales-Specific Logic
+- Extends BaseExcelExtractor
+- Looks for tables with "Sales" prefix
+- Generates unique sales_line_id
+
+#### `extract/target_extractor.py` - Targets-Specific Logic
+- Extends BaseExcelExtractor
+- Looks for tables with "Target" prefix
+- Validates required columns
+- Generates unique target_line_id
+
+#### `load/seed_writer.py` - CSV Seed Writer ⭐ NEW
+**Purpose:** Clean separation of CSV writing logic
+
+**Features:**
+- Removes internal metadata columns before writing CSV
+- Writes metadata files for tracking
+- Batch writing of multiple seeds
+- Cleanup of old metadata files
+- Seed summary reports
+
+**API:**
+```python
+# Single seed
+writer = SeedWriter(seeds_dir, batch_id)
+path = writer.write_seed(df_sales, 'sales_data')
+
+# Multiple seeds
+paths = writer.write_seeds({
+    'sales_data': df_sales,
+    'targets_data': df_targets
+})
+
+# Get summary
+summary = writer.get_seed_summary()
+```
+
+### SQLMesh Layer (`sqlmesh/`)
+
+#### `config.yaml` - DuckLake Configuration
+- Defines DuckDB as compute engine
+- Configures DuckLake catalog and storage paths
+- Separates state database from data catalog
+- Loads ducklake extension
+
+#### `seeds/` - CSV Data ⭐ Written by Ingestion
+- `sales_data.csv` - Raw sales records
+- `targets_data.csv` - Raw target records
+- `*_metadata.txt` - Tracking information (batch ID, timestamp, sources)
+
+#### `models/raw_*.sql` - SEED Models ⭐ Load CSVs
+```sql
+MODEL (
+    name raw.sales,
+    kind SEED (
+        path '../seeds/sales_data.csv'
+    ),
+    columns (...),
+    grain sales_line_id
+);
+```
+**What SQLMesh does:**
+1. Reads the CSV file
+2. Creates table in DuckLake
+3. Writes Parquet files to `data/storage/`
+4. Updates catalog metadata in `data/catalog.ducklake`
+5. Tracks version in `data/sqlmesh_state.db`
+
+#### `models/staging/` - Data Cleaning (Bronze → Silver)
+- Type conversions (strings → dates, decimals)
+- Currency formatting ("1 000 XAF" → 1000)
+- Data quality flags
+- References SEED models: `FROM raw.sales`
+
+#### `models/marts/` - Business Logic (Silver → Gold)
+- Incremental processing by date
+- Aggregations and joins
+- Fact and dimension tables
+
+#### `models/reports/` - Analytics (Gold → Reports)
+- Business-specific reports
+- Pre-aggregated for dashboard performance
+- Ready for visualization
+
+## 📊 File Sizes (Typical)
+
+```
+Component                    Size        Purpose
+─────────────────────────────────────────────────────────────
+Excel Input (500 rows)       ~150 KB     Source data
+CSV Seed (500 rows)          ~75 KB      SQLMesh input
+Parquet (500 rows)           ~25 KB      DuckLake storage (compressed)
+Catalog DB                   ~5 MB       DuckLake metadata
+State DB                     ~2 MB       SQLMesh state
+```
+
+## 🔄 Daily Operations
+
+### Morning Data Refresh
+```bash
+# 1. Someone drops Excel files in data/input/
+# 2. Run ingestion
+python -m ingestion.main
+
+# Output:
+# ✅ Extracted 500 sales records
+# ✅ Wrote 500 rows to sales_data.csv
+# ✅ Archived 2 Excel file(s)
+
+# 3. Run SQLMesh
+cd sqlmesh
+sqlmesh plan dev
+# Type 'y' to apply
+
+# 4. Dashboard auto-updates
+```
+
+### Promoting to Production
+```bash
+# Test in dev
+cd sqlmesh
+sqlmesh fetchdf "SELECT * FROM reports__dev.rep_weekly_meeting"
+
+# Promote to prod
+sqlmesh plan prod
+# Type 'y' to apply
+
+# Prod is now updated
+```
+
+## 🎯 Advantages of This Structure
+
+### Clear Separation of Concerns
+- **Ingestion**: Extract Excel → Write CSV (Python)
+- **Transformation**: CSV → DuckLake → Reports (SQLMesh)
+- **Visualization**: Query reports → Display (Streamlit)
+
+### Modularity
+- `SeedWriter` is reusable for any DataFrame → CSV workflow
+- Extractors can be extended for new data sources
+- SQLMesh models are independent and testable
+
+### Maintainability
+- CSV seeds are human-readable (easy debugging)
+- Metadata files track lineage
+- Each component has single responsibility
+
+### Scalability
+- Add new extractors without touching seed writer
+- Add new reports without touching ingestion
+- SQLMesh handles incremental processing automatically
+
+## 📝 Configuration Files
+
+### `ingestion/config/settings.py`
+```python
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+DATA_DIR = PROJECT_ROOT / "data"
+INPUT_SALES_DIR = DATA_DIR / "input" / "sales"
+INPUT_TARGETS_DIR = DATA_DIR / "input" / "targets"
+ARCHIVE_DIR = DATA_DIR / "archive"
+```
+
+### `sqlmesh/config.yaml`
+```yaml
+gateways:
+  local_gateway:
+    connection:
+      type: duckdb
+      catalogs:
+        sales_lakehouse:
+          type: ducklake
+          path: ../data/catalog.ducklake
+          data_path: ../data/storage/
+      extensions:
+        - ducklake
+    state_connection:
+      type: duckdb
+      database: ../data/sqlmesh_state.db
+```
+
+## 🐛 Debugging Tips
+
+### Check CSV Seeds
+```bash
+# List seeds
+dir sqlmesh\seeds\
+
+# View seed content
+Get-Content sqlmesh\seeds\sales_data.csv -Head 10
+
+# Check metadata
+Get-Content sqlmesh\seeds\sales_data_metadata.txt
+```
+
+### Check SQLMesh Models
+```bash
+cd sqlmesh
+
+# List models
+sqlmesh info
+
+# Check specific model
+sqlmesh info raw.sales
+
+# View model lineage
+sqlmesh dag
+```
+
+### Check DuckLake Data
+```bash
+cd sqlmesh
+
+# Query raw data
+sqlmesh fetchdf "SELECT COUNT(*) FROM raw__dev.sales"
+
+# Check catalog
+sqlmesh fetchdf "SHOW TABLES FROM sales_lakehouse"
+```
+
+## 🎉 Summary
+
+This structure provides:
+- ✅ Clean separation: Ingestion → Transformation → Visualization
+- ✅ Modular components (SeedWriter is reusable)
+- ✅ Easy debugging (CSV seeds are readable)
+- ✅ Industry best practices (follows Tobiko Data pattern)
+- ✅ Scalable (add sources/reports independently)
+- ✅ Maintainable (single responsibility per module)
+
+**Perfect for POC and production!** 🚀

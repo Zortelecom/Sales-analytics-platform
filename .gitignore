@@ -1,0 +1,11 @@
+﻿# Data
+data/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.env
+
+# DuckDB
+*.duckdb.wal

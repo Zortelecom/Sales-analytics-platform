@@ -1,0 +1,12 @@
+sales:
+  directory: "sales"
+  file_pattern: "*.xlsx"
+  table_prefix: "Sales"
+  exclude_sheets: ["synthese", "summary"]
+  required_columns: ["date", "sku", "qty"]
+
+targets:
+  directory: "targets"
+  file_pattern: "*.xlsx"
+  table_prefix: "Target"
+  required_columns: ["month_year", "salesperson_id", "target_amount"]

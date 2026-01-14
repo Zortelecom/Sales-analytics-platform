@@ -1,0 +1,25 @@
+Seed Metadata
+==================================================
+
+Seed Name: clientSD_data
+Batch ID: batch_20260111_183550
+Timestamp: 2026-01-11T18:37:39.361250+00:00
+Rows Written: 84
+Columns: 9
+
+Column Names:
+  - sd_name
+  - sd_id
+  - region
+  - kp
+  - subregion
+  - phone
+  - city
+  - is_destocked
+  - client_sd_ref_id
+
+Source Files:
+  - References.xlsx
+
+Ingestion Batch IDs:
+  - batch_20260111_183550
