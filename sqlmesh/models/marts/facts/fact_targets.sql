@@ -19,11 +19,7 @@ SELECT
   
   -- Salesperson dimension FK (join to version valid at target month)
   t.salesperson_id,
-  sp.salesperson_name,
-  sp.region,
-  sp.subregion,
-  sp.sales_channel,
-  sp.supervisor_name,
+  sp.salesperson_key,
   
   -- Product category
   t.product_category,

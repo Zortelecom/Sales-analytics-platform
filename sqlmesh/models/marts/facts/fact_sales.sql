@@ -23,29 +23,11 @@ SELECT
   -- Product dimension FK (SCD Type 2 join)
   p.product_key,
   p.sku AS product_sku,
-  p.product_name,
-  p.product_category,
-  p.product_subcategory,
-  p.is_innovation_product,
   
   -- Salesperson dimension FK (SCD Type 2 join)
   sp.salesperson_key,
-  sp.salesperson_id,
-  sp.salesperson_name,
-  sp.region AS salesperson_region,
-  sp.subregion AS salesperson_subregion,
-  sp.sales_channel,
-  sp.supervisor_name,
-  
-  -- Client dimension FK (SCD Type 2 join)
-  c.sd_id AS customer_id,
-  c.sd_name AS customer_name,
-  c.region AS customer_region,
-  c.subregion AS customer_subregion,
-  c.city AS customer_city,
-  c.key_player AS key_player,
-  c.is_destocked AS is_customer_destocked,
-  
+
+  c.sd_key AS sd_key,
   -- MEASURES
   s.quantity,
   s.unit_price AS unit_price_actual,
