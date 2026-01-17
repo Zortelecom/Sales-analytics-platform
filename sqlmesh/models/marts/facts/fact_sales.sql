@@ -20,20 +20,30 @@ SELECT
   EXTRACT(YEAR FROM s.sale_date) AS sale_year,
   EXTRACT(MONTH FROM s.sale_date) AS sale_month,
   
-  -- Product dimension FK (SCD Type 2 join)
+  -- Product dimension FK
   p.product_key,
-  p.sku AS product_sku,
+  s.sku,
+  p.product_category,
   
-  -- Salesperson dimension FK (SCD Type 2 join)
+  -- Salesperson dimension FK
   sp.salesperson_key,
+  s.salesperson_id,
+  sp.salesperson_name,
+  sp.region,       
+  sp.subregion, 
+  sp.sales_channel,
+  sp.supervisor_name, 
 
-  c.sd_key AS sd_key,
+  -- Client dimension FK
+  c.sd_key AS client_key,
+  s.client_id,      
+  
   -- MEASURES
   s.quantity,
   s.unit_price AS unit_price_actual,
   s.sales_amount AS total_amount,
   
-  -- Use dimension price for comparison
+  -- Dimension price/weight for comparison
   p.unit_price AS unit_price_standard,
   s.unit_weight_kg AS unit_weight_actual,
   p.unit_weight_kg AS unit_weight_standard,
@@ -69,7 +79,4 @@ LEFT JOIN marts.dim_salesperson sp
 LEFT JOIN marts.dim_clientsd c
   ON s.client_id = c.sd_id
   AND s.sale_date >= c.valid_from
-  AND (s.sale_date < c.valid_to OR c.valid_to IS NULL)
-
-WHERE s.sale_date >= @start_date 
-  AND s.sale_date < @end_date;
+  AND (s.sale_date < c.valid_to OR c.valid_to IS NULL);

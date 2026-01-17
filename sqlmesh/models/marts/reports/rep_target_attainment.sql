@@ -15,22 +15,16 @@ WITH monthly_sales AS (
   SELECT
     DATE_TRUNC('month', f.sale_date) AS performance_month,
     f.salesperson_id,
-    sp.salesperson_name,
-    sp.region,
-    sp.subregion,
-    sp.sales_channel,
-    p.product_category,
-    
-    SUM(f.sales_amount) AS actual_sales,
+    f.salesperson_name,
+    f.region,
+    f.subregion,
+    f.sales_channel,
+    f.product_category,
+    SUM(f.total_amount) AS actual_sales,
     SUM(f.quantity) AS total_quantity,
     COUNT(DISTINCT f.sales_line_id) AS transactions,
     COUNT(DISTINCT f.client_key) AS unique_customers
-    
   FROM marts.fact_sales f
-  JOIN marts.dim_salesperson sp 
-    ON f.salesperson_key = sp.salesperson_key
-  JOIN marts.dim_product p 
-    ON f.product_key = p.product_key
   WHERE f.sale_date >= @start_date 
     AND f.sale_date < @end_date
   GROUP BY 1, 2, 3, 4, 5, 6, 7

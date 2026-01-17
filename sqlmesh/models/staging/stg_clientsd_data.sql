@@ -1,7 +1,7 @@
 MODEL (
   name staging.stg_clientsd_data,
-  kind SC2D_TYPE_2_BY_COLUMN(
-    unique_key = sd_id,
+  kind SCD_TYPE_2_BY_COLUMN (
+    unique_key  (sd_id),
     columns (region, subregion, city, key_player, phone_number, is_destocked)
   ),
   cron '@daily',

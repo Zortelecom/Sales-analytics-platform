@@ -1,2 +1,0 @@
-2026-01-14 14:41:59,709 - MainThread - sqlmesh.core.config.connection - INFO - Creating new DuckDB adapter for data files: {'../data/warehouse/catalog.ducklake'} (connection.py:496)
-2026-01-14 14:42:00,096 - MainThread - root - INFO - Shutting down the event dispatcher (dispatcher.py:159)

@@ -1,8 +1,8 @@
 MODEL (
   name staging.stg_salesteam_data,
-  kind SCD_TYPE_2_BY_COLUMN(
-    unique_key = salesperson_id,
-    columns (region, subregion, channel, supervisor)
+  kind SCD_TYPE_2_BY_COLUMN (
+    unique_key (salesperson_id),
+    columns (region, subregion, sales_channel, supervisor_name)
   ),
   cron '@daily',
   grain (salesperson_key),

@@ -1,8 +1,8 @@
 MODEL (
   name staging.stg_products_data,
-  kind SC2D_TYPE_2_BY_COLUMN(
-    unique_key = sku,
-    columns (unit_price, unit_weight, is_innovation)
+  kind SCD_TYPE_2_BY_COLUMN(
+    unique_key (sku),
+    columns (unit_price, unit_weight_kg, is_innovation_product)
   ),
   cron '@daily',
   grain (product_key),

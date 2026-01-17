@@ -2,34 +2,33 @@ MODEL (
   name reports.rep_weekly_meeting,
   kind FULL,
   owner analytics_team,
-  cron '0 8 * * MON',  -- Run every Monday at 8 AM
+  -- cron '0 8 * * MON', -- Run every Monday at 8 AM
+  start '2025-01-01',  
   storage_format 'parquet',
   description 'Weekly sales performance snapshot for management meetings'
 );
 
 WITH date_context AS (
   SELECT
-    DATE_TRUNC('week', CURRENT_DATE) AS current_week_start,
-    DATE_TRUNC('week', CURRENT_DATE - INTERVAL 7 DAYS) AS last_week_start,
-    DATE_TRUNC('month', CURRENT_DATE) AS current_month_start
+    DATE_TRUNC('week', CAST(@execution_date AS DATE)) AS current_week_start,
+    DATE_TRUNC('week', CAST(@execution_date AS DATE) - INTERVAL 7 DAYS) AS last_week_start,
+    DATE_TRUNC('month', CAST(@execution_date AS DATE)) AS current_month_start
 ),
 
 this_week_sales AS (
   SELECT
     f.salesperson_id,
-    sp.salesperson_name,
-    sp.region,
-    sp.subregion,
-    sp.sales_channel,
+    f.salesperson_name,
+    f.region,
+    f.subregion,
+    f.sales_channel,
     COUNT(DISTINCT f.sales_line_id) AS transactions_count,
     SUM(f.quantity) AS total_quantity,
-    SUM(f.sales_amount) AS total_sales,
+    SUM(f.total_amount) AS total_sales,
     COUNT(DISTINCT f.client_key) AS unique_customers,
     COUNT(DISTINCT f.product_key) AS unique_products
   FROM marts.fact_sales f
   CROSS JOIN date_context dc
-  JOIN marts.dim_salesperson sp 
-    ON f.salesperson_key = sp.salesperson_key
   WHERE f.sale_date >= dc.current_week_start
     AND f.sale_date < dc.current_week_start + INTERVAL 7 DAYS
   GROUP BY 1, 2, 3, 4, 5
@@ -38,7 +37,7 @@ this_week_sales AS (
 last_week_sales AS (
   SELECT
     f.salesperson_id,
-    SUM(f.sales_amount) AS last_week_sales
+    SUM(f.total_amount) AS last_week_sales
   FROM marts.fact_sales f
   CROSS JOIN date_context dc
   WHERE f.sale_date >= dc.last_week_start
@@ -49,7 +48,7 @@ last_week_sales AS (
 mtd_sales AS (
   SELECT
     f.salesperson_id,
-    SUM(f.sales_amount) AS mtd_sales
+    SUM(f.total_amount) AS mtd_sales
   FROM marts.fact_sales f
   CROSS JOIN date_context dc
   WHERE f.sale_date >= dc.current_month_start

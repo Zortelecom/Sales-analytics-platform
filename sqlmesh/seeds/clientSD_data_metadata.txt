@@ -2,8 +2,8 @@ Seed Metadata
 ==================================================
 
 Seed Name: clientSD_data
-Batch ID: batch_20260111_183550
-Timestamp: 2026-01-11T18:37:39.361250+00:00
+Batch ID: batch_20260116_215206
+Timestamp: 2026-01-16T21:53:58.670137+00:00
 Rows Written: 84
 Columns: 9
 
@@ -22,4 +22,4 @@ Source Files:
   - References.xlsx
 
 Ingestion Batch IDs:
-  - batch_20260111_183550
+  - batch_20260116_215206

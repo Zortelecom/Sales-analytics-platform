@@ -18,11 +18,10 @@ WITH last_30_days AS (
     p.is_innovation_product,
     COUNT(DISTINCT f.sales_line_id) AS transactions,
     SUM(f.quantity) AS total_quantity_sold,
-    SUM(f.sales_amount) AS total_revenue,
+    SUM(f.total_amount) AS total_revenue,
     COUNT(DISTINCT f.salesperson_key) AS salespeople_selling,
     COUNT(DISTINCT f.client_key) AS unique_customers,
-    COUNT(DISTINCT f.region) AS regions_sold_in,
-    AVG(f.unit_price) AS avg_unit_price
+    COUNT(DISTINCT f.region) AS regions_sold_in
   FROM marts.fact_sales f
   JOIN marts.dim_products p 
     ON f.product_key = p.product_key
@@ -33,7 +32,7 @@ WITH last_30_days AS (
 last_60_to_30_days AS (
   SELECT
     f.sku,
-    SUM(f.sales_amount) AS prev_period_revenue
+    SUM(f.total_amount) AS prev_period_revenue
   FROM marts.fact_sales f
   WHERE f.sale_date >= CURRENT_DATE - INTERVAL 60 DAYS
     AND f.sale_date < CURRENT_DATE - INTERVAL 30 DAYS
@@ -54,7 +53,6 @@ SELECT
   curr.unique_customers,
   curr.salespeople_selling,
   curr.regions_sold_in,
-  curr.avg_unit_price,
   ROUND(curr.total_revenue / NULLIF(curr.transactions, 0), 0) AS avg_transaction_value,
   
   -- Trend analysis

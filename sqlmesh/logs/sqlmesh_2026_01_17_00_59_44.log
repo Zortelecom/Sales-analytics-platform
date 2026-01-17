@@ -1,0 +1,70 @@
+2026-01-17 00:59:45,625 - MainThread - sqlmesh.core.config.connection - INFO - Creating new DuckDB adapter for data files: {'../data/warehouse/catalog.ducklake'} (connection.py:496)
+2026-01-17 00:59:47,396 - MainThread - sqlmesh.core.config.connection - INFO - Creating new DuckDB adapter for data files: {'../data/warehouse/sqlmesh_state.db'} (connection.py:496)
+2026-01-17 00:59:53,033 - MainThread - sqlmesh.core.plan.evaluator - INFO - Evaluating plan stage CreateSnapshotRecordsStage (evaluator.py:123)
+2026-01-17 00:59:53,076 - MainThread - sqlmesh.core.plan.evaluator - INFO - Evaluating plan stage PhysicalLayerSchemaCreationStage (evaluator.py:123)
+2026-01-17 00:59:53,081 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Creating schema 'sales_lakehouse.sqlmesh__marts' (evaluator.py:1449)
+2026-01-17 00:59:53,081 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 7c82636c3e784fd6a14b20c976480959 */ CREATE SCHEMA IF NOT EXISTS "sales_lakehouse"."sqlmesh__marts" (base.py:2626)
+2026-01-17 00:59:54,431 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Creating schema 'sales_lakehouse.sqlmesh__raw' (evaluator.py:1449)
+2026-01-17 00:59:54,431 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 7c82636c3e784fd6a14b20c976480959 */ CREATE SCHEMA IF NOT EXISTS "sales_lakehouse"."sqlmesh__raw" (base.py:2626)
+2026-01-17 00:59:54,434 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Creating schema 'sales_lakehouse.sqlmesh__reports' (evaluator.py:1449)
+2026-01-17 00:59:54,435 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 7c82636c3e784fd6a14b20c976480959 */ CREATE SCHEMA IF NOT EXISTS "sales_lakehouse"."sqlmesh__reports" (base.py:2626)
+2026-01-17 00:59:54,437 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Creating schema 'sales_lakehouse.sqlmesh__staging' (evaluator.py:1449)
+2026-01-17 00:59:54,438 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 7c82636c3e784fd6a14b20c976480959 */ CREATE SCHEMA IF NOT EXISTS "sales_lakehouse"."sqlmesh__staging" (base.py:2626)
+2026-01-17 00:59:54,440 - MainThread - sqlmesh.core.plan.evaluator - INFO - Evaluating plan stage BackfillStage (evaluator.py:123)
+2026-01-17 00:59:54,448 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Listing data objects in schema sales_lakehouse.sqlmesh__reports (evaluator.py:1616)
+2026-01-17 00:59:54,448 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 7c82636c3e784fd6a14b20c976480959 */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-17 00:59:54,452 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 7c82636c3e784fd6a14b20c976480959 */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-17 00:59:54,459 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 7c82636c3e784fd6a14b20c976480959 */ SELECT table_name AS name, table_schema AS schema, CASE table_type WHEN 'BASE TABLE' THEN 'table' WHEN 'VIEW' THEN 'view' WHEN 'LOCAL TEMPORARY' THEN 'table' END AS type FROM system.information_schema.tables WHERE (table_catalog = 'sales_lakehouse' AND table_schema = 'sqlmesh__reports') AND table_name IN ('reports__rep_top_products__3498895152__dev', 'reports__rep_weekly_meeting__4089163849__dev', 'reports__rep_target_attainment__2422824286__dev') (base.py:2626)
+2026-01-17 00:59:54,485 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Listing data objects in schema sales_lakehouse.sqlmesh__marts (evaluator.py:1616)
+2026-01-17 00:59:54,486 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 7c82636c3e784fd6a14b20c976480959 */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-17 00:59:54,490 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 7c82636c3e784fd6a14b20c976480959 */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-17 00:59:54,496 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 7c82636c3e784fd6a14b20c976480959 */ SELECT table_name AS name, table_schema AS schema, CASE table_type WHEN 'BASE TABLE' THEN 'table' WHEN 'VIEW' THEN 'view' WHEN 'LOCAL TEMPORARY' THEN 'table' END AS type FROM system.information_schema.tables WHERE (table_catalog = 'sales_lakehouse' AND table_schema = 'sqlmesh__marts') AND table_name IN ('marts__fact_targets__1725811394__dev', 'marts__dim_salesperson__1758042276__dev', 'marts__fact_sales__3261040808__dev', 'marts__dim_products__763842527__dev', 'marts__dim_clientsd__469669551__dev', 'marts__dim_date__2600068558__dev') (base.py:2626)
+2026-01-17 00:59:54,512 - MainThread - sqlmesh.core.snapshot.evaluator - INFO - Listing data objects in schema sales_lakehouse.sqlmesh__staging (evaluator.py:1616)
+2026-01-17 00:59:54,512 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 7c82636c3e784fd6a14b20c976480959 */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-17 00:59:54,515 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 7c82636c3e784fd6a14b20c976480959 */ SELECT CURRENT_CATALOG() (base.py:2626)
+2026-01-17 00:59:54,519 - MainThread - sqlmesh.core.engine_adapter.base - INFO - Executing SQL: /* SQLMESH_PLAN: 7c82636c3e784fd6a14b20c976480959 */ SELECT table_name AS name, table_schema AS schema, CASE table_type WHEN 'BASE TABLE' THEN 'table' WHEN 'VIEW' THEN 'view' WHEN 'LOCAL TEMPORARY' THEN 'table' END AS type FROM system.information_schema.tables WHERE (table_catalog = 'sales_lakehouse' AND table_schema = 'sqlmesh__staging') AND table_name IN ('staging__stg_clientsd_data__3122030815__dev', 'staging__stg_targets_data__1757844379__dev', 'staging__stg_products_data__1736959047__dev', 'staging__stg_salesteam_data__1077743129__dev') (base.py:2626)
+2026-01-17 00:59:54,610 - MainThread - sqlmesh.core.scheduler - INFO - Execution failed for node EvaluateNode(snapshot_name='"sales_lakehouse"."reports"."rep_weekly_meeting"', interval=(1768435200000, 1768176000000), batch_index=0) (scheduler.py:618)
+Traceback (most recent call last):
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\utils\concurrency.py", line 234, in sequential_apply_to_dag
+    fn(node)
+    ~~^^^^^^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\scheduler.py", line 554, in run_node
+    audit_results = self.evaluate(
+        snapshot=snapshot,
+    ...<9 lines>...
+        selected_models=selected_models,
+    )
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\scheduler.py", line 223, in evaluate
+    validate_date_range(start, end)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\utils\date.py", line 366, in validate_date_range
+    raise ValueError(
+        f"Start date / time ({start}) can't be greater than end date / time ({end})"
+    )
+ValueError: Start date / time (1768435200000) can't be greater than end date / time (1768176000000)
+
+The above exception was the direct cause of the following exception:
+
+sqlmesh.utils.concurrency.NodeExecutionFailedError: Execution failed for node EvaluateNode(snapshot_name='"sales_lakehouse"."reports"."rep_weekly_meeting"', interval=(1768435200000, 1768176000000), batch_index=0)
+2026-01-17 00:59:54,622 - MainThread - sqlmesh.core.context - INFO - Plan application failed. (context.py:1797)
+Traceback (most recent call last):
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\context.py", line 1789, in apply
+    self._apply(plan, circuit_breaker)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\context.py", line 2582, in _apply
+    self._scheduler.create_plan_evaluator(self).evaluate(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        plan.to_evaluatable(), circuit_breaker=circuit_breaker
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\plan\evaluator.py", line 105, in evaluate
+    self._evaluate_stages(plan_stages, plan)
+    ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\plan\evaluator.py", line 125, in _evaluate_stages
+    handler(stage, plan)
+    ~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\User\env\Lib\site-packages\sqlmesh\core\plan\evaluator.py", line 264, in visit_backfill_stage
+    raise PlanError("Plan application failed.")
+sqlmesh.utils.errors.PlanError: Plan application failed.
+2026-01-17 00:59:54,704 - MainThread - root - INFO - Shutting down the event dispatcher (dispatcher.py:159)
