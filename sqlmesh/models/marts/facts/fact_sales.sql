@@ -57,9 +57,6 @@ SELECT
     THEN ROUND(((s.unit_price - p.unit_price) / p.unit_price) * 100, 2)
     ELSE 0
   END AS price_variance_pct,
-  
-  -- Degenerate dimensions
-  s.location
 
 FROM staging.stg_sales_data s
 

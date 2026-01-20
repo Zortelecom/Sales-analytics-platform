@@ -2,10 +2,10 @@ Seed Metadata
 ==================================================
 
 Seed Name: clientSD_data
-Batch ID: batch_20260116_215206
-Timestamp: 2026-01-16T21:53:58.670137+00:00
+Batch ID: batch_20260120_130302
+Timestamp: 2026-01-20T13:03:02.895494+00:00
 Rows Written: 84
-Columns: 9
+Columns: 10
 
 Column Names:
   - sd_name
@@ -15,6 +15,7 @@ Column Names:
   - subregion
   - phone
   - city
+  - location
   - is_destocked
   - client_sd_ref_id
 
@@ -22,4 +23,4 @@ Source Files:
   - References.xlsx
 
 Ingestion Batch IDs:
-  - batch_20260116_215206
+  - batch_20260120_130302

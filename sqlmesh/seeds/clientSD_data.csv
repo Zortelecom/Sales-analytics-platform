@@ -1,85 +1,85 @@
-sd_name,sd_id,region,kp,subregion,phone,city,is_destocked,client_sd_ref_id
-ETS MANGA EKOUNOU ,SDC001,Centre,Henri & Freres,YDE NORD,694917167.0,Yaounde,Yes,6656023a-166a-4623-ba93-ffbb3ae6234b
-APPOLINAIRE,SDC002,Centre,Henri & Freres,YDE NORD,680610111.0,Yaounde,Yes,6492c861-a06b-4479-8b81-a2ec8f5b29c4
-DJOUMESSI,SDC003,Centre,Henri & Freres,YDE CENTRE,655235687.0,Yaounde,Yes,aea48bb5-84af-4e1f-a341-f5ebd9f2946a
-FEDE A20,SDC004,Centre,Henri & Freres,YDE SUD-OUEST,693704465.0,Yaounde,No,cfd43f0c-e1a0-489f-8ebe-42590beb4939
-FEDE MINKAM,SDC005,Centre,Henri & Freres,YDE CENTRE,698632359.0,Yaounde,None,488f62da-638a-4a18-8283-5fa975f7e802
-MBALLA WAMBA,SDC006,Centre,Henri & Freres,YDE CENTRE,690076046.0,Yaounde,None,2cb990a7-7e2f-4721-bc54-7c6c33f97bb9
-PENKA MENDONG,SDC007,Centre,Henri & Freres,YDE SUD-OUEST,678170717.0,Yaounde,Yes,d41447d8-a61c-4e12-b2b3-defae28dd02a
-SIDI,SDC008,Centre,Henri & Freres,YDE CENTRE,699573394.0,Yaounde,None,3e58e5a9-9a8a-419a-9619-9da7437ee618
-YACOUBOU HAIROU,SDC009,Centre,Henri & Freres,YDE SUD-OUEST,677633092.0,Yaounde,None,45f01e43-6c46-469b-845b-e1ed48b66b40
-TADJUIDJE SIMEON,SDC010,Centre,Henri & Freres,YDE CENTRE,697842871.0,Yaounde,None,984d699a-da7e-43bb-9c19-7f718a210fdd
-MINI MOKOLO,SDC011,Centre,Henri & Freres,YDE SUD-OUEST,nan,Bertoua,Yes,2aa6a776-df91-4592-a77a-9834c5008ab8
-BOSTON ETOUDI,SDC012,Centre,Henri & Freres,None,nan,None,None,272cc5a0-7e75-48e7-bb3c-bf70602af5da
-TWIZEYIMANA ,SDC013,Centre,Henri & Freres,None,nan,None,None,da5829d9-de09-49ec-89f8-bb4cedca16dd
-GASTON,SDC014,Centre,Henri & Freres,None,nan,None,None,dfc66c96-09b0-4b35-a8ff-6e1abbbcc43e
-SYLVAIN,SDC015,Centre,Henri & Freres,None,nan,None,None,306167c3-3957-4588-bffc-2bbbeb53d7b5
-AZANGUE,SDC016,Centre,Henri & Freres,None,nan,None,None,54d00002-7b1d-4115-9f20-885d341d3cf8
-DJOU MITTERIN,SDC017,Centre,Henri & Freres,None,nan,None,None,f7645947-a6af-47fe-9d8c-7924eca36ac5
-ETS ST MARTIN,SDC018,Centre,Henri & Freres,None,nan,None,None,fa201010-c58a-4551-9c1d-274fb970108f
-ETS TIGUE BAFIA ,SDC019,Centre,Henri & Freres,None,nan,None,None,ce3ebb43-2ac2-4b26-9c67-0e283e782d2a
-PENKA M.C.,SDC020,Centre,Henri & Freres,None,nan,None,None,a8c56540-a001-4e1c-b91b-689d6b0780b4
-SOCOGEN,SDC021,Centre,Henri & Freres,None,nan,None,None,48d3d23d-efe9-46df-8d54-b62679f9376d
-DONFACK ,SDC022,Centre,Henri & Freres,None,nan,None,None,01cafd1c-880e-4788-a55f-8e36e3901724
-VERODIS,SDC023,Centre,Henri & Freres,YDE CENTRE,nan,MBALMAYO,None,24026126-cf4d-44d1-99f1-4ec297c741ea
-BONAVENURE,SDC024,Centre,Henri & Freres,None,nan,None,None,e169e2fa-a04f-458e-93b8-bc654cf0caf6
-BRUNO,SDC025,Centre,Henri & Freres,None,nan,None,None,08745c18-c5a5-4d74-8593-6a1d513a1699
-CYRIL MBYO,SDC026,Centre,Henri & Freres,None,nan,None,None,dc1a755d-5e9a-4948-8c21-89d4efc22b7a
-DALTON,SDC027,Centre,Henri & Freres,None,nan,None,None,2486835a-f602-4ae5-9a90-2213f10654a2
-DEDO,SDC028,Centre,Henri & Freres,YDE CENTRE,nan,None,None,8c2af9d0-a502-480e-a6a1-e3ab6c60d32b
-EDIMO ETOUDI,SDC029,Centre,Henri & Freres,None,nan,None,None,17f85721-b993-4f87-a090-465110662789
-GEORGES ,SDC030,Centre,Henri & Freres,None,nan,None,None,d79ce3c5-710d-4b19-8406-90be19fccd2f
-HAMADJANGUI,SDC031,Centre,Henri & Freres,None,nan,None,None,fb302fa0-b8a5-4dc4-82e3-87a97901c03c
-KAMGA,SDC032,Centre,Henri & Freres,None,nan,None,None,4bc80653-c663-4b03-a839-7826fe97a72e
-KEMOGNE,SDC033,Centre,Henri & Freres,None,nan,None,None,6c173302-bde0-48fd-b1bd-e95b3ef65983
-KENE KAMLA,SDC034,Centre,Henri & Freres,None,nan,None,None,75d6d240-fa8e-4088-bc36-762e89d32bed
-KUETE JANVIER ,SDC035,Centre,Henri & Freres,None,nan,None,None,29729d9e-76de-4a25-822e-bdb173c9af93
-MBEMEZOK,SDC036,Centre,Henri & Freres,None,nan,None,None,a708247b-b400-411c-be80-3b6a658bc0c9
-MEKAK,SDC037,Centre,Henri & Freres,None,nan,None,None,9870b3f1-f450-4081-abca-3b160153e3bd
-MICHEL LA TOUR,SDC038,Centre,Henri & Freres,None,nan,None,None,157a8396-5dcd-43cf-8548-603568cce543
-MOHAMADOU ,SDC039,Centre,Henri & Freres,None,nan,None,None,5ba00758-cb01-430b-bcbe-59f6a3b35f00
-NGANNOU HYPOLITHE,SDC040,Centre,Henri & Freres,None,nan,None,None,3558ed2e-5b9e-40e6-a4eb-0378879fffb4
-NZOYEM MELON ,SDC041,Centre,Henri & Freres,None,nan,None,None,1aa1d164-61fd-4af3-a3f5-7ba3591fba45
-PYTHAGORE,SDC042,Centre,Henri & Freres,None,nan,None,None,8cb2bb93-2438-4d6c-91c5-1709fc4d4ac3
-SINZI BENJAMIN,SDC043,Centre,Henri & Freres,None,nan,None,None,6539a0c8-10e5-4f6b-8afa-4d0cd2bd18ce
-SOTRACOM,SDC044,Centre,Henri & Freres,None,nan,None,None,03bdf1c2-887a-412f-a3c3-397cd39a4340
-STRADIPA,SDC045,Centre,Henri & Freres,None,nan,None,None,cc93e51f-bd92-4c03-ba70-d6df23cf9d29
-TEMKOU,SDC046,Centre,Henri & Freres,None,nan,None,None,e97c2a51-47af-4282-aa54-c16d8cfa449f
-TIOJO,SDC047,Centre,Henri & Freres,None,nan,None,None,939d8794-4761-40ba-8fd2-0b78d0cd795b
-CLEMENT (dushimana),SDC048,Centre,Henri & Freres,None,nan,None,None,2a238917-5e63-4250-9a06-e40226974b00
-ETS LAG,SDC049,Centre,Henri & Freres,None,nan,None,None,c8adc7de-ce23-4c74-a819-72248745ab0f
-SADOU,SDC050,Centre,Henri & Freres,None,nan,None,None,09a40a2e-c7c2-4e24-a04b-797e8cd7e488
-DJENGUE DJENGUE,SDC051,Centre,Henri & Freres,None,nan,None,None,691193c8-ecbb-4793-8083-a871ed803663
-ETS SADOU SA'ADOU,SDC052,Centre,Henri & Freres,None,nan,None,None,0a8dfa51-b30c-4a42-b34b-3564d206d78e
-FOSSI,SDC053,Centre,Henri & Freres,None,nan,None,None,7e404ad5-7c67-40b8-8386-448e14773884
-INJEH,SDC054,Centre,Henri & Freres,None,nan,None,None,cc5dceb5-1413-4abd-9251-fa7ef2abc266
-KOFANA,SDC055,Centre,Henri & Freres,None,nan,None,None,8528324f-c6f3-4909-89ac-1b1dcd941b27
-KUETE,SDC056,Centre,Soaneg,Est,nan,None,None,e6e5b015-9ac8-4a0b-8a53-cfa247d3e958
-PEPINIERE,SDC057,Centre,Soaneg,Est,nan,None,None,c722dba2-69bc-4419-890e-9964e73b4c0d
-GOD WILL,SDC058,Centre,Soaneg,Est,nan,None,None,27088130-4e95-4948-84d1-e8aeb844a89f
-IBRAHIM ADAMA,SDC059,Centre,Soaneg,Est,nan,None,None,bbea94a3-e0c7-4830-b217-815515470c25
-SOCOPAT,SDC060,Centre,Soaneg,Est,nan,None,None,ebb7985e-a31d-4453-8a77-31ca2437183b
-MOUSTAPHA BELLO,SDC061,Centre,Soaneg,Est,nan,None,None,4fa702a1-cb53-4235-9e0d-5726cbf3a660
-DIALLO MOUSSA,SDC062,Centre,Soaneg,Est,nan,None,None,c08d0233-17c4-40df-971e-c961ccf7a5ff
-ANATOLE,SDC063,Centre,Soaneg,Est,nan,None,None,64cb8fc9-916d-4287-9e9b-976feae8d72e
-GTC,SDC064,Centre,Soaneg,Est,nan,None,None,1e9d1cc7-98e2-4de5-9fc1-e60d07659eb9
-ALADJI BELLO,SDC065,Centre,Omc,Est,nan,Batouri,None,57000387-7ee3-42e1-861c-ec37667e12ac
-THOMAS,SDC066,Centre,Omc,Est,nan,Batouri,None,4cdbb6ea-7142-49ec-8759-e790b73bead5
-NASER,SDC067,Centre,Omc,Est,nan,Batouri,None,b7a19e98-d6db-4924-bbf4-5b47c419479e
-MOUMINI,SDC068,Centre,Omc,Est,nan,Batouri,None,94fa1b91-d9ca-46a5-a638-bbd0c709d28f
-HAMADOU  OUSMANOU,SDC069,Centre,Omc,Est,nan,Batouri,None,8c36bf54-12b7-4fd5-a68b-496ab7ede892
-ALADJI BOUBA SALI,SDC070,Centre,Omc,Est,nan,Batouri,None,18b65b83-e066-4c10-a05f-f9598a0f804e
-ALADJI ALIOU ABBA,SDC071,Centre,Omc,Est,nan,Batouri,None,475d3878-617d-49d1-b787-68ec7e874a69
-MOHAMADOU DANDJOUMA ,SDC072,Centre,Omc,Est,nan,Batouri,None,1aa298c7-91f2-4302-8629-8077ae603797
-LAMINOU,SDC073,Centre,Omc,Est,nan,Batouri,None,e0ff0f0b-2a4f-4f91-9942-ff9392f543de
-IBRAHIM ,SDC074,Centre,Omc,Est,nan,Batouri,None,9cbf1d8e-6794-4358-85fa-558e73bc2b38
-HAMADOU,SDC075,Centre,Omc,Est,nan,Batouri,None,22fbf410-a071-4a39-9225-d76d85b2107d
-CLOVIS,SDC076,Centre,Omc,Est,nan,Batouri,None,1a14c823-6960-4512-bc40-d933bbfea17d
-DEMONIANG CHRISTIAN,SDC077,Centre,Omc,Est,nan,Batouri,None,6c67e7b2-24df-4f63-97cb-e116675a108a
-ABAKOUA,SDC078,Centre,Adams,Sud,nan,None,None,ca68321b-d8aa-4368-9d5f-768e1bd5ecf3
-ZOEDIST,SDC079,Centre,Adams,Sud,nan,None,None,8f68cc39-41f3-4f02-a6b6-a4822ee090aa
-MOHA YAOUBA,SDC080,Centre,Adams,Sud,nan,None,None,b1112880-b74a-4463-8fe4-2c82443f9b05
-CHARMANT PRIX,SDC081,Centre,Adams,Sud,nan,None,None,d342209f-2eef-4497-b736-f6b4e7c6215e
-CHRISTOPHE,SDC082,Centre,Adams,Sud,nan,None,None,ef348fec-0447-4ff1-be95-4d7b88bb642e
-IBRAHIM MAIGNARI,SDC083,Centre,Adams,Sud,nan,None,None,5850c670-d321-44b7-9b6f-08d7135e5987
-ABATCHA,SDC084,Centre,Adams,Sud,nan,None,None,06ae1658-bc31-41c8-be1e-a723b808771d
+sd_name,sd_id,region,kp,subregion,phone,city,location,is_destocked,client_sd_ref_id
+ETS MANGA EKOUNOU ,SDC001,Centre,Henri & Freres,YDE NORD,694917167.0,Yaounde,Ekounou,Yes,1779bb9c-2472-4f48-a453-067d0928e3b4
+APPOLINAIRE,SDC002,Centre,Henri & Freres,YDE NORD,680610111.0,Yaounde,Ekounou,Yes,186697e5-a1c2-4977-a509-25856bf40a3f
+DJOUMESSI,SDC003,Centre,Henri & Freres,YDE CENTRE,655235687.0,Yaounde,Nsam,Yes,7d0cdf11-9cf1-4edb-ad2f-e51fc1f76693
+FEDE A20,SDC004,Centre,Henri & Freres,YDE SUD-OUEST,693704465.0,Yaounde,Marché central,No,fd33afd4-6690-45fb-9227-f62b5db1e984
+FEDE MINKAM,SDC005,Centre,Henri & Freres,YDE CENTRE,698632359.0,Yaounde,Marché central,None,b7baed86-cb37-4f92-8a42-b68437bfb183
+MBALLA WAMBA,SDC006,Centre,Henri & Freres,YDE CENTRE,690076046.0,Yaounde,Marché central,None,bc4a409b-5776-43c6-9d36-580fe6a3e06e
+PENKA MENDONG,SDC007,Centre,Henri & Freres,YDE SUD-OUEST,678170717.0,Yaounde,Mendong,Yes,7d46bd1a-cb24-4ab9-84d4-752cded918ff
+SIDI,SDC008,Centre,Henri & Freres,YDE CENTRE,699573394.0,Yaounde,Marché central,None,a3f5a2ff-8523-4a98-9726-0d253396562d
+YACOUBOU HAIROU,SDC009,Centre,Henri & Freres,YDE SUD-OUEST,677633092.0,Yaounde,Marché central,None,b259775b-5f39-4680-8e63-4b34e1a8d8c9
+TADJUIDJE SIMEON,SDC010,Centre,Henri & Freres,YDE CENTRE,697842871.0,Yaounde,Marché central,None,70050171-b706-4ce3-a379-9601da6f1393
+MINI MOKOLO,SDC011,Centre,Henri & Freres,YDE SUD-OUEST,nan,Bertoua,Nkolbisson,Yes,18a85db7-7764-4bf5-8c85-868665865f65
+BOSTON ETOUDI,SDC012,Centre,Henri & Freres,None,nan,None,None,None,98514afc-7daf-42c2-a075-3f622cff5397
+TWIZEYIMANA ,SDC013,Centre,Henri & Freres,None,nan,None,None,None,ad5be3d6-b631-4b0c-9732-21c696935d72
+GASTON,SDC014,Centre,Henri & Freres,None,nan,None,None,None,c43ab495-e86f-4191-b613-2bb032e01658
+SYLVAIN,SDC015,Centre,Henri & Freres,None,nan,None,None,None,2f07844c-8923-4b20-bfd2-98b2126b65ed
+AZANGUE,SDC016,Centre,Henri & Freres,None,nan,None,None,None,0b6bbb26-b8fc-4485-990d-659b0987456d
+DJOU MITTERIN,SDC017,Centre,Henri & Freres,None,nan,None,None,None,e4566cc1-1dce-41f4-ad3a-35a4294d4f70
+ETS ST MARTIN,SDC018,Centre,Henri & Freres,None,nan,None,None,None,5252ff2b-c692-4e38-9326-1e048b665de5
+ETS TIGUE BAFIA ,SDC019,Centre,Henri & Freres,None,nan,None,None,None,0a1b0b3e-ccf2-4629-a0a4-eca46efd0365
+PENKA M.C.,SDC020,Centre,Henri & Freres,None,nan,None,Marché central,None,17529056-1d80-4696-aefe-52e2801190f2
+SOCOGEN,SDC021,Centre,Henri & Freres,None,nan,None,None,None,27bf6daf-2b49-4c1f-b775-a6ac4ed7debb
+DONFACK ,SDC022,Centre,Henri & Freres,None,nan,None,None,None,3085a9d7-6376-4300-89f2-30a08e877176
+VERODIS,SDC023,Centre,Henri & Freres,YDE CENTRE,nan,MBALMAYO,None,None,2e2f9736-7661-46b6-adcf-fac52af5d052
+BONAVENURE,SDC024,Centre,Henri & Freres,None,nan,None,None,None,cf1042d0-0a68-4729-8eef-10a4d14f93e3
+BRUNO,SDC025,Centre,Henri & Freres,None,nan,None,None,None,b6633a7a-a41a-4578-805f-cc1232f89960
+CYRIL MBYO,SDC026,Centre,Henri & Freres,None,nan,None,None,None,c95bf57d-8491-4cc8-9f4f-67318ce705c6
+DALTON,SDC027,Centre,Henri & Freres,None,nan,None,None,None,a5368ec1-973e-4028-9896-181c9e1d76b8
+DEDO,SDC028,Centre,Henri & Freres,YDE CENTRE,nan,None,None,None,ae55cc18-7f4a-43d4-a31a-8a145b3a4ade
+EDIMO ETOUDI,SDC029,Centre,Henri & Freres,None,nan,None,None,None,276bd06c-fae8-48b0-90dc-c888414f6fe8
+GEORGES ,SDC030,Centre,Henri & Freres,None,nan,None,None,None,245a7256-d2f0-48bd-b33b-bd9eb3c324ea
+HAMADJANGUI,SDC031,Centre,Henri & Freres,None,nan,None,None,None,6726f49e-8833-4ebf-9c1b-5e008b24b0b2
+KAMGA,SDC032,Centre,Henri & Freres,None,nan,None,None,None,8daf2cf0-d52e-4518-b8df-37fff05ffb74
+KEMOGNE,SDC033,Centre,Henri & Freres,None,nan,None,None,None,6019af7b-35c9-449e-a90f-878263acca27
+KENE KAMLA,SDC034,Centre,Henri & Freres,None,nan,None,None,None,e74d71be-4cc5-47b4-8c29-28eab813d3b6
+KUETE JANVIER ,SDC035,Centre,Henri & Freres,None,nan,None,None,None,38f2d1d8-1e30-4ce1-9cdf-352989e27f49
+MBEMEZOK,SDC036,Centre,Henri & Freres,None,nan,None,None,None,b62a75a3-ddda-4c2a-b6f0-25111ef6be4e
+MEKAK,SDC037,Centre,Henri & Freres,None,nan,None,None,None,1df35c91-77a6-44e6-b0c7-909c2dc6aebe
+MICHEL LA TOUR,SDC038,Centre,Henri & Freres,None,nan,None,None,None,1a80ea2d-5339-44ac-9592-7d5fb3fc9046
+MOHAMADOU ,SDC039,Centre,Henri & Freres,None,nan,None,None,None,094d7d09-9cb4-4eb6-8a7f-6d2a7588f3fc
+NGANNOU HYPOLITHE,SDC040,Centre,Henri & Freres,None,nan,None,None,None,429eceed-eb98-4b9c-a2c4-acb9eaa40487
+NZOYEM MELON ,SDC041,Centre,Henri & Freres,None,nan,None,None,None,0e4e4977-9325-47cc-93da-ac8970250e23
+PYTHAGORE,SDC042,Centre,Henri & Freres,None,nan,None,None,None,5eb7e9e6-550b-49fc-a669-5e329b8e65a1
+SINZI BENJAMIN,SDC043,Centre,Henri & Freres,None,nan,None,None,None,38f7142d-5b02-436b-8be1-85e4965a0c04
+SOTRACOM,SDC044,Centre,Henri & Freres,None,nan,None,None,None,92cbfb5a-88b0-4bfd-8e30-d79551c12a80
+STRADIPA,SDC045,Centre,Henri & Freres,None,nan,None,None,None,4f49f41e-0edb-464f-b15f-c4fc91aa2287
+TEMKOU,SDC046,Centre,Henri & Freres,None,nan,None,None,None,b5d4f751-f040-471e-abd2-2bb604130922
+TIOJO,SDC047,Centre,Henri & Freres,None,nan,None,None,None,b8f8e72f-af8e-4906-b0ba-38d7e8d4d734
+CLEMENT (dushimana),SDC048,Centre,Henri & Freres,None,nan,None,None,None,79100124-8b94-4697-8987-0d7ffdb983a4
+ETS LAG,SDC049,Centre,Henri & Freres,None,nan,None,None,None,23472e91-9c84-42ab-9152-ac5957946c8b
+SADOU,SDC050,Centre,Henri & Freres,None,nan,None,None,None,19c33642-a1f3-4c27-96b6-82b0f0a03305
+DJENGUE DJENGUE,SDC051,Centre,Henri & Freres,None,nan,None,None,None,fe390f61-1c78-4eb9-b60a-8655962f9a1d
+ETS SADOU SA'ADOU,SDC052,Centre,Henri & Freres,None,nan,None,None,None,cc99e325-5a2a-45a4-b605-b87fff56da88
+FOSSI,SDC053,Centre,Henri & Freres,None,nan,None,None,None,82a17716-61f8-4893-b160-f12b47d33c7f
+INJEH,SDC054,Centre,Henri & Freres,None,nan,None,None,None,94583ad8-eb7d-427c-890a-886707e7390c
+KOFANA,SDC055,Centre,Henri & Freres,None,nan,None,None,None,f043c505-0264-41ff-8693-54d6e8bf4744
+KUETE,SDC056,Centre,Soaneg,Est,nan,None,None,None,f12e8ec8-0048-4960-a90d-1c95669c26bd
+PEPINIERE,SDC057,Centre,Soaneg,Est,nan,None,None,None,fbf008e8-8509-4732-90cf-8f4f0c3cb770
+GOD WILL,SDC058,Centre,Soaneg,Est,nan,None,None,None,56621843-c362-41de-9e43-8fd98a3b078b
+IBRAHIM ADAMA,SDC059,Centre,Soaneg,Est,nan,None,None,None,639760f6-fa7c-4399-a630-14ae223698fb
+SOCOPAT,SDC060,Centre,Soaneg,Est,nan,None,None,None,4cbba016-b4bc-4a03-aecc-66f64545a73f
+MOUSTAPHA BELLO,SDC061,Centre,Soaneg,Est,nan,None,None,None,f2aba122-bc01-4d1d-94af-567b06180f7d
+DIALLO MOUSSA,SDC062,Centre,Soaneg,Est,nan,None,None,None,b7d0a6b5-e540-4ac8-8dcd-13b27d20ac7a
+ANATOLE,SDC063,Centre,Soaneg,Est,nan,None,None,None,3d31dc3f-44ca-42f4-a79c-6f4e27d905c5
+GTC,SDC064,Centre,Soaneg,Est,nan,None,None,None,30313141-2515-4621-bc00-6b6b38b1d180
+ALADJI BELLO,SDC065,Centre,Omc,Est,nan,Batouri,None,None,c7f088a7-d19c-4dbd-913e-0bf49219a616
+THOMAS,SDC066,Centre,Omc,Est,nan,Batouri,None,None,425c1acc-0cd6-4d05-937a-353659e6875e
+NASER,SDC067,Centre,Omc,Est,nan,Batouri,None,None,7c5a23bd-21a4-4a81-b654-45ec64a11d92
+MOUMINI,SDC068,Centre,Omc,Est,nan,Batouri,None,None,15b56776-44e1-4d94-adca-a2cab624b911
+HAMADOU  OUSMANOU,SDC069,Centre,Omc,Est,nan,Batouri,None,None,11092bb4-40cd-4b30-bfd5-9f460e46b289
+ALADJI BOUBA SALI,SDC070,Centre,Omc,Est,nan,Batouri,None,None,708dd5a6-db4b-450d-ab41-83c4d64a1b8f
+ALADJI ALIOU ABBA,SDC071,Centre,Omc,Est,nan,Batouri,None,None,7458b196-bef7-4aff-9e64-8844c07f54a8
+MOHAMADOU DANDJOUMA ,SDC072,Centre,Omc,Est,nan,Batouri,None,None,3f2f99a8-b782-4d73-a61c-e514ad08cf64
+LAMINOU,SDC073,Centre,Omc,Est,nan,Batouri,None,None,7e3b597e-a228-4b8e-9a12-af29eb15ddf8
+IBRAHIM ,SDC074,Centre,Omc,Est,nan,Batouri,None,None,f947e251-3e6c-4b28-be17-5f3484924214
+HAMADOU,SDC075,Centre,Omc,Est,nan,Batouri,None,None,3c5cadbc-9b06-4bbe-acd4-9966920548ba
+CLOVIS,SDC076,Centre,Omc,Est,nan,Batouri,None,None,c3a75054-6d98-4d7e-861e-8fbd391837b0
+DEMONIANG CHRISTIAN,SDC077,Centre,Omc,Est,nan,Batouri,None,None,49c68689-0569-4ee4-a93f-bc2a365d1f1a
+ABAKOUA,SDC078,Centre,Adams,Sud,nan,None,None,None,675c300a-db31-4e94-8c2f-8ca159c53b81
+ZOEDIST,SDC079,Centre,Adams,Sud,nan,None,None,None,c5a92468-6fba-47c1-ac6e-2b941a31b0c4
+MOHA YAOUBA,SDC080,Centre,Adams,Sud,nan,None,None,None,08360886-c6d2-4449-aa6d-a43d7f2f1927
+CHARMANT PRIX,SDC081,Centre,Adams,Sud,nan,None,None,None,f9316e79-5002-4094-8ee6-328ae9b02b14
+CHRISTOPHE,SDC082,Centre,Adams,Sud,nan,None,None,None,f483a476-49e9-454f-9787-d4bfa78a4a4d
+IBRAHIM MAIGNARI,SDC083,Centre,Adams,Sud,nan,None,None,None,3235d615-8670-4597-bbf5-b20978ac7598
+ABATCHA,SDC084,Centre,Adams,Sud,nan,None,None,None,4754db86-4323-41d4-a1d9-212f5413f54d

@@ -41,8 +41,6 @@ SELECT
   
   -- Geographic attributes
   TRIM(subregion) AS subregion,
-  TRIM(city) AS city,
-  TRIM(localisation) AS location,
   TRIM(filename_subregion) AS filename_subregion,
   
   -- Product flags

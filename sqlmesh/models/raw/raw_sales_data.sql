@@ -21,8 +21,6 @@ MODEL (
     product_subcat TEXT,
     unit_weight TEXT,
     is_innovation TEXT,
-    localisation TEXT,
-    city TEXT,
     sales_line_id TEXT,
     filename_subregion TEXT
   )

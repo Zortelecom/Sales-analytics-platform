@@ -1,62 +1,62 @@
 sku,product_name,product_category,product_subcategory,unit_price,unit_weight,is_innovation,product_ref_id
-60-0031B-,Mambo Au Lait T 90g (100*2*45),Chocolates,slap,67600,9.0,No,9a8231df-2dad-4f98-8f26-00d288fa7baf
-60-0022B-,Mambo Noir 90g (100*2*45),Chocolates,slap,67600,9.0,No,d50179dc-9ce3-41b9-9ae6-543073539231
-60-032A-,Mambo au Riz 90g (2x9x5x100g),Chocolates,slap,64800,9.0,No,4e88da36-7abc-4030-b872-5425e3251b6e
-60-033A+-,Mambo Prestige Noir 58% (42 unités x95g),Chocolates,slap,33000,3.99,No,df38b016-0dca-4434-8c2e-9ea053c727d5
-60-021+-,Le Bon Patissier 200gx22x2,Chocolates,bakery,0,8.8,No,5180a223-c4be-4608-884a-0bb29e843e42
-60-37++-,Mambo Coffret Lait (2x4x25x23g),Chocolates,bar,33350,5.0,No,f135a72f-c8b5-4b76-97f6-101cd0fd9121
-60-28++-,Mambo Coffret Noir (2x4x25x23g),Chocolates,bar,33350,5.0,No,b479c425-b0d8-449c-9adf-cf696e5f0a5a
-60-060B-,Chococrock au Nougat 30g avec coffret (2x5x20x30g),Chocolates,bar,34900,6.0,No,4c1bc768-2639-41bc-bd13-e8934dd5e01c
-60-038A-,Mambo au Riz 25g (2x5x20x25g),Chocolates,bar,37100,5.0,No,4a438c22-657d-4210-895d-d9a61e6d8f35
-60-111B+-,Bâtons Boulangers Pour Professionnels (10g*9*2*54Unités),Chocolates,bakery,0,9.72,No,6e78327d-2e93-4e9e-b680-25d87b7135c7
-60-0026B-,Couverture Croquer 1 Kgx12 Blocs,Chocolates,bakery,0,12.0,No,36b68621-2ba0-4f18-a184-4306e289e295
-60-0049B,Couverture Beurre 1KG,Chocolates,bakery,0,12.0,No,23d9daec-7864-45c1-8b63-84350513f130
-60-0036-,Couveture Lait 25Kgs,Chocolates,bakery,0,25.0,No,92bfe0e2-3d76-4195-a6b4-797f01b108ba
-60-0036B,Chocolat à Patisser Lait 1Kg,Chocolates,bakery,0,25.0,No,519b64d9-9847-46fd-bf21-9ba94ce2e445
-60-079+-,"Tartina Seau 9,7 Kgs",Spreads,Extra Menage,16800,10.0,No,a870ee2b-c355-46b4-988b-9da0c0a24c2f
-60-172A-,"Tartina 4,7Kg x 1",Spreads,Extra Menage,8750,5.0,No,7b235692-d3f3-435d-8437-aab71ac8d676
-60-171B-,"Tartina 2,6 Kg *6 Seaux",Spreads,Intra Menage,33450,16.8,No,5c97274e-9274-4364-9210-7e83f898f60f
-60-179,"Tartina 1,8kg x6",Spreads,Intra Menage,29200,10.8,Yes,88767e41-7a11-4298-a01b-415183c81565
-60-170A-,"Tartina 1,2kg x12",Spreads,Intra Menage,32100,14.4,No,7eccc487-e67c-4b85-94b7-0a4194e7523b
-60-198C-,Tartina 760grs Cellophane et carton (4*6*760),Spreads,Intra Menage,47700,19.7,No,77da8380-fa99-44a5-9a78-1b1fe3681f97
-60-198A-,TARTINA  760grs Pot Plastique Sleeve 12X760,Spreads,Intra Menage,24100,9.6,No,52f17155-53c0-4eb2-b3f5-a7d7de1a9512
-60-63A-,Tartina 75Grs * 96 Pots,Spreads,Intra Menage,29300,8.16,No,03f72ae7-8070-433c-a170-ceeba016a97b
-60-194D-,Tartina 400g x 24 Boîtes,Spreads,Intra Menage,31000,10.2,No,e6d8a7e2-3420-46e6-a4db-662282cbc7ca
-60-180,Tartina 225g x 36 Boîtes,Spreads,Intra Menage,29900,8.1,Yes,cd5da707-9c26-49da-967c-d70af29f6283
-60-172+-,"Choconut 4,7KG",Spreads,Extra Menage,8600,10.0,No,08b305ea-5278-4b25-9c45-8f0c95a8d880
-60-0174-,"Choconut 9,7kg",Spreads,Extra Menage,16600,16.8,No,eec419ec-e977-453a-bd9f-67997108f2a6
-60-0173-,"Choconut 2,6Kgs (2,6kg*6)",Spreads,Intra Menage,32100,9.5,No,de057e12-bc43-4253-bc6a-c5089875c730
-60-174B+-,Chocolaté,Spreads,Extra Menage,15800,9.5,No,4db28a66-b331-467e-ab0f-01a34cfbe2eb
-60-0057-,Arina 750g (12*750g),Spreads,None,17350,9.0,No,2c06e3bb-f5de-4fc7-acc7-3532fed71eff
-60-41A-,Matinal Pot Plastique Sleeve 12x400G,Beverages,Beverage Cup,25200,4.8,No,b0ceb392-5f6e-44e0-99d9-e05fe7accd5f
-60-40A-,Matinal Pot Plastique Sleeve 24x200G,Beverages,Beverage Cup,29000,4.8,No,e4292fd7-2532-4f66-86cc-72a4b2ade7b4
-60-184A-,Matinal 13gx180,Beverages,Beverage Stick,11250,2.7,No,83b569a4-dd27-4edd-923a-dbd84b89537f
-60-185A-,Matinal Stick 9gx10x5x4,Beverages,Beverage Stick,7300,2.0,No,fdc0af34-620a-42c2-865d-7478cf637e8a
-60-44A-,Matinal 760g x6,Beverages,Beverage Cup,21000,4.8,No,91b0a396-69dd-41a4-8515-19df9b02aba0
-60-187B-,Matinal Super Lacté 20gx100,Beverages,Beverage Lacte,9500,2.0,Yes,20a28ef1-4102-4c02-9fac-fe88fc50de51
-60-187A-,Matinal Super Lacté 35gx120,Beverages,Beverage Lacte,17400,4.2,No,18111912-26e2-4de0-954c-bf746b8b5ced
-60-1+++-,Kola Red C 532 G 20 x 76 x 6g,Candies,None,16900,10.64,No,8dfe3c2b-6a77-4513-8427-a22755265ebe
-60-2+++-,Kola C Oye 532 G 20 x 76 x 6g,Candies,None,16900,10.64,No,c4c90491-4e3f-455d-9624-4eb8946c91e5
-60-03++-,Kola Red ++ 590G x 20 Sachets,Candies,None,17900,11.8,No,de8e86fa-baa1-412a-b4a7-a173f2b776cd
-60-04++-,Kola Oye ++ 590G x 20 Sachets,Candies,None,17900,11.8,No,8a687f85-3c0a-4be8-80e3-04ebda73a7dc
-60-0138-,Mini Kola Red 500g*20 Sachets,Candies,None,15200,10.0,No,d0924ced-128d-4ac6-a5ce-80ed5e78a1be
-60-0077-,Mini Kola Oyé 500g*20Sachets,Candies,None,22900,10.0,No,fdd7a025-4324-42f2-a78e-b1e141bb5804
-60-0158-,Ok Pectoral 400g * 20Sachets,Candies,None,13250,9.999,No,d913bd54-775e-4bb4-902e-85acafba242e
-60-0152-,Mini Ok Pectoral 172g * 26Sachets,Candies,None,12550,4.47,Yes,43793af5-e78f-48be-a0c0-96e1ef8548e0
-60-161-,Mini Ok Ginger,Candies,ginger pop,20700,5.03,Yes,80191bda-e2e8-4067-8b88-eaa6052e1c2f
-60-0153-,Kola Fruity (200g*50Sachets),Candies,None,10350,10.0,No,28f8cf1a-bea4-4b39-aed3-e8711ed31e8b
-60-05A-,Kola Ginger 350G (12*50*6g),Candies,ginger pop,10350,4.2,No,ccdd0a2d-4283-41ad-951f-fd64687e1439
-60-001E-,Kola Red Flowpack 350G(12*50*6g),Candies,None,10350,4.2,No,af922223-8dd9-4e3b-aa6f-74b9fe63593f
-60-002E-,Kola OYE Flow pack 350G(12*50*6g),Candies,None,10350,4.2,No,0503e5ef-c98e-4c1d-be9b-7a81190e38bf
-60-0008-,Kola Supermenthol 12*50*6g,Candies,menthol candy,10350,4.2,No,48b1e434-3b19-463c-82d2-993765831703
-60-0011A-,Kola Pop Fresh (10sx50ux12g),Candies,pop candy,9600,7.0,No,4afa77da-5761-41ee-afdf-5a4856d0e819
-60-118A-,Big GUMS TF 180g (26 Sachets),Gums,fruity gum,13450,4.95,No,c5b712ed-efd3-4ce4-bdd0-2dcb81082d40
-60-134E-,Big GUMS Tutti Frutti 398gr (20Sachets),Gums,fruity gum,23050,8.5,No,5854b230-07c5-43f2-9b0e-8385903ce565
-60-156A-,Big GUMS MC 180g ( 26 Sachets),Gums,menthol gum,13450,4.95,No,3658d8f5-8b76-4990-baa0-0107745c378a
-60-157E-,Big GUMS MC 398gr,Gums,menthol gum,23050,8.5,No,f33fc406-9722-4e0d-b015-64da67e2ea34
-60-118B-,Big GUMS Raspberry (190g),Gums,fruity gum,13450,4.95,No,df6b73e9-6ec4-47b2-8127-fcd9eb411fb6
-60-123A,Big GUMS TUTTi Frutti Flavour (12X150pcs),Gums,fruity gum,22000,4.14,Yes,24dba37a-b203-48e0-a082-f75a7dc014fe
-60-0014,Kola Pop Fruity,Candies,pop candy,19550,6.0,Yes,1a98029d-02d6-4ac0-aff7-afd7b11b56b4
-60-178,Tartina 7 Kg,Spreads,Extra Menage,13300,7.0,Yes,3dd8cdad-f8d3-4346-b87c-38c11b4527b0
-60-018-,Kola Fruity 400g,Candies,None,20700,nan,No,1d517ffe-9953-46f2-83cd-52595edcb15b
-60-0046+-,"Cacao Poudre Pure (12,5 Kg)",Beverages,None,0,nan,No,d77c5ae6-e223-4b17-9df5-97d2b63f129e
+60-0031B-,Mambo Au Lait T 90g (100*2*45),Chocolates,slap,67600,9.0,No,d84f3f4c-b111-4dc0-a8d7-9510f41aa6a4
+60-0022B-,Mambo Noir 90g (100*2*45),Chocolates,slap,67600,9.0,No,c52694c1-7e5e-4f3c-9614-4f241a0588c7
+60-032A-,Mambo au Riz 90g (2x9x5x100g),Chocolates,slap,64800,9.0,No,8e1cf667-2075-4b4f-8e6e-39283dffa268
+60-033A+-,Mambo Prestige Noir 58% (42 unités x95g),Chocolates,slap,33000,3.99,No,6da67152-6591-42a1-b34f-d46992600c8e
+60-021+-,Le Bon Patissier 200gx22x2,Chocolates,bakery,0,8.8,No,a8afccf3-2125-43e8-9f81-333ed1433f6b
+60-37++-,Mambo Coffret Lait (2x4x25x23g),Chocolates,bar,33350,5.0,No,4e16f436-e6f5-47d3-adb6-4225b90049ce
+60-28++-,Mambo Coffret Noir (2x4x25x23g),Chocolates,bar,33350,5.0,No,8b8a5fbf-25e2-4fd7-9cd5-d69e68e87cdc
+60-060B-,Chococrock au Nougat 30g avec coffret (2x5x20x30g),Chocolates,bar,34900,6.0,No,2fa24cae-7a11-4add-810f-114fcbe8923b
+60-038A-,Mambo au Riz 25g (2x5x20x25g),Chocolates,bar,37100,5.0,No,b9452a1c-b438-4c7a-9aa8-10c2dabaeedc
+60-111B+-,Bâtons Boulangers Pour Professionnels (10g*9*2*54Unités),Chocolates,bakery,0,9.72,No,623ecd71-6106-4fcf-a840-317f6d3e0289
+60-0026B-,Couverture Croquer 1 Kgx12 Blocs,Chocolates,bakery,0,12.0,No,9abc4939-7b2a-4a20-bc60-324d6bfc8b27
+60-0049B,Couverture Beurre 1KG,Chocolates,bakery,0,12.0,No,4b24135d-b1e7-4f01-93d1-751b9cfe8450
+60-0036-,Couveture Lait 25Kgs,Chocolates,bakery,0,25.0,No,079155c8-4b9c-496c-9332-73bcc3ce17f9
+60-0036B,Chocolat à Patisser Lait 1Kg,Chocolates,bakery,0,25.0,No,828cb757-54d9-4593-a995-f2b9c714de3a
+60-079+-,"Tartina Seau 9,7 Kgs",Spreads,Extra Menange,16800,10.0,No,1d5d9817-10ba-488f-98be-32b0adfc8474
+60-172A-,"Tartina 4,7Kg x 1",Spreads,Extra Menange,8750,5.0,No,d6a9d28f-8298-4ce0-9ccf-23e3f66cb601
+60-171B-,"Tartina 2,6 Kg *6 Seaux",Spreads,Intra Menage,33450,16.8,No,b1e40b92-e886-4f6a-8816-5a259b011ecb
+60-179,"Tartina 1,8kg x6",Spreads,Intra Menage,29200,10.8,Yes,429d9dbb-c462-4ebc-a1cd-59f7fa9db4b6
+60-170A-,"Tartina 1,2kg x12",Spreads,Intra Menage,32100,14.4,No,b011c225-39fe-49f7-b371-b859043fdc33
+60-198C-,Tartina 760grs Cellophane et carton (4*6*760),Spreads,Intra Menage,47700,19.7,No,306f9912-b198-47c1-bad1-f027f7238050
+60-198A-,TARTINA  760grs Pot Plastique Sleeve 12X760,Spreads,Intra Menage,24100,9.6,No,b2cd907c-daaa-45bb-bb3a-800a6670a72a
+60-63A-,Tartina 75Grs * 96 Pots,Spreads,Intra Menage,29300,8.16,No,044bbeaf-7a08-4311-b1b1-177099a76367
+60-194D-,Tartina 400g x 24 Boîtes,Spreads,Intra Menage,31000,10.2,No,b3c394f3-0d48-40d6-971f-44704366ebd0
+60-180,Tartina 225g x 36 Boîtes,Spreads,Intra Menage,29900,8.1,Yes,d6371373-b55e-4542-b70f-da20083072ca
+60-172+-,"Choconut 4,7KG",Spreads,Extra Menange,8600,10.0,No,d821848d-c28d-4ad6-8f23-8a4a4623e865
+60-0174-,"Choconut 9,7kg",Spreads,Extra Menange,16600,16.8,No,e86a9a03-7a14-448d-9b52-0607aca344a6
+60-0173-,"Choconut 2,6Kgs (2,6kg*6)",Spreads,Intra Menage,32100,9.5,No,17476fcb-72cb-4325-9581-45b8aa5a3410
+60-174B+-,Chocolaté,Spreads,Extra Menange,15800,9.5,No,18ee7721-b5c9-4a99-b67f-ade7eb3bea21
+60-0057-,Arina 750g (12*750g),Spreads,None,17350,9.0,No,f82b05a4-fe9d-4182-9060-db2cf5e9b5a8
+60-41A-,Matinal Pot Plastique Sleeve 12x400G,Beverages,Beverage Cup,25200,4.8,No,9f032d04-46c7-4fc0-85ac-1b1c214dc3c9
+60-40A-,Matinal Pot Plastique Sleeve 24x200G,Beverages,Beverage Cup,29000,4.8,No,ceba8fdd-c5f8-4197-99e9-65f1ca6b030d
+60-184A-,Matinal 13gx180,Beverages,Beverage Stick,11250,2.7,No,33e49702-38d6-4f27-8341-ca366fee9ff5
+60-185A-,Matinal Stick 9gx10x5x4,Beverages,Beverage Stick,7300,2.0,No,eb6eef2a-31cd-4ace-9116-a57fee525310
+60-44A-,Matinal 760g x6,Beverages,Beverage Cup,21000,4.8,No,249fa9cd-85a7-45d3-a968-dcaddfb7f651
+60-187B-,Matinal Super Lacté 20gx100,Beverages,Beverage Lacte,9500,2.0,Yes,bba8a270-beaf-4507-8ca1-c24302e41b35
+60-187A-,Matinal Super Lacté 35gx120,Beverages,Beverage Lacte,17400,4.2,No,88a78ebc-678e-474d-b3a1-31fb66966a58
+60-1+++-,Kola Red C 532 G 20 x 76 x 6g,Candies,None,16900,10.64,No,7a792497-6785-4eca-b5e3-79935a876df8
+60-2+++-,Kola C Oye 532 G 20 x 76 x 6g,Candies,None,16900,10.64,No,281f60c0-1d89-4c3d-bfb4-40754769366e
+60-03++-,Kola Red ++ 590G x 20 Sachets,Candies,None,17900,11.8,No,7b82fcbe-91b8-44d7-9222-44f24725d09c
+60-04++-,Kola Oye ++ 590G x 20 Sachets,Candies,None,17900,11.8,No,2e44d1d5-4de2-4245-af6d-cb6d0637a544
+60-0138-,Mini Kola Red 500g*20 Sachets,Candies,None,15200,10.0,No,07b810aa-649d-4250-8311-ad3564fb16a4
+60-0077-,Mini Kola Oyé 500g*20Sachets,Candies,None,22900,10.0,No,6fbfc3b8-c99f-4aa3-9c36-8622eecf96fd
+60-0158-,Ok Pectoral 400g * 20Sachets,Candies,None,13250,9.999,No,2d3009c2-3bee-4017-9af6-1cae597be58f
+60-0152-,Mini Ok Pectoral 172g * 26Sachets,Candies,None,12550,4.47,Yes,0682921d-e0c0-4a8d-89ac-90158e662259
+60-161-,Mini Ok Ginger,Candies,ginger pop,20700,5.03,Yes,5fceb979-a432-485e-a594-086190ce5b67
+60-0153-,Kola Fruity (200g*50Sachets),Candies,None,10350,10.0,No,7d9c1c3c-2429-44f3-ada5-e7c945ed383d
+60-05A-,Kola Ginger 350G (12*50*6g),Candies,ginger pop,10350,4.2,No,ed769afd-9204-4dfc-bbcc-d72e6a189105
+60-001E-,Kola Red Flowpack 350G(12*50*6g),Candies,None,10350,4.2,No,6928c59a-f58b-42e6-a04c-db638d8dd977
+60-002E-,Kola OYE Flow pack 350G(12*50*6g),Candies,None,10350,4.2,No,16a7df04-ce61-47c8-8157-4628846aa0eb
+60-0008-,Kola Supermenthol 12*50*6g,Candies,menthol candy,10350,4.2,No,9800ecee-f3ff-496f-965d-11f11d2d0fe9
+60-0011A-,Kola Pop Fresh (10sx50ux12g),Candies,pop candy,9600,7.0,No,ad5f9c22-9b57-4776-b235-1607ee145d54
+60-118A-,Big GUMS TF 180g (26 Sachets),Gums,fruity gum,13450,4.95,No,36f6f270-80f3-4237-9f12-cb7ffaac7a07
+60-134E-,Big GUMS Tutti Frutti 398gr (20Sachets),Gums,fruity gum,23050,8.5,No,be52d535-8371-4c83-a52b-ad58a7560028
+60-156A-,Big GUMS MC 180g ( 26 Sachets),Gums,menthol gum,13450,4.95,No,7a1adae9-8ce3-4c5c-8266-15bbe587926d
+60-157E-,Big GUMS MC 398gr,Gums,menthol gum,23050,8.5,No,6f849184-7b93-4589-93f3-d5f711799e64
+60-118B-,Big GUMS Raspberry (190g),Gums,fruity gum,13450,4.95,No,ba0b31ab-1998-4768-bdbf-22940291d63d
+60-123A,Big GUMS TUTTi Frutti Flavour (12X150pcs),Gums,fruity gum,22000,4.14,Yes,886a3583-542e-4206-adcc-726948bf0da8
+60-0014,Kola Pop Fruity,Candies,pop candy,19550,6.0,Yes,0c385263-dc99-48ac-8acf-4775f68e2203
+60-178,Tartina 7 Kg,Spreads,Extra Menange,13300,7.0,Yes,78b90967-e4d6-4e7c-a695-71e094cd7d30
+60-018-,Kola Fruity 400g,Candies,None,20700,nan,No,78e78488-8b7a-4bb4-9fc5-490869eb68fc
+60-0046+-,"Cacao Poudre Pure (12,5 Kg)",Beverages,None,0,nan,No,b01a8b01-0b01-44af-bbfb-f0edaf07697d
