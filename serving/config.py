@@ -73,12 +73,6 @@ class ServingConfig:
         path=None,  # Set by normalize()
         compression="snappy"  # Default: fast with good compression
     ))
-    
-    # Legacy support for backward compatibility
-    enable_csv_export: bool = field(default=True, repr=False)
-    csv_export_path: Optional[str] = field(default=None, repr=False)
-    enable_parquet_export: bool = field(default=True, repr=False)
-    parquet_export_path: Optional[str] = field(default=None, repr=False)
 
     def normalize(self, project_root: Optional[Path] = None) -> None:
         """
@@ -185,7 +179,7 @@ class ServingConfig:
         return self.parquet_export.path if self.parquet_export else None
     
     @parquet_export_path.setter
-    def set_parquet_export_path(self, value: Optional[str]) -> None:
+    def parquet_export_path(self, value: Optional[str]) -> None:
         """Backward compatibility: delegate to parquet_export.path"""
         if self.parquet_export is None:
             self.parquet_export = ExportConfig(path=value)

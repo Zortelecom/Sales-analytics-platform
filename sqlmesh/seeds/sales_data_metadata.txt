@@ -2,8 +2,8 @@ Seed Metadata
 ==================================================
 
 Seed Name: sales_data
-Batch ID: 20260220_081158
-Timestamp: 2026-02-20T07:14:21.726394+00:00
+Batch ID: 20260222_171149
+Timestamp: 2026-02-22T16:15:02.932696+00:00
 Rows Written: 17,283
 Columns: 19
 
@@ -36,4 +36,4 @@ Source Files:
   - ExSD-Sales-Yde_Sud-Ouest.xlsx
 
 Ingestion Batch IDs:
-  - 20260220_081158
+  - 20260222_171149

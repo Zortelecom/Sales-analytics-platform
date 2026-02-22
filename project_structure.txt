@@ -94,7 +94,7 @@ sales-analytics-platform/
 │   │   |    └── *.xlsx
 │   │   └── References
 |   |        └── *.xlsx
-|   |    
+│   │    
 │   ├── archive/                         # Processed Excel files [cite: 11]
 │   │   └── batch_YYYYMMDD_HHMMSS/       
 │   │       ├── sales_file.xlsx          
@@ -102,14 +102,26 @@ sales-analytics-platform/
 │   │ 
 │   ├── warehouse/                       # Central data warehouse
 │   │   ├── catalog.ducklake             # DuckLake catalog
-|   |   ├── serving.db                   # DuckDB datawarehouse reading data from marts and serving to bi
-|   |   |       
+│   │   ├── serving.db                   # DuckDB datawarehouse reading data from marts and serving to bi
+│   │   |       
 │   │   └── parquet_storage/             # Parquet files repo
 │   │       ├── raw__dev.sales/          # [cite: 12]
 │   │       │   └── data_0.parquet       # [cite: 12]
 │   │       └── staging__dev.stg_sales/  # [cite: 12]
 │   │           └── data_0.parquet       # [cite: 13]
 │   │
+│   ├── exports/                       
+│   │   ├── csv/
+│   │   │   ├── dev/
+│   │   │   │   └── *.csv
+│   │   │   └── prod/
+│   │   │       └── *.csv           
+│   │   └──parquet/
+│   │       ├── dev/
+│   │       │   └── *.parquet
+│   │       └── prod/
+│   │           └── *.parquet
+│   │ 
 │   └── sqlmesh_state.db                 # SQLMesh state tracking
 │
 ├── serving/                             # Serving Layer
