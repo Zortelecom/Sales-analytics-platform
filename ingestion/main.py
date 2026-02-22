@@ -1,260 +1,231 @@
+#!/usr/bin/env python3
 """
 Main entry point for Sales Analytics Ingestion Pipeline
 SEED-BASED APPROACH: Extract Excel → Write CSV seeds for SQLMesh
 """
-import logging
+
 import sys
-import shutil
-from datetime import datetime, timezone
-from typing import Dict
+import logging
 from pathlib import Path
-import pandas as pd
+from datetime import datetime
 
-# Imports from our modules
-from .config import settings
-from .extract.sales_extractor import SalesExtractor
-from .extract.target_extractor import TargetExtractor
-from .extract.reference_extractor import ReferenceExtractor
-from .load.seed_writer import SeedWriter
+# Use absolute imports for package structure
+from ingestion.config.settings import load_sources_config, INPUT_PATHS
+from ingestion.orchestrate import FileDiscovery, ExcelPreprocessor, ArchiveManager
+from ingestion.extract.sales_extractor import SalesExtractor
+from ingestion.extract.target_extractor import TargetExtractor
+from ingestion.extract.reference_extractor import ReferenceExtractor
+from ingestion.load.seed_writer import SeedWriter
 
-# Logging Setup
+# Setup logging
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)]
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
-logger = logging.getLogger("IngestionOrchestrator")
+logger = logging.getLogger(__name__)
 
 
-def generate_batch_id() -> str:
-    """Generate a unique batch ID with timestamp."""
-    return f"batch_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
-
-
-def archive_processed_files(batch_id: str) -> int:
+def run_ingestion_pipeline(dry_run: bool = False,
+                           skip_archive: bool = False,
+                           since: datetime = None) -> bool:
     """
-    Move processed Excel files to archive directory.
+    Complete ingestion pipeline with orchestration
     
-    Returns:
-        Number of files archived
+    Phase 1: Discover and preprocess files from SharePoint/local
+    Phase 2: Extract data to seeds
+    Phase 3: Archive processed files
     """
-    archive_path = settings.ARCHIVE_DIR / batch_id
-    archive_path.mkdir(parents=True, exist_ok=True)
+    batch_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+    logger.info("🚀 Starting ingestion pipeline [Batch: %s]", batch_id)
 
-    archived_count = 0
-    for source_dir in [settings.INPUT_SALES_DIR, settings.INPUT_TARGETS_DIR]:
-        for file in source_dir.glob("*.xlsx"):
-            if file.name.startswith('~$'):  # Skip temp files
-                continue
-            dest = archive_path / file.name
-            shutil.move(str(file), str(dest))
-            logger.info("Archived: %s → %s", {file.name}, {dest})
-            archived_count += 1
+    # ─────────────────────────────────────────────────────────────
+    # PHASE 1: File Discovery & Preprocessing
+    # ─────────────────────────────────────────────────────────────
+    logger.info("\n📁 Phase 1: File Discovery")
 
-    return archived_count
+    config = load_sources_config()
+    discovery = FileDiscovery(config)
+    all_files = discovery.discover_all()
 
+    # Filter for new files only
+    new_files = discovery.check_for_new_files(since=since)
+    total_new = sum(len(v) for v in new_files.values())
 
-def run_pipeline():
-    """Execute the sales analytics ingestion pipeline - CSV seed version."""
-    batch_id = generate_batch_id()
+    if total_new == 0:
+        logger.info("No new files to process")
+        return True
 
-    logger.info("="*70)
-    logger.info("SALES ANALYTICS INGESTION PIPELINE - SEED-BASED")
-    logger.info("="*70)
-    logger.info("Batch ID: %s", batch_id)
-    logger.info("Timestamp: %s", datetime.now(timezone.utc).isoformat())
-    logger.info("="*70)
+    logger.info("\nFound %d new file(s) to process", total_new)
 
-    # Ensure directories exist
-    settings.INPUT_SALES_DIR.mkdir(parents=True, exist_ok=True)
-    settings.INPUT_TARGETS_DIR.mkdir(parents=True, exist_ok=True)
-    settings.INPUT_REFERENCES_DIR.mkdir(parents=True, exist_ok=True)
-    settings.SQLMESH_SEEDS_DIR.mkdir(parents=True, exist_ok=True)
-    
-    tables: Dict[str, pd.DataFrame] = {}
-    extracted_files = []
+    # Generate processing manifest
+    manifest = discovery.get_processing_manifest()
+    # Filter manifest to only new files
+    new_file_paths = set()
+    for type_files in new_files.values():
+        new_file_paths.update([f.resolve() for f in type_files])
+    manifest = [m for m in manifest if m["source_path"].resolve()
+                in new_file_paths]
 
+    # Preprocess Excel files
+    logger.info("\n🔧 Phase 2: Preprocessing Excel Files")
+    preprocessor = ExcelPreprocessor(dry_run=dry_run)
+    results = preprocessor.batch_preprocess(manifest)
+
+    if results["failed"]:
+        logger.error("Failed to process %d file(s)", len(results["failed"]))
+        for item in results["failed"]:
+            logger.error("  - %s", item['source_path'])
+        return False
+
+    logger.info(
+        "Successfully preprocessed %d file(s)", len(results['successful']))
+    logger.info("Skipped %d file(s) (already current)", len(results['skipped']))
+
+    # ─────────────────────────────────────────────────────────────
+    # PHASE 2: Data Extraction (FIXED)
+    # ─────────────────────────────────────────────────────────────
+    logger.info("\n📊 Phase 3: Data Extraction to Seeds")
+
+    if dry_run:
+        logger.info("[DRY RUN] Would extract data to seeds")
+        return True
+
+    # Ensure input directories exist (preprocessor already created them)
+    for path in INPUT_PATHS.values():
+        path.mkdir(parents=True, exist_ok=True)
+
+    # ─────────────────────────────────────────────────────────────
+    # FIX: Initialize extractors with batch_id, not paths
+    # ─────────────────────────────────────────────────────────────
+
+    # Extract data dictionary to collect all results
+    extracted_data = {}
+
+    # ─────────────────────────────────────────────────────────────
+    # Sales Extraction
+    # ─────────────────────────────────────────────────────────────
     try:
-        # ==========================================
-        # PHASE 1: EXTRACTION
-        # ==========================================
-        logger.info("\n[PHASE 1/3] EXTRACTION")
-        logger.info("-" * 50)
+        # FIX: SalesExtractor takes batch_id in constructor
+        sales_extractor = SalesExtractor(batch_id=batch_id)
+        # FIX: Use .read() method with directory path
+        df_sales = sales_extractor.read(INPUT_PATHS["sales"])
 
-        # Extract Sales
-        logger.info("Extracting sales data...")
-        sales_extractor = SalesExtractor(batch_id)
-        df_sales = sales_extractor.read(settings.INPUT_SALES_DIR)
-
-        if not df_sales.empty:
-            tables["raw_sales"] = df_sales
-            logger.info("✅ Extracted %d sales rows from %d files",
-                        len(df_sales), df_sales['source_file'].nunique())
-            extracted_files.extend(
-                settings.INPUT_SALES_DIR.glob("ExSD-Sales-*.xlsx")
-            )
+        if df_sales.empty:
+            logger.warning("No sales data extracted")
         else:
-            logger.warning("⚠️  No sales data found")
+            extracted_data["sales_data"] = df_sales
+            logger.info("✓ Extracted %d sales records", len(df_sales))
+    except (FileNotFoundError, ValueError, KeyError) as e:
+        logger.error("Sales extraction failed: %s", e)
+        return False
 
-        # Extract Targets
-        logger.info("Extracting targets data...")
-        target_extractor = TargetExtractor(batch_id)
-        df_targets = target_extractor.read(settings.INPUT_TARGETS_DIR)
+    # ─────────────────────────────────────────────────────────────
+    # Targets Extraction
+    # ─────────────────────────────────────────────────────────────
+    try:
+        # FIX: TargetExtractor takes batch_id in constructor
+        targets_extractor = TargetExtractor(batch_id=batch_id)
+        # FIX: Use .read() method with directory path
+        df_targets = targets_extractor.read(INPUT_PATHS["targets"])
 
-        if not df_targets.empty:
-            tables["raw_targets"] = df_targets
-            logger.info("✅ Extracted %d target rows", len(df_targets))
-            target_file = settings.INPUT_TARGETS_DIR / "Sales_Targets.xlsx"
-            if target_file.exists():
-                extracted_files.append(target_file)
+        if df_targets.empty:
+            logger.warning("No targets data extracted")
         else:
-            logger.warning("⚠️  No targets data found")
-            
-        # 2c. Extract References (References.xlsx)
-        logger.info("\nExtracting REFERENCE data...")
-        reference_extractor = ReferenceExtractor(batch_id)
-        tables_ref = reference_extractor.read(settings.INPUT_REFERENCES_DIR)
-        df_products = tables_ref.get("ref_products", pd.DataFrame())
-        df_clients_sd = tables_ref.get("ref_clients_sd", pd.DataFrame())
-        df_salesteam = tables_ref.get("ref_salesteam", pd.DataFrame())
-        
+            extracted_data["targets_data"] = df_targets
+            logger.info("✓ Extracted %d target records", len(df_targets))
+    except (FileNotFoundError, ValueError, KeyError) as e:
+        logger.error("Targets extraction failed: %s", e)
+        return False
 
-        if not df_products.empty:
-            tables["raw_ref_products"] = df_products
-            logger.info("✅ Extracted product reference data: %d rows", len(df_products))
-        else:
-            logger.warning("⚠️  No product reference data found")
-        
-        if not df_clients_sd.empty:
-            tables["raw_ref_clients_sd"] = df_clients_sd
-            logger.info("✅ Extracted clients SD reference data: %d rows", len(df_clients_sd))
-        else:
-            logger.warning("⚠️  No clients SD reference data found")
-        
-        if not df_salesteam.empty:
-            tables["raw_ref_salesteam"] = df_salesteam
-            logger.info("✅ Extracted reference data: %d rows",
-                        len(df_salesteam))
-        else:
-            logger.warning("⚠️  No salesteam data found")
+    # ─────────────────────────────────────────────────────────────
+    # References Extraction (FIXED)
+    # ─────────────────────────────────────────────────────────────
+    try:
+        # FIX: ReferenceExtractor takes batch_id in constructor
+        ref_extractor = ReferenceExtractor(batch_id=batch_id)
+        # FIX: .read() returns Dict[str, DataFrame], not single DataFrame
+        ref_results = ref_extractor.read(INPUT_PATHS["references"])
 
-        if not tables_ref:
-            logger.warning("⚠️  No reference data found in References.xlsx.")
-            return
-
-
-        # Check if any data was extracted
-        if all(df.empty for df in [df_sales, df_targets, df_products, df_clients_sd, df_salesteam]):
-            logger.warning("No data found in input directories. Exiting.")
-            return
-        
-         # Summary
-        logger.info("\n" + "=" * 80)
-        logger.info("📊 EXTRACTION SUMMARY")
-        logger.info("-" * 80)
-        for table_name, df in tables.items():
-            logger.info("  %s: %d rows", table_name, len(df))
-        logger.info("=" * 80)
-
-
-        # ==========================================
-        # PHASE 2: WRITE CSV SEEDS
-        # ==========================================
-        logger.info("\n[PHASE 2/3] WRITING CSV SEEDS")
-        logger.info("-" * 50)
-
-        # Initialize seed writer
-        seed_writer = SeedWriter(
-            seeds_dir=settings.SQLMESH_SEEDS_DIR,
-            batch_id=batch_id
-        )
-
-        # Prepare seeds configuration
-        seeds_to_write = {}
-        if not df_sales.empty:
-            seeds_to_write['sales_data'] = df_sales
-        if not df_targets.empty:
-            seeds_to_write['targets_data'] = df_targets
-        if not df_products.empty:
-            seeds_to_write['products_data'] = df_products
-        if not df_clients_sd.empty:
-            seeds_to_write['clientSD_data'] = df_clients_sd
-        if not df_salesteam.empty:
-            seeds_to_write['salesteam_data'] = df_salesteam 
-
-        # Write all seeds
-        written_paths = seed_writer.write_seeds(seeds_to_write)
-
-        # Log results
-        for seed_name, path in written_paths.items():
-            logger.info(
-                "📄 Seed ready: %s", path.relative_to(settings.PROJECT_ROOT))
-
-        # Optional: Clean up old metadata files
-        seed_writer.cleanup_old_seeds(keep_latest=5)
-
-        # ==========================================
-        # PHASE 3: ARCHIVE SOURCE FILES
-        # ==========================================
-        logger.info("\n[PHASE 3/3] ARCHIVING SOURCE FILES")
-        logger.info("-" * 50)
-
-        archived = archive_processed_files(batch_id)
-        logger.info(
-            "✅ Archived %s Excel file(s) to %s", archived, settings.ARCHIVE_DIR / batch_id)
-
-        # ==========================================
-        # SUMMARY
-        # ==========================================
-        logger.info("\n" + "="*70)
-        logger.info("✅ INGESTION COMPLETE")
-        logger.info("="*70)
-
-        # Statistics
-        stats = {
-            'Batch ID': batch_id,
-            'Sales Records': f"{len(df_sales):,}" if not df_sales.empty else "0",
-            'Targets Records': f"{len(df_targets):,}" if not df_targets.empty else "0",
-            'Products Records': f"{len(df_products):,}" if not df_products.empty else "0",
-            'ClientsSD Records': f"{len(df_clients_sd):,}" if not df_clients_sd.empty else "0",
-            'Salesteam Records': f"{len(df_salesteam):,}" if not df_salesteam.empty else "0",
-            'Seeds Written': len(written_paths),
-            'Files Archived': archived,
-            'Seeds Directory': str(settings.SQLMESH_SEEDS_DIR.relative_to(settings.PROJECT_ROOT))
+        # FIX: Map the returned dictionary keys to seed names
+        # Based on ReferenceExtractor.read() return structure:
+        # {
+        #   'ref_salesteam': df_salesteam,
+        #   'ref_products': df_products,
+        #   'ref_clients_sd': df_clients
+        # }
+        ref_mapping = {
+            'ref_salesteam': 'salesteam_data',
+            'ref_products': 'products_data',
+            'ref_clients_sd': 'clientSD_data'
         }
 
-        for key, value in stats.items():
-            logger.info("%s %s", key, value)
+        for ref_key, seed_name in ref_mapping.items():
+            if ref_key in ref_results and not ref_results[ref_key].empty:
+                extracted_data[seed_name] = ref_results[ref_key]
+                logger.info(
+                    "✓ Extracted %d %s records", len(ref_results[ref_key]), ref_key)
+            else:
+                logger.warning("No data for %s", ref_key)
 
-        # Next steps
-        logger.info("\n" + "="*70)
-        logger.info("NEXT STEPS:")
-        logger.info("="*70)
-        logger.info("1. Review CSV seeds in: sqlmesh/seeds/")
-        logger.info("2. Run SQLMesh transformations:")
-        logger.info("   cd sqlmesh")
-        logger.info("   sqlmesh plan dev")
-        logger.info("3. Launch dashboard:")
-        logger.info("   streamlit run demo_dashboard.py")
-        logger.info("="*70)
+    except (FileNotFoundError, ValueError, KeyError) as e:
+        logger.error("References extraction failed: %s", e)
+        return False
 
-        # Optional: Show seed summary
-        logger.info("\nSeed Summary:")
-        summary = seed_writer.get_seed_summary()
-        for seed_name, info in summary.items():
-            logger.info("  %s:", seed_name)
-            logger.info("    - Rows: %s", info['rows'])
-            logger.info("    - Size: %.2f MB", info['size_mb'])
-            logger.info(
-                "    - Modified: %s", info['modified'].strftime('%Y-%m-%d %H:%M:%S'))
+    # ─────────────────────────────────────────────────────────────
+    # Write seeds
+    # ─────────────────────────────────────────────────────────────
+    seeds_dir = Path("sqlmesh/seeds")
+    seeds_dir.mkdir(exist_ok=True)
 
-    except Exception as e:
-        logger.error("\n" + "="*70)
-        logger.error("❌ PIPELINE FAILED")
-        logger.error("="*70)
-        logger.error("Error: %s", e, exc_info=True)
-        sys.exit(1)
+    writer = SeedWriter(seeds_dir, batch_id)
+
+    # FIX: Use write_seeds with the dictionary
+    seed_paths = writer.write_seeds(extracted_data)
+
+    summary = writer.get_seed_summary()
+    logger.info("\n📦 Seed Summary:")
+    for seed, info in summary.items():
+        size_human = f"{info['size_mb']:.2f} MB" if isinstance(
+            info['size_mb'], (int, float)) else "N/A"
+        logger.info(" %s : %s %s rows (%s)", seed, info['size_mb'], info['rows'], size_human)
+
+    # ─────────────────────────────────────────────────────────────
+    # PHASE 3: Archiving
+    # ─────────────────────────────────────────────────────────────
+    if not skip_archive and not dry_run:
+        logger.info("\n📦 Phase 4: Archiving Source Files")
+        archive_mgr = ArchiveManager(Path("data/archive"))
+        archive_path = archive_mgr.archive_processed_files(
+            manifest=results["successful"],
+            move=False  # Set to True to move instead of copy
+        )
+        logger.info("Archived to: %s", archive_path)
+
+    logger.info("\n🎉 Ingestion pipeline completed [Batch: %s]", batch_id)
+    return True
 
 
 if __name__ == "__main__":
-    run_pipeline()
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Sales Analytics Ingestion")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="Preview without making changes")
+    parser.add_argument("--skip-archive", action="store_true",
+                        help="Skip archiving step")
+    parser.add_argument("--since", type=str,
+                        help="Process files modified since (YYYY-MM-DD)")
+
+    args = parser.parse_args()
+
+    SINCE_FILTER = None
+    if args.since:
+        SINCE_FILTER = datetime.strptime(args.since, "%Y-%m-%d")
+
+    SUCCESS = run_ingestion_pipeline(
+        dry_run=args.dry_run,
+        skip_archive=args.skip_archive,
+        since=SINCE_FILTER
+    )
+
+    sys.exit(0 if SUCCESS else 1)

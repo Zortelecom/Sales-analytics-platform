@@ -3,6 +3,7 @@ MODEL (
   kind INCREMENTAL_BY_TIME_RANGE (
     time_column sale_date
   ),
+  start '2025-01-01',
   cron '@daily',
   grain (sales_line_id),
   owner analytics_team,
@@ -35,8 +36,8 @@ SELECT
   sp.supervisor_name, 
 
   -- Client dimension FK
-  c.sd_key AS client_key,
-  s.client_id,      
+  c.clientsd_key,
+  s.clientsd_id,      
   
   -- MEASURES
   s.quantity,
@@ -56,7 +57,7 @@ SELECT
     WHEN p.unit_price > 0 AND s.unit_price > 0
     THEN ROUND(((s.unit_price - p.unit_price) / p.unit_price) * 100, 2)
     ELSE 0
-  END AS price_variance_pct,
+  END AS price_variance_pct
 
 FROM staging.stg_sales_data s
 
@@ -74,6 +75,6 @@ LEFT JOIN marts.dim_salesperson sp
 
 -- Client dimension (SCD Type 2 join)
 LEFT JOIN marts.dim_clientsd c
-  ON s.client_id = c.sd_id
+  ON s.clientsd_id = c.sd_id
   AND s.sale_date >= c.valid_from
   AND (s.sale_date < c.valid_to OR c.valid_to IS NULL);

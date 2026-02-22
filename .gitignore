@@ -9,3 +9,11 @@ __pycache__/
 
 # DuckDB
 *.duckdb.wal
+*.wal
+
+#sqlmesh
+sqlmesh/.cache/
+sqlmesh/logs/
+
+# Dagster
+.tmp_dagster_home*/

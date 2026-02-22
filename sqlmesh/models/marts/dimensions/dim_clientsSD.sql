@@ -2,14 +2,14 @@ MODEL (
   name marts.dim_clientsd,
   kind FULL,
   cron '@daily',
-  grain (client_key),
+  grain (clientsd_key),
   owner analytics_team,
   storage_format 'parquet'
 );
 
 
 SELECT
-  sd_key,
+  sd_key AS clientsd_key,
   sd_id,
   sd_name,
   region,

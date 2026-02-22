@@ -15,7 +15,7 @@ SELECT
   
   TRIM(salesperson_id) AS salesperson_id,
   TRIM(product_category) AS product_category,
-  TRY_CAST(NULLIF(TRIM(target_amount), '') AS DECIMAL(12,2)) AS target_amount
+  TRY_CAST(target_amount AS DECIMAL(12,2)) AS target_amount
 
 FROM raw.targets_data
 WHERE TRIM(salesperson_id) IS NOT NULL

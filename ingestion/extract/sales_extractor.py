@@ -4,6 +4,7 @@ import logging
 import re
 from pathlib import Path
 import pandas as pd
+import numpy as np
 from .base_extractor import BaseExcelExtractor
 
 logger = logging.getLogger(__name__)
@@ -18,11 +19,11 @@ class SalesExtractor(BaseExcelExtractor):
 
     # Define expected columns (case-insensitive matching)
     REQUIRED_COLUMNS = {
-        'salesperson_id', 'clientsd_id', 'date', 'sku', 'qty', 'amount'
+        'salesperson_id', 'sd_id', 'sale_date', 'sku', 'qty', 'amount'
     }
 
     EXPECTED_COLUMNS = {
-        'salesperson_id', 'clientsd_id', 'date', 'sku', 'product_name', 'unit_price', 'qty', 'amount',
+        'salesperson_id', 'sd_id', 'sale_date', 'sku', 'product_name', 'unit_price', 'qty', 'amount',
         'subregion', 'salesperson', 'supervisor', 'channel', 'city',
         'product_cat', 'product_subcat', 'unit_weight', 'is_innovation'
     }
@@ -32,7 +33,8 @@ class SalesExtractor(BaseExcelExtractor):
         df = self.extract_from_directory(
             directory_path,
             table_prefix="Sales",
-            file_pattern="ExSD-Sales-*.xlsx"
+            file_pattern="ExSD-Sales-*.xlsx",
+            required_columns=self.REQUIRED_COLUMNS
         )
 
         if df.empty:
@@ -56,6 +58,11 @@ class SalesExtractor(BaseExcelExtractor):
         if unexpected:
             logger.warning("Unexpected columns found: %s", unexpected)
 
+        df.replace(["None", "NaT", "nan", "-", "#N/A"],
+                   np.nan, inplace=True)
+
+        df.dropna(subset=['sale_date', 'sku'], inplace=True)
+
         # Add primary key
         df["sales_line_id"] = [str(uuid.uuid4()) for _ in range(len(df))]
 
@@ -78,7 +85,7 @@ class SalesExtractor(BaseExcelExtractor):
         match = re.search(pattern, filename)
         return match.group(1) if match else 'UNKNOWN'
 
-    def validate_sheet_name(self, sheet_name: str, workbook_path: Path) -> bool:
+    def validate_sheet_name(self, sheet_name: str, file_path: Path) -> bool:
         """
         Check if sheet should be processed.
         Override this in base_extractor to allow custom filtering.

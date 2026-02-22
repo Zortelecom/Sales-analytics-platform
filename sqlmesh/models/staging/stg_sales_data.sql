@@ -1,9 +1,9 @@
 MODEL (
   name staging.stg_sales_data,
   kind INCREMENTAL_BY_TIME_RANGE (
-    time_column sale_date,
-    lookback 7
+    time_column sale_date
   ),
+  start '2025-01-01',
   cron '@daily',
   grain (sales_line_id),
   owner analytics_team,
@@ -15,7 +15,10 @@ SELECT
   sales_line_id,
   
   -- Date parsing
-  TRY_CAST(date AS DATE) AS sale_date,
+  COALESCE(
+    TRY_CAST(sale_date AS DATE), 
+    strptime(sale_date, '%d/%m/%Y')::DATE 
+  ) AS sale_date,
   
   -- Product identifiers
   TRIM(UPPER(sku)) AS sku,
@@ -24,11 +27,11 @@ SELECT
   TRIM(product_subcat) AS product_subcategory,
   
   -- Measures
-  TRY_CAST(NULLIF(TRIM(qty), '') AS DECIMAL(10, 2)) AS quantity,
-  TRY_CAST(NULLIF(TRIM(unit_price), '') AS INTEGER) AS unit_price,
-  TRY_CAST(NULLIF(TRIM(amount), '') AS DECIMAL(12,2)) AS sales_amount,
-  TRY_CAST(NULLIF(TRIM(unit_weight), '') AS DECIMAL(10,2)) AS unit_weight_kg,
-  
+  TRY_CAST(qty AS DECIMAL(10, 2)) AS quantity,
+  TRY_CAST(unit_price AS INTEGER) AS unit_price,
+  TRY_CAST(amount AS DECIMAL(12,2)) AS sales_amount,
+  TRY_CAST(unit_weight AS DECIMAL(10,2)) AS unit_weight_kg,
+
   -- Salesperson identifiers
   TRIM(salesperson_id) AS salesperson_id,
   TRIM(salesperson) AS salesperson_name,
@@ -36,7 +39,7 @@ SELECT
   TRIM(channel) AS sales_channel,
   
   -- Client identifiers
-  TRIM(clientsd_id) AS client_id,
+  TRIM(sd_id) AS clientsd_id,
   TRIM(sd_destocke) AS sd_destocked,
   
   -- Geographic attributes
@@ -50,8 +53,7 @@ SELECT
   END AS is_innovation_product
 
 FROM raw.sales_data
-WHERE TRY_CAST(date AS DATE) IS NOT NULL
-  AND TRY_CAST(date AS DATE) >= @start_date
-  AND TRY_CAST(date AS DATE) < @end_date
+WHERE sale_date IS NOT NULL
+  AND TRY_CAST(sale_date AS DATE) BETWEEN @start_date AND @end_date
   AND TRIM(sku) IS NOT NULL
   AND TRIM(sku) != '';

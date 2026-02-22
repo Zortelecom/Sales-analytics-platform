@@ -1,12 +1,76 @@
 sales:
   directory: "sales"
-  file_pattern: "*.xlsx"
+  file_pattern: "ExSD*.xlsx"
   table_prefix: "Sales"
-  exclude_sheets: ["synthese", "summary"]
-  required_columns: ["date", "sku", "qty"]
+  exclude_sheets: "synthese*"
+  required_columns: ['salesperson_id', 'clientsd_id', 'sale_date', 'sku', 'qty', 'amount']
 
 targets:
   directory: "targets"
   file_pattern: "*.xlsx"
   table_prefix: "Target"
-  required_columns: ["month_year", "salesperson_id", "target_amount"]
+  required_columns: ["month_year", "salesperson_id", "product_category", "target_amount"]
+
+references:
+  directory: "References" 
+  file_pattern: "*.xlsx"
+  table_prefix: "Ref"
+  exclude_sheets: null
+  tables:
+    - name: "Ref_Salesteam"
+      required_columns: ["fullname","salesperson_id", "region", "subregion", "channel", "supervisor"]
+    - name: "Ref_Products"
+      required_columns: 
+        ["sku", "product_name", "product_category", "product_subcategory", 
+        "unit_price", "unit_weight", "is_innovation"]
+    - name: "Ref_ClientsSD"
+      required_columns: 
+        ["sd_name", "sd_id", "region", "kp", "subregion",
+         "city", "is_stockout"]
+
+# Data source configuration
+sources:
+  # Option 1: Local synced folder (recommended - SharePoint syncs here)
+  local_sync:
+    enabled: true
+    base_path: "D:/Users/Desktop/sales_analytics_data"
+    folders:
+      sales: "Sales"
+      targets: "Targets"
+      references: "References"
+  
+  # Option 2: Direct SharePoint (if using Microsoft Graph API)
+  sharepoint:
+    enabled: false
+    site_url: "https://yourcompany.sharepoint.com/sites/SalesAnalytics"
+    folders:
+      sales: "Shared Documents/Data/Sales"
+      targets: "Shared Documents/Data/Targets"
+      references: "Shared Documents/Data/References"
+    auth:
+      client_id: "${SP_CLIENT_ID}"
+      client_secret: "${SP_CLIENT_SECRET}"
+      tenant_id: "${SP_TENANT_ID}"
+
+# Processing rules
+processing:
+  sales:
+    delete_sheets_pattern: "Synthese*"  # Regex pattern for sheets to remove
+    required_sheets: ["Sales*"]         # Must have at least one matching sheet
+    file_pattern: "*.xlsx"
+    
+  targets:
+    delete_sheets_pattern: null           # No sheet deletion
+    required_sheets: ["Target*"]
+    file_pattern: "*.xlsx"
+    
+  references:
+    delete_sheets_pattern: null
+    required_sheets: ["Salespersons_List", "Products_List", "SD_List"]
+    file_pattern: "*.xlsx"
+
+# Validation
+validation:
+  max_file_size_mb: 50
+  allowed_extensions: [".xlsx", ".xlsm"]
+  check_corruption: true                  # Open file to verify not corrupted

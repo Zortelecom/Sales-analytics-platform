@@ -2,7 +2,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import List, Optional, Set
 import openpyxl
 import pandas as pd
 
@@ -25,16 +25,17 @@ class BaseExcelExtractor:
         IMPORTANT: read_only=False is required to access Excel Table objects (.tables attribute)
         """
         try:
-            return openpyxl.load_workbook(file_path, data_only=True, read_only=False)
+            return openpyxl.load_workbook(file_path, data_only=True, read_only=False, keep_links=False)
         except Exception as e:
             logger.error("Could not open workbook %s: %s", file_path.name, e)
             raise
 
     def extract_single_file(
-        self, 
-        file_path: Path, 
-        table_prefix: str, 
-        exclude_sheets: List[str]
+        self,
+        file_path: Path,
+        table_prefix: str,
+        exclude_sheets: List[str],
+        required_columns: Optional[Set[str]] = None
     ) -> pd.DataFrame:
         """Logic to iterate through sheets and find Table objects."""
         wb = self._get_workbook(file_path)
@@ -45,7 +46,7 @@ class BaseExcelExtractor:
             if sheet_name.lower() in exclude_sheets or sheet_name.lower().startswith("synthese"):
                 logger.debug("Skipping excluded sheet: %s", sheet_name)
                 continue
-            
+
             # Allow subclasses to override sheet validation
             if hasattr(self, 'validate_sheet_name'):
                 if not self.validate_sheet_name(sheet_name, file_path):
@@ -79,6 +80,26 @@ class BaseExcelExtractor:
                     df = self._table_to_df(ws, table.ref)
 
                     if df is not None and not df.empty:
+                        if required_columns:
+                            # Normalize DF columns to lowercase/stripped for comparison
+                            current_cols = {str(c).lower().strip()
+                                            for c in df.columns}
+                            # Check if required columns are a subset of current columns
+                            missing = required_columns - current_cols
+
+                            if missing:
+                                logger.error(
+                                    "SCHEMA ERROR in File: '%s' | Sheet: '%s' | Table: '%s'",
+                                    file_path.name, sheet_name, table_name
+                                )
+                                # --- NEW LINE ADDED HERE ---
+                                logger.error("   Present Columns: %s",
+                                             sorted(list(current_cols)))
+                                logger.error(
+                                    "   Missing Columns: %s", sorted(list(missing)))
+                                # Skip this table to prevent polluting the dataset with broken schema
+                                continue
+
                         # Add standard metadata
                         df["source_file"] = file_path.name
                         df["sheet_name"] = sheet_name
@@ -104,8 +125,7 @@ class BaseExcelExtractor:
         wb.close()  # Explicitly close workbook
         if not file_frames:
             logger.warning("No tables extracted from %s", file_path.name)
-            
-            
+
         return pd.concat(file_frames, ignore_index=True) if file_frames else pd.DataFrame()
 
     def _table_to_df(self, ws, table_ref) -> Optional[pd.DataFrame]:
@@ -129,7 +149,6 @@ class BaseExcelExtractor:
 
             # Clean up: remove fully empty rows/cols if any
             df.dropna(how='all', inplace=True)
-            df.dropna(axis=1, how='all', inplace=True)
 
             if df.empty:
                 logger.warning("Table at %s has no data rows", table_ref)
@@ -141,13 +160,14 @@ class BaseExcelExtractor:
             logger.error("Error converting table at %s: %s",
                          table_ref, e, exc_info=True)
             return None
-                     
+
     def extract_from_directory(
         self,
         directory: Path,
         table_prefix: str,
         exclude_sheets: List[str] = None,
-        file_pattern: str = "*.xlsx"
+        file_pattern: str = "*.xlsx",
+        required_columns: Optional[Set[str]] = None
     ) -> pd.DataFrame:
         """
         Scans a directory for Excel files matching pattern and extracts tables 
@@ -182,7 +202,7 @@ class BaseExcelExtractor:
             logger.info("Processing %s file: %s", table_prefix, file_path.name)
             try:
                 df_file = self.extract_single_file(
-                    file_path, table_prefix, exclude_sheets)
+                    file_path, table_prefix, exclude_sheets, required_columns)
                 if not df_file.empty:
                     frames.append(df_file)
             except Exception as e:

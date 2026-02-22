@@ -1,0 +1,107 @@
+"""SQLMesh integration resource for Dagster"""
+import subprocess
+import os
+from typing import List, Optional
+import json
+from dagster import ConfigurableResource, AssetExecutionContext, Failure
+from pydantic import Field
+
+
+class SQLMeshResource(ConfigurableResource):
+    """Resource for running SQLMesh commands"""
+    project_path: str = Field(
+        default="sqlmesh",
+        description="Path to SQLMesh project directory"
+    )
+    environment: str = Field(
+        default="dev",
+        description="SQLMesh environment to target"
+    )
+    start_date: Optional[str] = Field(
+        default="2025-01-01",
+        description="Start date for incremental models (format: YYYY-MM-DD). "
+                    "Use this to force processing from a specific date."
+    )
+
+    def _run_command(self, cmd: List[str], context: Optional[AssetExecutionContext] = None) -> subprocess.CompletedProcess:
+        """Execute SQLMesh CLI command"""
+        # SQLMesh commands often take env as a positional arg, not a flag.
+        full_cmd = ["sqlmesh"] + cmd
+
+        if context:
+            context.log.info(f"Running: {' '.join(full_cmd)}")
+
+        result = subprocess.run(
+            full_cmd,
+            capture_output=True,
+            text=True,
+            cwd=self.project_path,
+            env={**os.environ, "PYTHONPATH": os.getcwd()},
+            check=False
+        )
+
+        if result.returncode != 0:
+           error_msg = f"SQLMesh command failed with exit code {result.returncode}\nSTDOUT: {result.stdout}\nSTDERR: {result.stderr}"
+           if context:
+                context.log.error(error_msg)
+           raise Failure(f"SQLMesh error: {result.stderr or result.stdout}")
+
+        return result
+
+    def plan(self, context: AssetExecutionContext, auto_apply: bool = True, start_date: Optional[str] = None):
+        """Run SQLMesh plan
+        
+        Args:
+            context: Dagster execution context
+            auto_apply: Whether to auto-apply the plan
+            start_date: Override the default start_date for this run (format: YYYY-MM-DD)
+        """
+        # Pass environment as a positional argument
+        cmd = ["plan", self.environment]
+
+        # ✅ ADDED: Include start date to ensure full data processing from 2025-01-01
+        # This forces SQLMesh to process all intervals from the start date,
+        # mimicking "first run" behavior for incremental models
+        effective_start = start_date or self.start_date
+        if effective_start:
+            cmd.extend(["--start", effective_start])
+            if context:
+                context.log.info(
+                    f"SQLMesh plan will start from: {effective_start}")
+
+        if auto_apply:
+            cmd.append("--auto-apply")
+
+        result = self._run_command(cmd, context)
+        context.log.info(f"SQLMesh plan output:\n{result.stdout}")
+        return result
+
+    def run_transformations(self, context: AssetExecutionContext, select: Optional[str] = None):
+        """Run SQLMesh run (execute models)"""
+        # ✅ FIX: Pass environment as a positional argument
+        cmd = ["run", self.environment]
+
+        if select:
+            cmd.extend(["--select", select])
+
+        result = self._run_command(cmd, context)
+        context.log.info("SQLMesh run completed")
+        return result
+
+    def audit(self, context: AssetExecutionContext):
+        """Run SQLMesh audits"""
+        # Audit typically runs on the current project state/config
+        result = self._run_command(["audit"], context)
+        context.log.info("SQLMesh audit completed")
+        return result
+
+    def get_model_info(self) -> dict:
+        """Get information about SQLMesh models"""
+        result = subprocess.run(
+            ["sqlmesh", "info", "--format", "json"],
+            capture_output=True,
+            text=True,
+            cwd=self.project_path,
+            check=False
+        )
+        return json.loads(result.stdout) if result.returncode == 0 else {}

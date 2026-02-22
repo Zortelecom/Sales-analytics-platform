@@ -2,16 +2,16 @@ Seed Metadata
 ==================================================
 
 Seed Name: sales_data
-Batch ID: batch_20260120_125937
-Timestamp: 2026-01-20T13:00:47.620723+00:00
-Rows Written: 13,487
+Batch ID: 20260220_081158
+Timestamp: 2026-02-20T07:14:21.726394+00:00
+Rows Written: 17,283
 Columns: 19
 
 Column Names:
   - salesperson_id
-  - clientsd_id
+  - sd_id
   - sd_destocke
-  - date
+  - sale_date
   - sku
   - product_name
   - unit_price
@@ -31,8 +31,9 @@ Column Names:
 Source Files:
   - ExSD-Sales-Est.xlsx
   - ExSD-Sales-Sud_Ebolowa.xlsx
+  - ExSD-Sales-Yde_Centre.xlsx
   - ExSD-Sales-Yde_Nord.xlsx
   - ExSD-Sales-Yde_Sud-Ouest.xlsx
 
 Ingestion Batch IDs:
-  - batch_20260120_125937
+  - 20260220_081158

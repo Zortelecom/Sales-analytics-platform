@@ -2,8 +2,11 @@
 Central configuration for the ingestion pipeline.
 Handles paths and database connection strings.
 """
-
 from pathlib import Path
+from dataclasses import dataclass
+from typing import Dict
+import yaml
+
 
 # --- Project Paths ---
 # resolving from ingestion/config/config.py -> ingestion/config -> ingestion -> root
@@ -39,3 +42,44 @@ CATALOG_CONNECTION_STRING = f"ducklake:{_CATALOG_FILE}"
 #     "DUCKLAKE_CATALOG_CONN",
 #     "ducklake:postgres:dbname=ducklake_catalog host=localhost user=postgres password=password"
 # )
+
+
+@dataclass
+class SourceConfig:
+    sales_path: Path
+    targets_path: Path
+    references_path: Path
+    processing_rules: Dict
+
+
+def load_sources_config() -> SourceConfig:
+    """Load and resolve source configuration"""
+    config_path = Path(__file__).parent / "sources.yaml"
+
+    with open(config_path, encoding="utf-8") as f:
+        config = yaml.safe_load(f)
+
+    # Determine active source
+    if config["sources"]["local_sync"]["enabled"]:
+        base = Path(config["sources"]["local_sync"]["base_path"]).expanduser()
+        folders = config["sources"]["local_sync"]["folders"]
+        source_type = "local_sync"
+    else:
+        raise NotImplementedError("SharePoint API mode not yet implemented")
+
+    return SourceConfig(
+        sales_path=base / folders["sales"],
+        targets_path=base / folders["targets"],
+        references_path=base / folders["references"],
+        processing_rules=config["processing"]
+    )
+
+
+# Legacy config for backward compatibility
+INPUT_PATHS = {
+    "sales": Path("data/input/sales"),
+    "targets": Path("data/input/targets"),
+    "references": Path("data/input/references")
+}
+
+ARCHIVE_PATH = Path("data/archive")

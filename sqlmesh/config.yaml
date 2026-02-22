@@ -8,8 +8,9 @@ gateways:
       catalogs:
         sales_lakehouse:
           type: ducklake
-          path: ../data/warehouse/catalog.ducklake
-          data_path: ../data/warehouse/parquet/
+          path: {{ env_var('DUCKLAKE_CATALOG_PATH') }}
+          data_path: {{ env_var('PARQUET_PATH') }}
+
       
       # Install DuckLake extension
       extensions:
@@ -18,7 +19,7 @@ gateways:
     # SQLMesh state management
     state_connection:
       type: duckdb
-      database: ../data/warehouse/sqlmesh_state.db
+      database: {{ env_var('SQLMESH_STATE_PATH') }}
 
 # Default gateway
 default_gateway: local_gateway
@@ -26,7 +27,7 @@ default_gateway: local_gateway
 # Model defaults
 model_defaults:
   dialect: duckdb
-  start: 2024-01-01
+  start: 2025-01-01
   cron: "@daily"
   
 # Plan behavior

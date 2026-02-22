@@ -2,7 +2,7 @@ MODEL (
   name staging.stg_salesteam_data,
   kind SCD_TYPE_2_BY_COLUMN (
     unique_key (salesperson_id),
-    columns (region, subregion, sales_channel, supervisor_name)
+    columns [region, subregion, sales_channel, supervisor_name]
   ),
   cron '@daily',
   grain (salesperson_key),
@@ -11,14 +11,13 @@ MODEL (
 );
 
 SELECT
-
-  md5_number_lower(CONCAT_WS('|',
-    TRIM(salesperson_id),
+  @GENERATE_SURROGATE_KEY (
     TRIM(region),
     TRIM(subregion),
     TRIM(channel),
-    TRIM(supervisor)
-  )) AS salesperson_key,
+    TRIM(supervisor),
+    hash_function := 'MD5_NUMBER_LOWER'
+  ) AS salesperson_key,
 
   salesteam_ref_id,
   TRIM(salesperson_id) AS salesperson_id,

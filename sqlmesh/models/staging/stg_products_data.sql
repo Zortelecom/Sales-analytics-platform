@@ -2,7 +2,7 @@ MODEL (
   name staging.stg_products_data,
   kind SCD_TYPE_2_BY_COLUMN(
     unique_key (sku),
-    columns (unit_price, unit_weight_kg, is_innovation_product)
+    columns [unit_price, unit_weight_kg, is_innovation_product]
   ),
   cron '@daily',
   grain (product_key),
@@ -11,15 +11,17 @@ MODEL (
 );
 
 SELECT
-  md5_number_lower(CONCAT_WS('|',
-    TRIM(UPPER(sku)),
+
+  @GENERATE_SURROGATE_KEY (
     TRIM(product_name),
     TRIM(product_category),
     TRIM(product_subcategory),
     TRY_CAST(unit_price AS STRING),
     TRY_CAST(unit_weight AS STRING),
-    LOWER(TRIM(is_innovation))
-  )) AS product_key,
+    LOWER(TRIM(is_innovation)),
+    hash_function := 'MD5_NUMBER_LOWER'
+  ) AS product_key,
+
   product_ref_id,
   TRIM(UPPER(sku)) AS sku,
   TRIM(product_name) AS product_name,
