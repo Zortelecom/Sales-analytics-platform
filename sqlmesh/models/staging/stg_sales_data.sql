@@ -7,7 +7,28 @@ MODEL (
   cron '@daily',
   grain (sales_line_id),
   owner analytics_team,
-  storage_format 'parquet'
+  storage_format 'parquet',
+  audits (
+    -- Each sales line must appear exactly once in every loaded window.
+    unique_values(columns := (sales_line_id)),
+
+    -- All FK / measure columns that must never be null.
+    not_null(columns := (
+      sales_line_id,
+      sale_date,
+      sku,
+      salesperson_id,
+      quantity,
+      sales_amount
+    ), blocking := false),
+
+    -- Quantities and amounts must be strictly positive.
+    -- Negative values could indicate unprocessed credit notes that
+    -- would silently distort revenue and weight totals.
+    accepted_range(column := quantity,     min_v := 0, inclusive := false, blocking := false),
+    accepted_range(column := sales_amount, min_v := 0, inclusive := false, blocking := false),
+    accepted_range(column := unit_price,   min_v := 0, inclusive := false, blocking := false)
+  )
 );
 
 SELECT
@@ -21,30 +42,30 @@ SELECT
   ) AS sale_date,
   
   -- Product identifiers
-  TRIM(UPPER(sku)) AS sku,
-  TRIM(product_name) AS product_name,
-  TRIM(product_cat) AS product_category,
-  TRIM(product_subcat) AS product_subcategory,
+  TRIM(UPPER(sku))            AS sku,
+  TRIM(product_name)          AS product_name,
+  TRIM(product_cat)           AS product_category,
+  TRIM(product_subcat)        AS product_subcategory,
   
   -- Measures
-  TRY_CAST(qty AS DECIMAL(10, 2)) AS quantity,
-  TRY_CAST(unit_price AS INTEGER) AS unit_price,
-  TRY_CAST(amount AS DECIMAL(12,2)) AS sales_amount,
-  TRY_CAST(unit_weight AS DECIMAL(10,2)) AS unit_weight_kg,
+  TRY_CAST(qty AS DECIMAL(10, 2))         AS quantity,
+  TRY_CAST(unit_price AS INTEGER)         AS unit_price,
+  TRY_CAST(amount AS DECIMAL(12,2))       AS sales_amount,
+  TRY_CAST(unit_weight AS DECIMAL(10,2))  AS unit_weight_kg,
 
   -- Salesperson identifiers
-  TRIM(salesperson_id) AS salesperson_id,
-  TRIM(salesperson) AS salesperson_name,
-  TRIM(supervisor) AS supervisor_name,
-  TRIM(channel) AS sales_channel,
+  TRIM(salesperson_id)  AS salesperson_id,
+  TRIM(salesperson)     AS salesperson_name,
+  TRIM(supervisor)      AS supervisor_name,
+  TRIM(channel)         AS sales_channel,
   
   -- Client identifiers
-  TRIM(sd_id) AS clientsd_id,
-  TRIM(sd_destocke) AS sd_destocked,
+  TRIM(sd_id)           AS clientsd_id,
+  TRIM(sd_destocke)     AS sd_destocked,
   
   -- Geographic attributes
-  TRIM(subregion) AS subregion,
-  TRIM(filename_subregion) AS filename_subregion,
+  TRIM(subregion)             AS subregion,
+  TRIM(filename_subregion)    AS filename_subregion,
   
   -- Product flags
   CASE 

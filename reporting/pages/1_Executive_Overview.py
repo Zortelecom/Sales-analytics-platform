@@ -2,10 +2,27 @@
 reporting/pages/1_Executive_Overview.py
 Executive Overview — top-level KPIs, achievement gauge, YoY trend.
 Suitable for: Weekly briefing banner, Monthly/Quarterly/Annual reviews.
+
+Fixes applied:
+  - sys.path.insert restored before bootstrap import (both are required: insert
+    makes 'reporting' importable; _bootstrap provides idempotency for other entry points)
+  - get_executive_kpis now receives regions + channels so KPI cards
+    reflect the same scope as the trend chart below them
+  - _delta: uses _is_null() before `or 0` coercion so a genuine None
+    prior-year value shows "—" instead of silently suppressing the delta
 """
+import sys
+from pathlib import Path
+# Add project root to sys.path so the 'reporting' package is importable,
+# then import _bootstrap which keeps it idempotent for other entry points.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+import reporting._bootstrap  # noqa: F401
+
 import streamlit as st
 from reporting.utils.filters import render_sidebar_filters, MONTH_NAMES
-from reporting.utils.formatters import fmt_currency, fmt_pct, fmt_number, fmt_delta
+from reporting.utils.formatters import (
+    fmt_currency, fmt_pct, fmt_number, fmt_delta, _is_null, month_name, achievement_color
+)
 from reporting.utils.queries import (
     get_executive_kpis,
     get_monthly_trend,
@@ -22,17 +39,16 @@ from reporting.components.charts import (
     horizontal_bar_chart,
 )
 from reporting.components.ranking_table import render_ranking_table
-from reporting.utils.formatters import month_name, achievement_color
 from reporting.config import COLORS
 
 
 # ---- Filters ---------------------------------------------------------------
 f = render_sidebar_filters(show_month=True, show_region=True, show_channel=True)
-year      = f["year"]
-month     = f["month"]
-regions   = f["regions"]
-channels  = f["channels"]
-mt        = f["meeting_type"]
+year     = f["year"]
+month    = f["month"]
+regions  = f["regions"]
+channels = f["channels"]
+mt       = f["meeting_type"]
 
 
 # ---- Page Header -----------------------------------------------------------
@@ -67,29 +83,41 @@ st.markdown(
 
 
 # ---- KPI Data --------------------------------------------------------------
-kpi_df = get_executive_kpis(year, month)
+# Both current-year and prior-year queries receive the same scope filters so
+# KPI cards and the trend chart reflect a consistent view of the data.
+kpi_df = get_executive_kpis(year, month, regions, channels)
 kpi    = kpi_df.iloc[0] if not kpi_df.empty else {}
 
-# Prior period for delta
-prior_month = (month - 1) if (month and month > 1) else None
-kpi_py_df  = get_executive_kpis(year - 1, month)
-kpi_py     = kpi_py_df.iloc[0] if not kpi_py_df.empty else {}
+kpi_py_df = get_executive_kpis(year - 1, month, regions, channels)
+kpi_py    = kpi_py_df.iloc[0] if not kpi_py_df.empty else {}
 
 
-def _delta(key, fmt_fn=fmt_currency):
-    curr = float(kpi.get(key, 0) or 0)
-    prev = float(kpi_py.get(key, 0) or 0)
-    if prev > 0:
-        pct = (curr - prev) / prev * 100
-        sign = "▲" if pct >= 0 else "▼"
-        return f"{sign} {abs(pct):.1f}% vs PY", pct >= 0
-    return "", True
+def _delta(key: str) -> tuple[str, bool]:
+    """Compute YoY delta string + positivity flag.
+
+    Uses _is_null() before coercing to float so a genuine None/NaN prior-year
+    value returns ("—", True) rather than silently evaluating as 0 and
+    suppressing the delta indicator.
+    """
+    curr_raw = kpi.get(key)
+    prev_raw = kpi_py.get(key)
+
+    if _is_null(curr_raw) or _is_null(prev_raw):
+        return "", True
+
+    curr = float(curr_raw)
+    prev = float(prev_raw)
+    if prev <= 0:
+        return "", True
+    pct = (curr - prev) / prev * 100
+    sign = "▲" if pct >= 0 else "▼"
+    return f"{sign} {abs(pct):.1f}% vs PY", pct >= 0
 
 
 # ---- Top KPI Row -----------------------------------------------------------
-d_rev, d_rev_pos = _delta("total_revenue")
-d_units, d_units_pos = _delta("total_units", fmt_number)
-d_clients, d_clients_pos = _delta("total_clients", fmt_number)
+d_rev,     d_rev_pos     = _delta("total_revenue")
+d_units,   d_units_pos   = _delta("total_units")
+d_clients, d_clients_pos = _delta("total_clients")
 
 render_kpi_row([
     {
@@ -125,11 +153,11 @@ render_kpi_row([
         "icon": "🏪",
     },
     {
-        "title": "Transactions",
-        "value": fmt_number(kpi.get("total_transactions")),
-        "accent_color": COLORS["chart"][4],
-        "icon": "🔄",
-    },
+        "title": "Total Weight (Kg)",
+        "value": fmt_number(kpi.get("total_weight_kg")),
+        "accent_color": COLORS["chart"][1],
+        "icon": "⚖️",
+    }
 ])
 
 st.markdown('<div class="spacer-md"></div>', unsafe_allow_html=True)
@@ -144,14 +172,7 @@ with col_gauge:
         title=f"Achievement — {period_label}",
         height=240,
     )
-    # Gap fill KPI
     st.markdown('<div class="spacer-sm"></div>', unsafe_allow_html=True)
-    kpi_card(
-        title="Total Weight (Kg)",
-        value=fmt_number(kpi.get("total_weight_kg")),
-        icon="⚖️",
-        accent_color=COLORS["chart"][1],
-    )
 
 with col_trend:
     trend_df = get_monthly_trend(year, regions, channels)
@@ -162,7 +183,6 @@ with col_trend:
         title=f"Monthly Revenue vs Target — {year}",
         height=280,
     )
-
 
 st.markdown('<div class="spacer-md"></div>', unsafe_allow_html=True)
 
@@ -196,26 +216,28 @@ with col_cat:
         height=280,
     )
 
-
 st.markdown('<div class="spacer-md"></div>', unsafe_allow_html=True)
 
 
 # ---- Top Regions -----------------------------------------------------------
 render_section_header("Regional Snapshot", "Top performing regions this period")
 
-col_bar, col_tbl = st.columns([2, 3])
+col_bar, col_tbl = st.columns([3, 2])
 
 with col_bar:
     top_reg = get_top_regions(year, month, limit=10)
-    horizontal_bar_chart(
-        top_reg.sort_values("revenue"),
-        y_col="region",
-        x_col="revenue",
-        color_col="achievement_pct",
-        title="Revenue by Region",
-        height=300,
-        max_rows=10,
-    )
+    if not top_reg.empty:
+        horizontal_bar_chart(
+            top_reg.sort_values("revenue"),
+            y_col="region",
+            x_col="revenue",
+            color_col="achievement_pct",
+            title="Revenue by Region",
+            height=max(300, len(top_reg) * 40),
+            max_rows=10,
+        )
+    else:
+        st.info("No regional data available")
 
 with col_tbl:
     render_ranking_table(

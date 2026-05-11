@@ -1,7 +1,18 @@
 """
 reporting/pages/2_Regional_Performance.py
 Regional Performance — Region → Subregion drill-down.
+
+Fix applied:
+  - sys.path.insert restored before bootstrap import (both are required: insert
+    makes 'reporting' importable; _bootstrap provides idempotency for other entry points)
 """
+import sys
+from pathlib import Path
+# Add project root to sys.path so the 'reporting' package is importable,
+# then import _bootstrap which keeps it idempotent for other entry points.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+import reporting._bootstrap  # noqa: F401
+
 import streamlit as st
 import pandas as pd
 from reporting.utils.filters import render_sidebar_filters, MONTH_NAMES
@@ -26,10 +37,10 @@ from reporting.config import COLORS
 
 # ---- Filters ---------------------------------------------------------------
 f = render_sidebar_filters(show_region=True, show_channel=True)
-year = f["year"]
-month = f["month"]
+year     = f["year"]
+month    = f["month"]
 channels = f["channels"]
-mt = f["meeting_type"]
+mt       = f["meeting_type"]
 
 period_label = (
     f"{MONTH_NAMES.get(month,'')} {year}" if month else
@@ -128,7 +139,6 @@ with tab1:
 
     st.markdown('<div class="spacer-sm"></div>', unsafe_allow_html=True)
 
-    # Subregion breakdown within each region (heat table style)
     render_section_header("Region × Subregion Matrix")
     pivot_df = reg_df.pivot_table(
         index="region", columns="subregion",
@@ -136,7 +146,6 @@ with tab1:
     ).round(1)
 
     if not pivot_df.empty:
-        # Style as colored HTML table
         def color_cell(v):
             c = achievement_color(v if pd.notna(v) else None)
             return f"color:{c}; font-weight:600;" if pd.notna(v) else "color:#374151;"
@@ -183,7 +192,6 @@ with tab2:
     if selected_region:
         sub_df = reg_df[reg_df["region"] == selected_region].copy()
 
-        # Region KPIs
         r_rev = sub_df["revenue"].sum()
         r_tgt = sub_df["target"].sum()
         r_ach = round(r_rev / r_tgt * 100, 2) if r_tgt > 0 else None

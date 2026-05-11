@@ -2,9 +2,9 @@ Seed Metadata
 ==================================================
 
 Seed Name: products_data
-Batch ID: 20260222_171149
-Timestamp: 2026-02-22T16:14:37.035019+00:00
-Rows Written: 61
+Batch ID: 20260506_194023
+Timestamp: 2026-05-06T18:42:20.162247+00:00
+Rows Written: 68
 Columns: 8
 
 Column Names:
@@ -21,4 +21,4 @@ Source Files:
   - References.xlsx
 
 Ingestion Batch IDs:
-  - 20260222_171149
+  - 20260506_194023

@@ -3,6 +3,7 @@ reporting/components/kpi_cards.py
 Reusable KPI card components rendered via st.markdown HTML.
 """
 from __future__ import annotations
+import html
 import streamlit as st
 from reporting.utils.formatters import (
     fmt_currency, fmt_pct, fmt_delta, achievement_color, achievement_emoji
@@ -19,13 +20,19 @@ def _card_html(
     accent_color: str = COLORS["accent"],
     icon: str = "",
 ) -> str:
+    # Escape HTML to prevent breaking the card structure
+    subtitle_safe = html.escape(subtitle) if subtitle else ""
+    delta_safe = html.escape(delta) if delta else ""
+    title_safe = html.escape(title)
+    value_safe = html.escape(value)
+    
     delta_color = COLORS["success"] if delta_positive else COLORS["danger"]
     delta_html = (
-        f'<div style="color:{delta_color}; font-size:0.78rem; margin-top:0.15rem;">{delta}</div>'
+        f'<div style="color:{delta_color}; font-size:0.78rem; margin-top:0.15rem;">{delta_safe}</div>'
         if delta else ""
     )
     subtitle_html = (
-        f'<div style="color:{COLORS["text_secondary"]}; font-size:0.72rem; margin-top:0.2rem;">{subtitle}</div>'
+        f'<div style="color:{COLORS["text_secondary"]}; font-size:0.72rem; margin-top:0.2rem;">{subtitle_safe}</div>'
         if subtitle else ""
     )
     return f"""
@@ -40,11 +47,11 @@ def _card_html(
     ">
         <div style="color:{COLORS['text_secondary']}; font-size:0.72rem;
                     text-transform:uppercase; letter-spacing:0.08em; margin-bottom:0.4rem;">
-            {icon + ' ' if icon else ''}{title}
+            {icon + ' ' if icon else ''}{title_safe}
         </div>
         <div style="color:{COLORS['text_primary']}; font-size:1.55rem;
                     font-weight:700; line-height:1.1; letter-spacing:-0.01em;">
-            {value}
+            {value_safe}
         </div>
         {delta_html}
         {subtitle_html}

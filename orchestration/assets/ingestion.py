@@ -3,7 +3,7 @@
 import sys
 from pathlib import Path
 from datetime import datetime
-from orchestration.utils.constants import SEEDS_PATH
+from orchestration.utils.constants import SEEDS_DIR
 from ingestion.load.seed_writer import SeedWriter
 from ingestion.extract.reference_extractor import ReferenceExtractor
 from ingestion.extract.target_extractor import TargetExtractor
@@ -92,7 +92,7 @@ def sales_seed(
             raise ValueError("No sales data extracted from files")
 
         # Write seed
-        writer = SeedWriter(SEEDS_PATH, current_batch_id)
+        writer = SeedWriter(SEEDS_DIR, current_batch_id)
         seed_path = writer.write_seed(df, "sales_data")
 
         # Preview for metadata
@@ -170,7 +170,7 @@ def targets_seed(
             raise ValueError("No targets data extracted from files")
 
         # Write seed
-        writer = SeedWriter(SEEDS_PATH, current_batch_id)
+        writer = SeedWriter(SEEDS_DIR, current_batch_id)
         seed_path = writer.write_seed(df, "targets_data")
 
         # Preview for metadata
@@ -250,7 +250,7 @@ def references_seeds(
             raise ValueError("No reference data extracted from files")
 
         # Initialize seed writer
-        writer = SeedWriter(SEEDS_PATH, current_batch_id)
+        writer = SeedWriter(SEEDS_DIR, current_batch_id)
 
         # Map internal names to seed names
         seed_mapping = {
@@ -327,7 +327,7 @@ def seeds_metadata(
     metadata = {
         "batch_id": current_batch_id,
         "timestamp": datetime.now().isoformat(),
-        "seeds_path": str(SEEDS_PATH),
+        "seeds_path": str(SEEDS_DIR),
         "sales_rows": len(sales_seed),
         "targets_rows": len(targets_seed),
         "reference_seeds": {

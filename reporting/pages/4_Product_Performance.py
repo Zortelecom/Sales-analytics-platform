@@ -1,7 +1,21 @@
 """
 reporting/pages/4_Product_Performance.py
 Product Performance — Category, subcategory, SKU ranking, and Innovation spotlight.
+
+Fixes applied:
+  - sys.path.insert restored before bootstrap import (both are required: insert
+    makes 'reporting' importable; _bootstrap provides idempotency for other entry points)
+  - Inline SQL for cat_trend moved to queries.get_category_monthly_trend()
+  - Category filter now works correctly: get_category_performance no longer
+    applies UPPER(), so case matches between the selectbox and the filter param
 """
+import sys
+from pathlib import Path
+# Add project root to sys.path so the 'reporting' package is importable,
+# then import _bootstrap which keeps it idempotent for other entry points.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+import reporting._bootstrap  # noqa: F401
+
 import streamlit as st
 import pandas as pd
 from reporting.utils.filters import render_sidebar_filters, MONTH_NAMES
@@ -13,6 +27,7 @@ from reporting.utils.queries import (
     get_product_ranking,
     get_innovation_performance,
     get_innovation_trend,
+    get_category_monthly_trend,
 )
 from reporting.components.kpi_cards import render_kpi_row, render_section_header, kpi_card
 from reporting.components.charts import (
@@ -27,11 +42,11 @@ from reporting.config import COLORS
 
 # ---- Filters ---------------------------------------------------------------
 f = render_sidebar_filters(show_region=True, show_channel=False, show_category=True)
-year      = f["year"]
-month     = f["month"]
-regions   = f["regions"]
-categories= f["categories"]
-mt        = f["meeting_type"]
+year       = f["year"]
+month      = f["month"]
+regions    = f["regions"]
+categories = f["categories"]
+mt         = f["meeting_type"]
 
 period_label = (
     f"{MONTH_NAMES.get(month,'')} {year}" if month else
@@ -59,9 +74,9 @@ st.markdown(
 
 
 # ---- Data ------------------------------------------------------------------
-cat_df    = get_category_performance(year, month, region_arg)
-prod_df   = get_product_ranking(year, month, cat_arg, region_arg, limit=30)
-innov_df  = get_innovation_performance(year, month)
+cat_df   = get_category_performance(year, month, region_arg)
+prod_df  = get_product_ranking(year, month, cat_arg, region_arg, limit=30)
+innov_df = get_innovation_performance(year, month)
 
 if cat_df.empty:
     st.warning("No product data for the selected period.")
@@ -70,16 +85,14 @@ if cat_df.empty:
 total_rev = cat_df["revenue"].sum()
 total_tgt = cat_df["target"].sum()
 total_ach = round(total_rev / total_tgt * 100, 2) if total_tgt > 0 else None
-n_cats    = len(cat_df)
 top_cat   = cat_df.iloc[0] if not cat_df.empty else {}
+
+# Innovation split
+innov_rev   = innov_df[innov_df["is_innovation_product"] == True]["revenue"].sum() if not innov_df.empty else 0
+innov_share = round(innov_rev / total_rev * 100, 1) if total_rev > 0 else None
 
 
 # ---- KPIs ------------------------------------------------------------------
-# Innovation split
-innov_rev = innov_df[innov_df["is_innovation_product"] == True]["revenue"].sum() if not innov_df.empty else 0
-std_rev   = innov_df[innov_df["is_innovation_product"] == False]["revenue"].sum() if not innov_df.empty else 0
-innov_share = round(innov_rev / total_rev * 100, 1) if total_rev > 0 else None
-
 render_kpi_row([
     {"title": "Total Revenue", "value": fmt_currency(total_rev, short=True),
      "subtitle": f"Target: {fmt_currency(total_tgt, short=True)}", "icon": "💰"},
@@ -136,11 +149,12 @@ with tab1:
 
 # ====== TAB 2: Product Ranking ==============================================
 with tab2:
-    # Dynamic filter by category
+    # Category list comes from get_category_performance which no longer applies
+    # UPPER(), so case matches the values stored in v_sales_base.
     all_cats = ["All Categories"] + cat_df["product_category"].tolist()
     sel_cat  = st.selectbox("Filter by Category", all_cats, key="prod_cat_filter")
 
-    cat_filter = None if sel_cat == "All Categories" else sel_cat
+    cat_filter    = None if sel_cat == "All Categories" else sel_cat
     filtered_prod = get_product_ranking(year, month, cat_filter, region_arg, limit=30)
 
     if filtered_prod.empty:
@@ -161,14 +175,13 @@ with tab2:
 
         with col_bot:
             render_section_header("Product Detail Table")
-            # Render custom table with innovation flag
             rows_html = ""
             for i, row in filtered_prod.head(20).iterrows():
                 innov_badge = (
                     f'<span style="background:{COLORS["chart"][3]}; color:#000; '
                     f'border-radius:3px; padding:0.1rem 0.3rem; font-size:0.68rem; '
                     f'font-weight:700;">NEW</span>'
-                    if row.get("is_innovation_product") else ""
+                    if row.get("is_innovation_product") is True else ""
                 )
                 rows_html += f"""
                 <tr style="border-bottom:1px solid {COLORS['border']};">
@@ -206,7 +219,6 @@ with tab3:
     if innov_df.empty:
         st.info("No data.")
     else:
-        # Split into innovation vs standard
         innov_yes = innov_df[innov_df["is_innovation_product"] == True]
         innov_no  = innov_df[innov_df["is_innovation_product"] == False]
 
@@ -256,7 +268,6 @@ with tab4:
             "Innovation" if c else "Standard"
             for c in innov_trend_pivot.columns[1:]
         ]
-
         y_cols = [c for c in innov_trend_pivot.columns if c != "month"]
         trend_line_chart(
             innov_trend_pivot,
@@ -269,22 +280,14 @@ with tab4:
             height=300,
         )
 
-    # Category monthly trend
     st.markdown('<div class="spacer-sm"></div>', unsafe_allow_html=True)
     render_section_header("Category Monthly Trend")
 
-    from reporting.utils.db import query
-    cat_trend = query(f"""
-        SELECT sale_month AS month, product_category,
-               SUM(total_amount) AS revenue
-        FROM v_sales_base
-        WHERE sale_year={year}
-        GROUP BY sale_month, product_category
-        ORDER BY sale_month, product_category
-    """)
+    # Inline SQL extracted to queries.get_category_monthly_trend()
+    cat_trend = get_category_monthly_trend(year)
 
     if not cat_trend.empty:
-        cats = cat_trend["product_category"].unique()
+        cats     = cat_trend["product_category"].unique()
         sel_cats = st.multiselect("Categories to display", list(cats), default=list(cats[:4]),
                                    key="cat_trend_select")
         if sel_cats:

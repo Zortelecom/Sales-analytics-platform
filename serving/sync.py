@@ -236,10 +236,10 @@ class ServingLayerSync:
             temp_path = Path(self.config.temp_path)
             if temp_path.exists():
                 logger.info(
-                    "Removing existing temp database: %i", temp_path)
+                    "Removing existing temp database: %s", temp_path)
                 temp_path.unlink()
 
-            logger.info("Creating temp serving database: %i", temp_path)
+            logger.info("Creating temp serving database: %s", temp_path)
             target = duckdb.connect(str(temp_path))
             try:
                 # Step 3: Setup BI schema and metadata tracking
@@ -248,8 +248,12 @@ class ServingLayerSync:
                 # Step 4: Sync tables
                 sync_start = datetime.now()
                 self._sync_all_tables(source, target, tables, catalog_alias)
+                
+                 # Step 5: Apply BI views (if configured)
+                if self.config.apply_views:
+                    self._apply_bi_views(target)
 
-                # Step 5: Atomic swap if success rate is acceptable
+                # Step 6: Atomic swap if success rate is acceptable
                 success_count = len(tables) - len(self.failed_tables)
                 failure_rate = len(self.failed_tables) / \
                     len(tables) if tables else 0
@@ -878,3 +882,39 @@ class ServingLayerSync:
         except Exception as e:
             logger.error("Failed to get sync stats: %s", e)
             return None
+
+    def _apply_bi_views(self, target: duckdb.DuckDBPyConnection) -> None:
+            """
+            Execute the BI view definitions on the target database.
+            Raises an exception if any view creation fails (atomic sync will abort).
+            """
+            sql_path = Path(self.config.views_template_path)
+            if not sql_path.exists():
+                raise FileNotFoundError(f"BI views template not found: {sql_path}")
+
+            logger.info("Applying BI views from %s", sql_path)
+            sql_content = sql_path.read_text(encoding="utf-8")
+
+            # Split on semicolons to handle multi‑statement files safely
+            # This simple split works for typical view definitions without semicolons inside strings.
+            statements = [stmt.strip() for stmt in sql_content.split(";") if stmt.strip()]
+
+            created_views = []
+            for stmt in statements:
+                try:
+                    target.execute(stmt)
+                    # Extract view name from CREATE VIEW statement (simple heuristic)
+                    if stmt.upper().startswith("CREATE OR REPLACE VIEW"):
+                        parts = stmt.split()
+                        # The view name is usually after "VIEW"
+                        view_name = parts[3] if len(parts) > 3 else "unknown"
+                        created_views.append(view_name)
+                    logger.debug("Executed: %s...", stmt[:60])
+                except Exception as e:
+                    logger.error("Failed to execute view statement: %s", stmt[:100])
+                    raise RuntimeError(f"BI view creation failed: {e}") from e
+
+            logger.info("✅ Created %d BI view(s)", len(created_views))
+
+
+

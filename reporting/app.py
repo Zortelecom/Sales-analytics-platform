@@ -3,6 +3,8 @@ reporting/app.py
 Main entry point for the Sales Analytics Platform dashboard.
 Run with: streamlit run reporting/app.py
 """
+
+import reporting._bootstrap  # noqa: F401 — must be first; adds project root to sys.path
 import streamlit as st
 from reporting.config import APP_TITLE, APP_ICON, COLORS
 

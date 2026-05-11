@@ -11,8 +11,19 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DB_PATH = os.environ.get(
     "SERVING_DB_PATH",
-    str(PROJECT_ROOT / "data" / "warehouse" / "serving.db"),
+    str(PROJECT_ROOT / "data" / "warehouse" / "serving_dev.db"),
 )
+
+# ---------------------------------------------------------------------------
+# Database schema names
+# ---------------------------------------------------------------------------
+# Schema where your dim/fact tables live in serving.db  (e.g. "bi", "main")
+# Override at runtime:  set SERVING_DB_SCHEMA=main
+DB_SCHEMA = os.environ.get("SERVING_DB_SCHEMA", "bi")
+
+# Schema where the reporting KPI views (v_monthly_kpi etc.) are created.
+# "main" = default/unqualified schema in DuckDB — usually fine.
+DB_VIEWS_SCHEMA = os.environ.get("SERVING_DB_VIEWS_SCHEMA", "main")
 
 # ---------------------------------------------------------------------------
 # App metadata
@@ -26,11 +37,10 @@ CURRENCY_SYMBOL = "FCFA"
 # ---------------------------------------------------------------------------
 # Display
 # ---------------------------------------------------------------------------
-DEFAULT_YEAR = None          # None → latest available year
+DEFAULT_YEAR = None
 DEFAULT_MEETING_TYPE = "Monthly"
 MEETING_TYPES = ["Weekly", "Monthly", "Quarterly", "Annual"]
 
-# Number formatting
 THOUSANDS_SEP = " "
 DECIMAL_SEP = "."
 
@@ -41,7 +51,7 @@ COLORS = {
     "bg_primary":    "#0A0E1A",
     "bg_card":       "#111827",
     "bg_card_alt":   "#1A2235",
-    "accent":        "#F59E0B",   # amber — primary accent
+    "accent":        "#F59E0B",
     "accent_light":  "#FCD34D",
     "success":       "#10B981",
     "warning":       "#F97316",
@@ -50,7 +60,6 @@ COLORS = {
     "text_primary":  "#F9FAFB",
     "text_secondary":"#9CA3AF",
     "border":        "#1F2937",
-    # Chart palette
     "chart": [
         "#F59E0B", "#10B981", "#3B82F6", "#8B5CF6",
         "#EC4899", "#14B8A6", "#F97316", "#6366F1",
@@ -61,8 +70,7 @@ COLORS = {
 # Achievement thresholds
 # ---------------------------------------------------------------------------
 ACHIEVEMENT_THRESHOLDS = {
-    "excellent": 100,   # >= 100% → green
-    "good":       85,   # >= 85%  → amber
-    "warning":    70,   # >= 70%  → orange
-    # < 70%                        → red
+    "excellent": 100,
+    "good":       85,
+    "warning":    70,
 }

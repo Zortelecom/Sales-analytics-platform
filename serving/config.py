@@ -53,6 +53,12 @@ class ServingConfig:
     include_tables: Optional[List[str]] = None
     
     # =========================================================================
+    # BI Views
+    # =========================================================================
+    apply_views: bool = True
+    views_template_path: Optional[str] = None  # e.g., "serving/templates/bi_views.sql"
+    
+    # =========================================================================
     # Internal: Temp and Backup
     # =========================================================================
     temp_path: Optional[str] = None
@@ -133,6 +139,14 @@ class ServingConfig:
                 f"Invalid Parquet compression: {self.parquet_export.compression}. "
                 f"Must be one of: {valid_compressions}"
             )
+        
+        # Setup BI Views Template Path
+        # =========================================================================
+        if self.apply_views and not self.views_template_path:
+            # Default location relative to project root
+            self.views_template_path = str(root / "serving/templates/bi_views.sql")
+        if self.views_template_path:
+            self.views_template_path = str((root / self.views_template_path).resolve())
 
     @property
     def enable_csv_export(self) -> bool:

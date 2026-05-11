@@ -2,7 +2,6 @@
 import os
 from dagster import Definitions
 
-# Import assets - ✅ FIXED: Added current_batch_id
 from orchestration.assets import (
     current_batch_id,  # ✅ Added
     discovered_files,
@@ -35,10 +34,13 @@ from orchestration.sensors.file_sensor import new_file_sensor
 # Import resources
 from orchestration.resources import DuckDBResource, DuckLakeResource, SQLMeshResource
 
+# Import asset checks
+from orchestration.assets.data_quality import data_quality_full_report
+
 # All assets in dependency order
 assets = [
     # Batch tracking
-    current_batch_id,  # ✅ Added
+    current_batch_id,  #
 
     # File discovery & preprocessing
     discovered_files,
@@ -62,6 +64,13 @@ assets = [
 
 defs = Definitions(
     assets=assets,
+    asset_checks=[
+        # Runs after fact_sales is built.
+        # blocking=False → pipeline never halts on failure.
+        # Dagster UI shows a red badge on fact_sales with a per-audit
+        # breakdown and the path to the full JSON quality report.
+        data_quality_full_report,
+    ],
     jobs=[
         daily_pipeline_job,
         ingestion_only_job,

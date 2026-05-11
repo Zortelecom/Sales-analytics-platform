@@ -151,9 +151,17 @@ def horizontal_bar_chart(df: pd.DataFrame,
         marker_line_width=0,
         hovertemplate=f"%{{y}}<br>{x_col.replace('_',' ').title()}: %{{x:,.0f}}<extra></extra>",
         text=[fmt_currency(v, short=True) for v in df[x_col]],
-        textposition="outside",
+        textposition="outside",  # This might be causing clipping
         textfont=dict(color=COLORS["text_secondary"], size=10),
+        # Add cliponaxis=False to prevent text clipping
+        cliponaxis=False,
     ))
+    
+    # Adjust margins to accommodate outside labels
+    fig.update_layout(
+        margin=dict(l=8, r=80, t=32, b=8),  # Increased right margin
+    )
+    
     _apply_base(fig, title, height)
     fig.update_layout(yaxis=dict(tickfont=dict(size=10)))
     st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
@@ -212,6 +220,9 @@ def donut_chart(df: pd.DataFrame,
                 height: int = 300) -> None:
     if df.empty:
         st.info("No data."); return
+    if label_col not in df.columns or value_col not in df.columns:
+        st.warning(f"Chart data missing expected columns. Available: {list(df.columns)}")
+        return
     fig = go.Figure(go.Pie(
         labels=df[label_col],
         values=df[value_col],

@@ -1,7 +1,20 @@
 """
 reporting/pages/3_Salesforce_Performance.py
 Salesforce Performance — Supervisor → Salesperson drill-down.
+
+Fixes applied:
+  - sys.path.insert restored before bootstrap import (both are required: insert
+    makes 'reporting' importable; _bootstrap provides idempotency for other entry points)
+  - Multi-region: full regions list is now passed to get_salesperson_ranking
+    instead of silently collapsing to None when >1 region is selected
 """
+import sys
+from pathlib import Path
+# Add project root to sys.path so the 'reporting' package is importable,
+# then import _bootstrap which keeps it idempotent for other entry points.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+import reporting._bootstrap  # noqa: F401
+
 import streamlit as st
 from reporting.utils.filters import render_sidebar_filters, MONTH_NAMES
 from reporting.utils.formatters import (
@@ -12,7 +25,6 @@ from reporting.utils.queries import (
     get_supervisor_summary,
     get_salesperson_monthly_trend,
 )
-from reporting.utils.db import query
 from reporting.components.kpi_cards import render_kpi_row, render_section_header
 from reporting.components.charts import (
     horizontal_bar_chart,
@@ -26,11 +38,16 @@ from reporting.config import COLORS
 
 # ---- Filters ---------------------------------------------------------------
 f = render_sidebar_filters(show_region=True, show_channel=True)
-year = f["year"]
-month = f["month"]
-regions = f["regions"]
+year     = f["year"]
+month    = f["month"]
+regions  = f["regions"]   # list[str] | None — full list now passed through
 channels = f["channels"]
-mt = f["meeting_type"]
+mt       = f["meeting_type"]
+
+# For supervisor / single-value lookups we still need a scalar — use first
+# only when exactly one is selected; otherwise pass None (all regions).
+region_scalar  = regions[0] if (regions and len(regions) == 1) else None
+channel_scalar = channels[0] if (channels and len(channels) == 1) else None
 
 period_label = (
     f"{MONTH_NAMES.get(month,'')} {year}" if month else
@@ -56,11 +73,10 @@ st.markdown(
 
 
 # ---- Data ------------------------------------------------------------------
-region_arg = regions[0] if (regions and len(regions) == 1) else None
-channel_arg = channels[0] if (channels and len(channels) == 1) else None
-
-sp_df  = get_salesperson_ranking(year, month, region_arg, None, channel_arg)
-sup_df = get_supervisor_summary(year, month, region_arg)
+# regions (list) is passed directly — get_salesperson_ranking now accepts a list
+# and builds an IN (?,?,?) clause when multiple regions are selected.
+sp_df  = get_salesperson_ranking(year, month, regions, None, channel_scalar)
+sup_df = get_supervisor_summary(year, month, region_scalar)
 
 if sp_df.empty:
     st.warning("No salesforce data for the selected period.")
@@ -150,7 +166,6 @@ with tab2:
                 extra_cols=["region", "team_size"],
             )
 
-        # Team breakdown per supervisor
         st.markdown('<div class="spacer-sm"></div>', unsafe_allow_html=True)
         render_section_header("Salesperson → Supervisor Attribution")
 

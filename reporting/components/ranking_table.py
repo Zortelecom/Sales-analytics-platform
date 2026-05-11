@@ -1,8 +1,14 @@
 """
 reporting/components/ranking_table.py
 Styled ranking and comparison tables.
+
+Fix applied:
+  - render_comparison_table: local variable renamed from `html` to `table_html`
+    to stop it shadowing the stdlib `html` module (would cause AttributeError
+    if html.escape() were called later in the function).
 """
 from __future__ import annotations
+import html
 import pandas as pd
 import streamlit as st
 from reporting.utils.formatters import (
@@ -40,11 +46,10 @@ def render_ranking_table(
 
     if title:
         st.markdown(
-            f'<h4 style="color:{COLORS["text_primary"]}; font-size:0.95rem; margin:0.5rem 0;">{title}</h4>',
+            f'<h4 style="color:{COLORS["text_primary"]}; font-size:0.95rem; margin:0.5rem 0;">{html.escape(title)}</h4>',
             unsafe_allow_html=True,
         )
 
-    # Build HTML table
     extra_cols = extra_cols or []
     rows_html = ""
     for i, row in df.iterrows():
@@ -53,51 +58,51 @@ def render_ranking_table(
         tgt = row.get(target_col, 0)
         ach = row.get(achievement_col)
 
+        name_val = html.escape(str(row.get(name_col, '')))
+        rev_str = fmt_currency(rev, short=True)
+        tgt_str = fmt_currency(tgt, short=True)
+
         extras = ""
         for ec in extra_cols:
             val = row.get(ec, "")
-            extras += f'<td style="color:{COLORS["text_secondary"]};">{val}</td>'
+            extras += f'<td style="color:{COLORS["text_secondary"]};">{html.escape(str(val))}</td>'
 
-        rows_html += f"""
-        <tr style="border-bottom: 1px solid {COLORS['border']};">
+        rows_html += f"""<tr style="border-bottom: 1px solid {COLORS['border']};">
             {rank_html}
-            <td style="color:{COLORS['text_primary']}; font-weight:500;">{row.get(name_col, '')}</td>
-            <td style="color:{COLORS['text_primary']}; text-align:right; font-weight:600;">
-                {fmt_currency(rev, short=True)}</td>
-            <td style="color:{COLORS['text_secondary']}; text-align:right;">
-                {fmt_currency(tgt, short=True)}</td>
+            <td style="color:{COLORS['text_primary']}; font-weight:500;">{name_val}</td>
+            <td style="color:{COLORS['text_primary']}; text-align:right; font-weight:600;">{rev_str}</td>
+            <td style="color:{COLORS['text_secondary']}; text-align:right;">{tgt_str}</td>
             <td style="text-align:center;">{_achievement_badge(ach)}</td>
             {extras}
-        </tr>
-        """
+        </tr>"""
 
     rank_header = "<th>Rank</th>" if rank_col else ""
     extra_headers = "".join(
-        f'<th style="text-align:left;">{ec.replace("_", " ").title()}</th>'
+        f'<th style="text-align:left;">{html.escape(ec.replace("_", " ").title())}</th>'
         for ec in extra_cols
     )
 
-    html = f"""
-    <div style="overflow-x:auto; margin-top:0.5rem;">
-    <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
-        <thead>
-            <tr style="background:{COLORS['bg_card_alt']}; color:{COLORS['text_secondary']};
-                       font-size:0.72rem; text-transform:uppercase; letter-spacing:0.05em;">
-                {rank_header}
-                <th style="text-align:left; padding:0.5rem 0.25rem;">Name</th>
-                <th style="text-align:right; padding:0.5rem 0.25rem;">Revenue</th>
-                <th style="text-align:right; padding:0.5rem 0.25rem;">Target</th>
-                <th style="text-align:center; padding:0.5rem 0.25rem;">Achievement</th>
-                {extra_headers}
-            </tr>
-        </thead>
-        <tbody>
-            {rows_html}
-        </tbody>
-    </table>
-    </div>
-    """
-    st.markdown(html, unsafe_allow_html=True)
+    html_content = f"""<div style="overflow-x:auto; margin-top:0.5rem;">
+        <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+            <thead>
+                <tr style="background:{COLORS['bg_card_alt']}; color:{COLORS['text_secondary']};
+                        font-size:0.72rem; text-transform:uppercase; letter-spacing:0.05em;">
+                    {rank_header}
+                    <th style="text-align:left; padding:0.5rem 0.25rem;">Name</th>
+                    <th style="text-align:right; padding:0.5rem 0.25rem;">Revenue</th>
+                    <th style="text-align:right; padding:0.5rem 0.25rem;">Target</th>
+                    <th style="text-align:center; padding:0.5rem 0.25rem;">Achievement</th>
+                    {extra_headers}
+                </tr>
+            </thead>
+            <tbody>{rows_html}</tbody>
+        </table>
+        </div>"""
+
+    try:
+        st.html(html_content)
+    except AttributeError:
+        st.markdown(html_content, unsafe_allow_html=True)
 
 
 def render_comparison_table(
@@ -114,7 +119,7 @@ def render_comparison_table(
         return
     if title:
         st.markdown(
-            f'<h4 style="color:{COLORS["text_primary"]}; font-size:0.95rem; margin:0.5rem 0;">{title}</h4>',
+            f'<h4 style="color:{COLORS["text_primary"]}; font-size:0.95rem; margin:0.5rem 0;">{html.escape(title)}</h4>',
             unsafe_allow_html=True,
         )
 
@@ -129,22 +134,24 @@ def render_comparison_table(
 
         rows_html += f"""
         <tr style="border-bottom:1px solid {COLORS['border']};">
-            <td style="color:{COLORS['text_primary']};">{row.get(group_col,'')}</td>
+            <td style="color:{COLORS['text_primary']};">{html.escape(str(row.get(group_col, '')))}</td>
             <td style="color:{COLORS['text_primary']}; text-align:right; font-weight:600;">{fmt_currency(cy, short=True)}</td>
             {py_html}
             {pct_html}
         </tr>
         """
 
-    py_header = f'<th style="text-align:right;">Prior Year</th>' if compare_col else ""
-    pct_header = f'<th style="text-align:center;">Change</th>' if pct_change_col else ""
-    html = f"""
+    py_header = '<th style="text-align:right;">Prior Year</th>' if compare_col else ""
+    pct_header = '<th style="text-align:center;">Change</th>' if pct_change_col else ""
+
+    # Variable renamed from `html` → `table_html` to avoid shadowing the html module
+    table_html = f"""
     <div style="overflow-x:auto;">
     <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
         <thead>
             <tr style="background:{COLORS['bg_card_alt']}; color:{COLORS['text_secondary']};
                        font-size:0.72rem; text-transform:uppercase; letter-spacing:0.05em;">
-                <th style="text-align:left; padding:0.5rem 0.25rem;">{group_col.replace('_',' ').title()}</th>
+                <th style="text-align:left; padding:0.5rem 0.25rem;">{html.escape(group_col.replace('_',' ').title())}</th>
                 <th style="text-align:right; padding:0.5rem 0.25rem;">Current</th>
                 {py_header}
                 {pct_header}
@@ -154,4 +161,4 @@ def render_comparison_table(
     </table>
     </div>
     """
-    st.markdown(html, unsafe_allow_html=True)
+    st.markdown(table_html, unsafe_allow_html=True)
