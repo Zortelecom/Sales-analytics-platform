@@ -1,4 +1,4 @@
-# Sales Analytics Platform - Project Structure (Seed-Based)
+# Sales Analytics Platform - Project Structure
 
 ## 📁 Complete Directory Structure
 
@@ -7,172 +7,251 @@ sales-analytics-platform/
 │
 ├── ingestion/                           # Data extraction layer
 │   ├── __init__.py
-|   ├── main.py                          # Main orchestrator [cite: 1]
+│   ├── main.py                          # Main orchestrator
 │   │
 │   ├── config/
 │   │   ├── __init__.py
-│   │   ├── settings.py                  # Centralized configuration [cite: 2]
-│   |   └── sources.yaml                 # Source definitions [cite: 2]
+│   │   ├── settings.py                  # Centralized configuration
+│   │   └── sources.yaml                 # Source definitions
 │   │
-|   ├── extract/                         # Excel extraction modules [cite: 2]
+│   ├── extract/                         # Excel extraction modules
 │   │   ├── __init__.py
-│   │   ├── base_extractor.py            # Base class for extractors [cite: 3]
-│   │   ├── sales_extractor.py           # Sales-specific extraction [cite: 3]
-|   │   ├── target_extractor.py          # Targets-specific extraction [cite: 3]
+│   │   ├── base_extractor.py            # Base class for extractors
+│   │   ├── sales_extractor.py           # Sales-specific extraction
+│   │   ├── target_extractor.py          # Targets-specific extraction
 │   │   └── reference_extractor.py       # Extraction for Clients, Products, Team
 │   │
-│   ├── load/                            # CSV seed writing [cite: 3]
-│   │    ├── __init__.py
-│   │    └── seed_writer.py              # Handles CSV seed writing [cite: 4]
+│   ├── load/                            # CSV seed writing
+│   │   ├── __init__.py
+│   │   └── seed_writer.py               # Writes CSV seeds + metadata files
+│   │                                    # Metadata includes: row_count,
+│   │                                    # distinct/null/duplicate key counts
 │   │
 │   └── orchestrate/                     # File movement & preprocessing
 │       ├── __init__.py
 │       ├── file_discovery.py            # Find and validate source files
 │       ├── file_mover.py                # Copy with validation
 │       ├── excel_preprocessor.py        # Sheet deletion & cleaning
-│       └── archive_manager.py           # Post-processing archival│
+│       └── archive_manager.py           # Post-processing archival
 │
 │
-│
-├── sqlmesh/                             # Transformation & orchestration [cite: 4]
-│   ├── config.yaml                      # SQLMesh + DuckLake configuration [cite: 4]
+├── sqlmesh/                             # Transformation & orchestration
+│   ├── config.yaml                      # SQLMesh + DuckLake configuration
 │   │
-│   ├── seeds/                           # CSV data written by ingestion [cite: 5]
-│   │   ├── sales_data.csv               # Sales seed [cite: 5]
-│   │   ├── sales_data_metadata.txt      # Tracking metadata [cite: 5]
-│   │   ├── targets_data.csv             # Targets seed [cite: 5]
-│   │   ├── targets_data_metadata.txt    # Tracking metadata [cite: 6]
-│   │   ├── clientSD_data.csv            # Client reference seed
-│   │   ├── clientSD_data_metadata.txt   # Metadata
-│   │   ├── products_data.csv            # Product reference seed
-│   │   ├── products_data_metadata.txt   # Metadata
-│   │   ├── salesteam_data.csv           # Sales team seed
-│   │   └── salesteam_data_metadata.txt  # Metadata
+│   ├── seeds/                           # CSV data written by ingestion
+│   │   ├── sales_data.csv
+│   │   ├── sales_data_metadata.txt      # Tracking metadata
+│   │   ├── targets_data.csv
+│   │   ├── targets_data_metadata.txt
+│   │   ├── clientSD_data.csv
+│   │   ├── clientSD_data_metadata.txt
+│   │   ├── products_data.csv
+│   │   ├── products_data_metadata.txt
+│   │   ├── salesteam_data.csv
+│   │   └── salesteam_data_metadata.txt
 │   │
-│   ├── models/                          # SQL transformation models [cite: 6]
-│   │   ├── raw/                         # SEED models repository
-│   │   │   ├── raw_sales.sql            # Loads sales_data.csv [cite: 6]
-│   │   │   ├── raw_targets.sql          # Loads targets_data.csv [cite: 6]
-│   │   │   ├── raw_clientsd.sql         # Loads clientSD_data.csv
-│   │   │   ├── raw_products.sql         # Loads products_data.csv
-│   │   │   └── raw_salesteam.sql        # Loads salesteam_data.csv
+│   ├── models/                          # SQL transformation models
+│   │   ├── raw/                         # Bronze — seed-loading models
+│   │   │   ├── raw_sales.sql
+│   │   │   ├── raw_targets.sql
+│   │   │   ├── raw_clientsd.sql
+│   │   │   ├── raw_products.sql
+│   │   │   └── raw_salesteam.sql
 │   │   │
-│   │   ├── staging/                     # Bronze → Silver transformations [cite: 7]
-│   │   │   ├── stg_sales.sql            # Clean sales [cite: 7]
-│   │   │   ├── stg_targets.sql          # Clean targets [cite: 7]
-│   │   │   ├── stg_clientsd_data.sql    # 
-│   │   │   ├── stg_products.sql         # 
-│   │   │   └── stg_salesteam.sql        # 
+│   │   ├── staging/                     # Silver — cleaning & normalization
+│   │   │   │                            # All staging models carry inline audits:
+│   │   │   │                            # unique_values, not_null, accepted_range
+│   │   │   ├── stg_sales_data.sql       # Audits: PK unique, qty/amount > 0
+│   │   │   ├── stg_targets_data.sql     # Audits: PK unique, target_amount > 0
+│   │   │   ├── stg_clientsd_data.sql    # Audits: sd_key unique, sd_id+valid_from unique
+│   │   │   ├── stg_products_data.sql    # Audits: product_key unique, unit_price >= 1
+│   │   │   └── stg_salesteam_data.sql   # Audits: salesperson_key unique
+│   │   │                                # ⚠ BUG FIX: salesperson_id added to surrogate
+│   │   │                                #   key hash — was causing key collisions for
+│   │   │                                #   salespersons sharing the same territory
 │   │   │
-│   │   ├── marts/                       # Silver → Gold transformations [cite: 8]
-│   │   │   ├── dimensions/              # Dimensional models
-│   │   │   │   ├── dim_clientsd.sql     # 
-│   │   │   │   ├── dim_date.sql         # 
-│   │   │   │   ├── dim_salesperson.sql  # 
-│   │   │   │   └── dim_products.sql     # 
+│   │   ├── marts/                       # Gold — star schema
+│   │   │   ├── dimensions/
+│   │   │   │   ├── dim_clientsd.sql
+│   │   │   │   ├── dim_date.sql
+│   │   │   │   ├── dim_salesperson.sql
+│   │   │   │   └── dim_products.sql
 │   │   │   │
-│   │   │   ├── facts/                   # Fact tables [cite: 8]
-│   │   │       ├── f_sales.sql          # Sales fact table [cite: 8]
-│   │   │       └── f_targets.sql 
-|   |   │   
-│   │   │                  
-│   │   └── reports/ 
-│   │       ├── rep_weekly_meeting.sql       
-│   │       └── rep_top_products.sql     
+│   │   │   ├── facts/
+│   │   │   │   ├── fact_sales.sql       # Audits: 4 custom FK orphan checks
+│   │   │   │   │                        #   + PK unique + measures > 0
+│   │   │   │   └── f_targets.sql
+│   │   │   │
+│   │   │   └── reports/
+│   │   │       ├── rep_weekly_meeting.sql
+│   │   │       └── rep_top_products.sql
 │   │
-│   ├── macros/                          # Reusable SQL logic [cite: 9]
-│   │   └── clean_currency.sql           # Example: XAF formatting [cite: 9]
+│   ├── audits/                          # Standalone custom audit definitions
+│   │   │                               # One AUDIT block per file (SQLMesh requirement).
+│   │   │                               # Each returns failing rows — not a count —
+│   │   │                               # so root-cause tracing is immediate.
+│   │   │                               # Referenced by name in model audits() blocks.
+│   │   │
+│   │   ├── assert_no_orphaned_salesperson.sql   # NULL salesperson_key after SCD join:
+│   │   │                                        # salesperson_id absent from reference
+│   │   │                                        # or SCD window gap
+│   │   │
+│   │   ├── assert_no_orphaned_product.sql        # NULL product_key after SCD join:
+│   │   │                                        # SKU absent from reference or window gap
+│   │   │
+│   │   ├── assert_no_orphaned_client.sql         # NULL clientsd_key after SCD join:
+│   │   │                                        # sd_id absent from reference or window gap
+│   │   │
+│   │   └── assert_amount_matches_qty_x_price.sql # total_amount deviates >1% from
+│   │                                             # qty x unit_price — catches extraction
+│   │                                             # column-mapping errors at source
 │   │
-│   └── tests/                           # Data quality tests [cite: 10]
+│   ├── macros/                          # Reusable SQL logic
+│   │   └── clean_currency.sql           # XAF currency formatting
+│   │
+│   └── tests/                           # SQLMesh YAML unit tests
 │       └── ...
 │
-├── data/                                # Local data storage (gitignored) [cite: 10]
-│   ├── input/                           # Excel files land here [cite: 10]
-│   │   ├── sales/                       # [cite: 11]
-│   │   │   └── *.xlsx
-│   │   ├── targets/                     # [cite: 11]
-│   │   |    └── *.xlsx
-│   │   └── References
-|   |        └── *.xlsx
-|   |    
-│   ├── archive/                         # Processed Excel files [cite: 11]
-│   │   └── batch_YYYYMMDD_HHMMSS/       
-│   │       ├── sales_file.xlsx          
-│   │       └── targets_file.xlsx        
-│   │ 
-│   ├── warehouse/                       # Central data warehouse
-│   │   ├── catalog.ducklake             # DuckLake catalog
-|   |   ├── serving.db                   # DuckDB datawarehouse reading data from marts and serving to bi
-|   |   |       
-│   │   └── parquet_storage/             # Parquet files repo
-│   │       ├── raw__dev.sales/          # [cite: 12]
-│   │       │   └── data_0.parquet       # [cite: 12]
-│   │       └── staging__dev.stg_sales/  # [cite: 12]
-│   │           └── data_0.parquet       # [cite: 13]
-│   │
-│   └── sqlmesh_state.db                 # SQLMesh state tracking
 │
-├── serving/                             # Serving Layer
+├── data/                                # Local data storage (gitignored)
+│   ├── input/
+│   │   ├── sales/
+│   │   │   └── *.xlsx
+│   │   ├── targets/
+│   │   │   └── *.xlsx
+│   │   └── References/
+│   │       └── *.xlsx
+│   │
+│   ├── archive/                         # Processed Excel files
+│   │   └── batch_YYYYMMDD_HHMMSS/
+│   │       ├── sales_file.xlsx
+│   │       └── targets_file.xlsx
+│   │
+│   ├── warehouse/
+│   │   ├── catalog.ducklake             # DuckLake catalog
+│   │   ├── serving.db                   # DuckDB serving database (BI tools connect here)
+│   │   └── parquet_storage/
+│   │       ├── raw__dev.sales/
+│   │       │   └── data_0.parquet
+│   │       └── staging__dev.stg_sales/
+│   │           └── data_0.parquet
+│   │
+│   ├── exports/
+│   │   ├── csv/
+│   │   │   ├── dev/
+│   │   │   └── prod/
+│   │   └── parquet/
+│   │       ├── dev/
+│   │       └── prod/
+│   │
+│   └── sqlmesh_state.db                 # SQLMesh run state
+│
+│
+├── serving/                             # Serving layer
 │   ├── __init__.py
-│   ├── config.py                        # Serving configuration
-│   ├── sync.py                          # Core sync engine
-│   ├── cli.py                           # Command-line interface
-│   └── templates/                       # BI-friendly view definitions
-│       └── bi_views.sql                 # Optional: standardized metric views
+│   ├── config.py
+│   ├── sync.py                          # Syncs Gold marts → serving.db
+│   ├── cli.py                           # CLI interface
+│   └── templates/
+│       └── bi_views.sql                 # Standardised metric views for BI tools
+│
 │
 ├── orchestration/                       # Dagster orchestration
 │   ├── __init__.py
 │   ├── definitions.py                   # Main Dagster definitions
-│   ├── pyproject.toml                   # Dagster project config
+│   ├── pyproject.toml
 │   │
-│   ├── assets/                          # Data assets
+│   ├── assets/
 │   │   ├── __init__.py
-│   │   ├── file_discovery.py            # Discover source files
-│   │   ├── preprocessing.py             # Clean Excel files
-│   │   ├── ingestion.py                 # Extract to seeds
-│   │   ├── transformation.py            # SQLMesh models
-│   │   └── serving.py                   # Sync to serving DB
+│   │   ├── file_discovery.py
+│   │   ├── preprocessing.py
+│   │   ├── ingestion.py
+│   │   ├── transformation.py            # Includes Dagster Asset Checks mirroring
+│   │   └── serving.py                   # SQLMesh audits for UI visibility
 │   │
-│   ├── jobs/                            # Job definitions
+│   ├── jobs/
 │   │   ├── __init__.py
 │   │   └── daily_pipeline.py            # End-to-end daily job
 │   │
-│   ├── schedules/                       # Schedules
+│   ├── schedules/
 │   │   ├── __init__.py
 │   │   └── daily_schedule.py            # 6 AM daily run
 │   │
-│   ├── sensors/                         # Sensors (optional)
+│   ├── sensors/
 │   │   ├── __init__.py
 │   │   └── file_sensor.py               # Trigger on new files
 │   │
-│   ├── resources/                       # External resources
+│   ├── resources/
 │   │   ├── __init__.py
-│   │   ├── duckdb_resource.py           # DuckDB connection
-│   │   └── sqlmesh_resource.py          # SQLMesh integration
+│   │   ├── duckdb_resource.py
+│   │   └── sqlmesh_resource.py
 │   │
-│   └── utils/                           # Helpers
+│   └── utils/
 │       ├── __init__.py
-│       └── constants.py               
-├── requirements.txt                     # Python dependencies
-├── .gitignore                           # Ignore data/ directory
-└── README.md                            # Project documentation
+│       └── constants.py
+│
+│
+├── reporting/                           # Streamlit reporting layer
+│   ├── app.py
+│   ├── config.py
+│   ├── pages/
+│   │   ├── 1_Executive_Overview.py
+│   │   ├── 2_Regional_Performance.py
+│   │   ├── 3_Salesforce_Performance.py
+│   │   ├── 4_Product_Performance.py
+│   │   └── 5_Time_Intelligence.py
+│   │
+│   ├── utils/
+│   │   ├── db.py
+│   │   ├── queries.py
+│   │   ├── formaters.py
+│   │   └── filters.py
+│   │
+│   └── Components/
+│       ├── kpi_cards.py
+│       ├── charts.py
+│       └── ranking_table.py
+│
+│
+├── requirements.txt
+├── .gitignore                           # Excludes data/ directory
+└── README.md
+```
 
+---
 
 ## 🔑 Key Components
 
 ### Ingestion Layer (`ingestion/`)
 
-Copy file from local folder, preprocess "ExSD-*.xls" files by remove unwanted sheets and save them
-Extract data from file and load as csv
+Copies files from local folders, preprocesses `ExSD-*.xlsx` files by removing unwanted sheets, extracts data, and writes CSV seeds. `seed_writer.py` also produces `*_metadata.txt` companion files recording row counts and distinct/null/duplicate key statistics — the first line of defence for catching source data quality issues before any transformation runs.
 
-### Transformation Layer(Sqlmesh[duckdb])
+### Transformation Layer (`sqlmesh/`)
 
-Cleaned and model data using Medallion architecture: Bronze(Raw), Silver(Staging), Gold(Marts)
-and writing parquet file using ducklake with a duckdb database as catalog
+Cleans and models data using the Medallion architecture: Bronze (Raw) → Silver (Staging) → Gold (Marts). Parquet files are written via DuckLake with a DuckDB catalog.
 
-### Serving
+**Data quality is enforced at every layer:**
 
-Copy Gold(marts) data to a serving duckdb database for Bi tools to connect and consume
+| Layer | Mechanism | What it catches |
+|---|---|---|
+| Staging models | Inline `audits()` blocks | Duplicate surrogate keys, nulls, out-of-range measures |
+| Fact models | Inline `audits()` + custom audit files | FK orphans, amount coherence |
+| `audits/` directory | One standalone `.sql` file per custom audit | Complex cross-model integrity checks |
 
-### Orchestration (Dagster)
-Orchestrate the whole pipeline using dagster
+> **Bug fix (v0.4):** `stg_salesteam_data.sql` — `salesperson_id` was missing from the surrogate key hash, causing distinct salespersons sharing the same territory to receive an identical `salesperson_key`. Fixed by including `salesperson_id` as the first hash input. The inline `unique_values(salesperson_key)` audit now guards against any regression.
+
+### Serving Layer (`serving/`)
+
+`sync.py` copies Gold mart tables into `data/warehouse/serving.db`, a standalone DuckDB file that decouples BI tools from the transformation layer.
+
+### Orchestration (`orchestration/`)
+
+Dagster orchestrates the full pipeline as software-defined assets:
+```
+file_discovery → preprocessing → ingestion → transformation → serving
+```
+Runs on a 6 AM daily schedule with an optional file-sensor trigger.
+
+### Reporting (`reporting/`)
+
+Streamlit multi-page app connecting directly to `serving.db`.

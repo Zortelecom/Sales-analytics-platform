@@ -7,7 +7,26 @@ MODEL (
   cron '@daily',
   grain (product_key),
   owner analytics_team,
-  storage_format 'parquet'
+  storage_format 'parquet',
+  audits (
+    -- Surrogate key must be unique across all rows (including history).
+    unique_values(columns := (product_key)),
+    -- Core fields required for every row.
+    not_null(columns := (
+      product_key,
+      sku,
+      product_name,
+      product_category,
+      unit_price
+    )),
+
+    -- Prices must be strictly positive.
+    -- A zero or negative price would corrupt revenue calculations in fact_sales.
+    accepted_range(column := unit_price, min_v := 1, inclusive := true),
+
+    -- Weights, when present, must be non-negative.
+    accepted_range(column := unit_weight_kg, min_v := 0, inclusive := true)
+  )
 );
 
 SELECT
@@ -23,12 +42,12 @@ SELECT
   ) AS product_key,
 
   product_ref_id,
-  TRIM(UPPER(sku)) AS sku,
-  TRIM(product_name) AS product_name,
-  TRIM(product_category) AS product_category,
-  TRIM(product_subcategory) AS product_subcategory,
-  TRY_CAST(unit_price AS INTEGER) AS unit_price,
-  TRY_CAST(unit_weight AS DECIMAL(10,2)) AS unit_weight_kg,
+  TRIM(UPPER(sku))                        AS sku,
+  TRIM(product_name)                      AS product_name,
+  TRIM(product_category)                  AS product_category,
+  TRIM(product_subcategory)               AS product_subcategory,
+  TRY_CAST(unit_price AS INTEGER)         AS unit_price,
+  TRY_CAST(unit_weight AS DECIMAL(10,2))  AS unit_weight_kg,
   CASE 
     WHEN LOWER(TRIM(is_innovation)) IN ('true', 'yes', '1', 'oui') THEN TRUE
     ELSE FALSE

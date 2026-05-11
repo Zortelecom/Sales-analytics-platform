@@ -8,7 +8,25 @@ MODEL (
   grain (sales_line_id),
   owner analytics_team,
   storage_format 'parquet',
-  partitioned_by (sale_year, sale_month)
+  partitioned_by (sale_year, sale_month),
+  audits (
+    -- Built-in: primary key integrity.
+    unique_values(columns := (sales_line_id)),
+    not_null(columns := (sales_line_id, sale_date, sku, salesperson_id)),
+
+    -- Built-in: measures must be positive.
+    accepted_range(column := total_amount, min_v := 0, inclusive := false),
+    accepted_range(column := quantity,     min_v := 0, inclusive := false),
+
+    -- Custom: FK orphan detection — see audits/*.
+    -- Each audit returns rows that FAIL; a non-empty result blocks the run.
+    assert_no_orphaned_salesperson,
+    assert_no_orphaned_product,
+    -- assert_no_orphaned_client,
+
+    -- Custom: amount coherence check.
+    assert_amount_matches_qty_x_price
+  )
 );
 
 SELECT
@@ -18,7 +36,7 @@ SELECT
   -- Date dimension FK
   CAST(STRFTIME(s.sale_date, '%Y%m%d') AS INTEGER) AS date_key,
   s.sale_date,
-  EXTRACT(YEAR FROM s.sale_date) AS sale_year,
+  EXTRACT(YEAR  FROM s.sale_date) AS sale_year,
   EXTRACT(MONTH FROM s.sale_date) AS sale_month,
   
   -- Product dimension FK
@@ -30,24 +48,24 @@ SELECT
   sp.salesperson_key,
   s.salesperson_id,
   sp.salesperson_name,
-  sp.region,       
-  sp.subregion, 
+  sp.region,
+  sp.subregion,
   sp.sales_channel,
-  sp.supervisor_name, 
+  sp.supervisor_name,
 
   -- Client dimension FK
   c.clientsd_key,
-  s.clientsd_id,      
+  s.clientsd_id,
   
   -- MEASURES
   s.quantity,
-  s.unit_price AS unit_price_actual,
-  s.sales_amount AS total_amount,
+  s.unit_price                    AS unit_price_actual,
+  s.sales_amount                  AS total_amount,
   
-  -- Dimension price/weight for comparison
-  p.unit_price AS unit_price_standard,
-  s.unit_weight_kg AS unit_weight_actual,
-  p.unit_weight_kg AS unit_weight_standard,
+  -- Dimension reference values for variance analysis
+  p.unit_price                    AS unit_price_standard,
+  s.unit_weight_kg                AS unit_weight_actual,
+  p.unit_weight_kg                AS unit_weight_standard,
   
   -- Calculated measures
   s.quantity * COALESCE(p.unit_weight_kg, s.unit_weight_kg, 0) AS total_weight_kg,

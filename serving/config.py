@@ -53,6 +53,12 @@ class ServingConfig:
     include_tables: Optional[List[str]] = None
     
     # =========================================================================
+    # BI Views
+    # =========================================================================
+    apply_views: bool = True
+    views_template_path: Optional[str] = None  # e.g., "serving/templates/bi_views.sql"
+    
+    # =========================================================================
     # Internal: Temp and Backup
     # =========================================================================
     temp_path: Optional[str] = None
@@ -73,12 +79,6 @@ class ServingConfig:
         path=None,  # Set by normalize()
         compression="snappy"  # Default: fast with good compression
     ))
-    
-    # Legacy support for backward compatibility
-    enable_csv_export: bool = field(default=True, repr=False)
-    csv_export_path: Optional[str] = field(default=None, repr=False)
-    enable_parquet_export: bool = field(default=True, repr=False)
-    parquet_export_path: Optional[str] = field(default=None, repr=False)
 
     def normalize(self, project_root: Optional[Path] = None) -> None:
         """
@@ -139,6 +139,14 @@ class ServingConfig:
                 f"Invalid Parquet compression: {self.parquet_export.compression}. "
                 f"Must be one of: {valid_compressions}"
             )
+        
+        # Setup BI Views Template Path
+        # =========================================================================
+        if self.apply_views and not self.views_template_path:
+            # Default location relative to project root
+            self.views_template_path = str(root / "serving/templates/bi_views.sql")
+        if self.views_template_path:
+            self.views_template_path = str((root / self.views_template_path).resolve())
 
     @property
     def enable_csv_export(self) -> bool:
@@ -185,7 +193,7 @@ class ServingConfig:
         return self.parquet_export.path if self.parquet_export else None
     
     @parquet_export_path.setter
-    def set_parquet_export_path(self, value: Optional[str]) -> None:
+    def parquet_export_path(self, value: Optional[str]) -> None:
         """Backward compatibility: delegate to parquet_export.path"""
         if self.parquet_export is None:
             self.parquet_export = ExportConfig(path=value)
