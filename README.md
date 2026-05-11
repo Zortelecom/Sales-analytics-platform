@@ -1,10 +1,44 @@
-# Sales Analytics Platform
+# 🏗️ Sales Analytics Platform
 
-A local-first sales analytics pipeline that ingests Excel reports, transforms them through a medallion architecture, and serves clean data to BI tools. Built with Python, SQLMesh, DuckDB/DuckLake, Dagster, and Streamlit.
+&gt; **A production-grade, local-first data pipeline** that transforms raw Excel sales reports into analytics-ready datasets using Medallion architecture, SQLMesh, and DuckDB.
+
+[![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/)
+[![DuckDB](https://img.shields.io/badge/DuckDB-OLAP-yellow)](https://duckdb.org/)
+[![SQLMesh](https://img.shields.io/badge/SQLMesh-Transformations-green)](https://sqlmesh.com/)
+[![Dagster](https://img.shields.io/badge/Dagster-Orchestration-purple)](https://dagster.io/)
+[![Streamlit](https://img.shields.io/badge/Streamlit-Reporting-red)](https://streamlit.io/)
 
 ---
 
-## Architecture Overview
+## 📸 Overview
+
+&lt;!--  --&gt;
+| Ingestion | Star Schema | Streamlit Dashboard |
+|:---:|:---:|:---:|
+| `Excel → CSV Seeds` | `Bronze → Silver → Gold` | `Interactive Reports` |
+| *(placeholder)* | *(placeholder)* | *(placeholder)* |
+
+**The Problem:** Sales teams generate fragmented Excel reports (sales, targets, references) with no consistent schema, making BI integration painful and error-prone.
+
+**The Solution:** An end-to-end pipeline that ingests Excel files, enforces data quality at every layer via 10+ audits, models a star schema in SQLMesh, and serves clean data to Streamlit and Power BI.
+
+---
+
+## ✨ Key Highlights
+
+| Feature | Implementation |
+|---|---|
+| **Medallion Architecture** | Bronze (raw seeds) → Silver (staging) → Gold (marts) |
+| **Data Quality Gates** | 10+ audits: uniqueness, referential integrity, amount coherence (`qty × price` within 1%) |
+| **SCD-Aware Dimensions** | Slowly Changing Dimension logic for clients, products, and salespeople |
+| **DuckLake Storage** | Parquet-backed models with environment namespacing (`dev`/`prod`) |
+| **Orchestrated DAG** | Dagster assets with file sensors, daily schedules, and asset checks |
+| **BI-Ready Serving** | Decoupled DuckDB (`serving.db`) for Streamlit + external tools |
+| **Local-First** | Zero cloud dependencies; runs entirely on your machine |
+
+---
+
+## 🏛️ Architecture
 
 ```
 Excel Files (data/input/)
