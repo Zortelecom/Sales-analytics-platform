@@ -5,6 +5,7 @@
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/)
 [![DuckDB](https://img.shields.io/badge/DuckDB-OLAP-yellow)](https://duckdb.org/)
 [![SQLMesh](https://img.shields.io/badge/SQLMesh-Transformations-green)](https://sqlmesh.com/)
+[![Ducklake](https://img.shields.io/badge/Ducklake-Lakehouse-orange)](https://ducklake.select/)
 [![Dagster](https://img.shields.io/badge/Dagster-Orchestration-purple)](https://dagster.io/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-Reporting-red)](https://streamlit.io/)
 
