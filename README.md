@@ -295,6 +295,7 @@ See `requirements.txt` for the full list. Key packages:
 |---|---|
 | `sqlmesh` | SQL transformation framework |
 | `duckdb` | Embedded analytical database |
+| `ducklake` | Lightweight lakehouse |
 | `dagster` | Pipeline orchestration |
 | `streamlit` | Reporting dashboards |
 | `openpyxl` / `xlrd` | Excel file reading |
