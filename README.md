@@ -13,14 +13,14 @@
 
 ## 🏛️ Architecture Overview
 
-![Sales Analytics Platform Architecture](docs/images/architecture.png)
-
 **The Problem:** Sales teams generate fragmented Excel reports (sales, targets, references) with no consistent schema, making BI integration painful and error-prone.
 
 **The Solution:** A production-grade local-first analytics platform orchestrated with Dagster.
 The pipeline ingests Excel files using Python, transforms data with SQLMesh and DuckDB with data quality enforcement,
 stores models in DuckLake parquet-backed storage, serves marts through DuckDB,
 and powers Streamlit and Power BI dashboards.
+
+![Sales Analytics Platform Architecture](docs/images/architecture.png)
 
 ---
 
