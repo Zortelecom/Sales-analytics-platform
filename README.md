@@ -141,7 +141,7 @@ Medallion architecture running on DuckDB with DuckLake for Parquet-backed storag
 
 Macros (`macros/clean_currency.sql`) handle currency formatting (XAF).
 
-**Audits** (`audits/`) contain standalone custom audit definitions referenced by model `audits (...)` blocks. Each file holds one block and its `SELECT`, which returns failing rows (not a count), making root-cause tracing immediate. SQLMesh resolves audits by name at plan/run time.
+**Audits** (`audits/`) contain standalone custom audit definitions referenced by model `audits (...)` blocks. SQLMesh requires **exactly one `AUDIT` block per file** — each file holds one block and its `SELECT`, which returns failing rows (not a count), making root-cause tracing immediate. SQLMesh resolves audits by name at plan/run time.
 
 | Audit file | Model | Checks |
 |---|---|---|
