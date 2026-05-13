@@ -5,6 +5,7 @@
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/)
 [![DuckDB](https://img.shields.io/badge/DuckDB-OLAP-yellow)](https://duckdb.org/)
 [![SQLMesh](https://img.shields.io/badge/SQLMesh-Transformations-green)](https://sqlmesh.com/)
+[![Ducklake](https://img.shields.io/badge/Ducklake-Lakehouse-orange)](https://ducklake.select/)
 [![Dagster](https://img.shields.io/badge/Dagster-Orchestration-purple)](https://dagster.io/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-Reporting-red)](https://streamlit.io/)
 
@@ -140,7 +141,7 @@ Medallion architecture running on DuckDB with DuckLake for Parquet-backed storag
 
 Macros (`macros/clean_currency.sql`) handle currency formatting (XAF).
 
-**Audits** (`audits/`) contain standalone custom audit definitions referenced by model `audits (...)` blocks. SQLMesh requires **exactly one `AUDIT` block per file** — each file holds one block and its `SELECT`, which returns failing rows (not a count), making root-cause tracing immediate. SQLMesh resolves audits by name at plan/run time.
+**Audits** (`audits/`) contain standalone custom audit definitions referenced by model `audits (...)` blocks. Each file holds one block and its `SELECT`, which returns failing rows (not a count), making root-cause tracing immediate. SQLMesh resolves audits by name at plan/run time.
 
 | Audit file | Model | Checks |
 |---|---|---|
@@ -272,6 +273,7 @@ See `requirements.txt` for the full list. Key packages:
 |---|---|
 | `sqlmesh` | SQL transformation framework |
 | `duckdb` | Embedded analytical database |
+| `ducklake` | Lightweight lakehouse |
 | `dagster` | Pipeline orchestration |
 | `streamlit` | Reporting dashboards |
 | `openpyxl` / `xlrd` | Excel file reading |
