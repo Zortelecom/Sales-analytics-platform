@@ -41,34 +41,12 @@
 ## 🏛️ Architecture
 
 ```
-Excel Files (data/input/)
-        │
-        ▼
-┌─────────────────┐
-│  Ingestion Layer │  Preprocess → Extract → Write CSV Seeds
-│   (ingestion/)   │
-└────────┬────────┘
-         │  seeds (CSV)
-         ▼
-┌─────────────────┐
-│  SQLMesh/DuckDB │  Raw → Staging → Marts (Medallion)
-│   (sqlmesh/)    │  Parquet storage via DuckLake
-└────────┬────────┘
-         │  Gold tables
-         ▼
-┌─────────────────┐
-│  Serving Layer  │  Sync marts → serving.db (DuckDB)
-│   (serving/)    │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐     ┌──────────────┐
-│  Streamlit App  │     │  Power BI /  │
-│  (reporting/)   │     │  Excel / BI  │
-└─────────────────┘     └──────────────┘
+![Sales Analytics Platform Architecture](docs/images/architecture.png)
 
-All orchestrated by Dagster (orchestration/)
-```
+A production-grade local-first analytics platform orchestrated with Dagster.
+The pipeline ingests Excel files using Python, transforms data with SQLMesh and DuckDB,
+stores models in DuckLake parquet-backed storage, serves marts through DuckDB,
+and powers Streamlit and Power BI dashboards.
 
 ---
 
