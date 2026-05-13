@@ -36,9 +36,6 @@ and powers Streamlit and Power BI dashboards.
 | **BI-Ready Serving** | Decoupled DuckDB (`serving.db`) for Streamlit + external tools |
 | **Local-First** | Zero cloud dependencies; runs entirely on your machine |
 
----
-
----
 
 ## Directory Structure
 
