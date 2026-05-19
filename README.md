@@ -5,7 +5,7 @@
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/)
 [![DuckDB](https://img.shields.io/badge/DuckDB-OLAP-yellow)](https://duckdb.org/)
 [![SQLMesh](https://img.shields.io/badge/SQLMesh-Transformations-green)](https://sqlmesh.com/)
-[![Ducklake](https://img.shields.io/badge/Ducklake-Lakehouse-orange)](https://ducklake.select/)
+[![Ducklak](https://img.shields.io/badge/Ducklake-Lakehouse-orange)](https://ducklake.select/)
 [![Dagster](https://img.shields.io/badge/Dagster-Orchestration-purple)](https://dagster.io/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-Reporting-red)](https://streamlit.io/)
 
@@ -34,6 +34,8 @@ and powers Streamlit and Power BI dashboards.
 | **DuckLake Storage** | Parquet-backed models with environment namespacing (`dev`/`prod`) |
 | **Orchestrated DAG** | Dagster assets with file sensors, daily schedules, and asset checks |
 | **BI-Ready Serving** | Decoupled DuckDB (`serving.db`) for Streamlit + external tools |
+| **Quack Protocol** | Optional client-server mode: zero BI downtime, concurrent connections (DuckDB ≥ v1.5.2) |
+| **Export Services** | Async, event-triggered CSV and Parquet exports — optional, independently toggled |
 | **Local-First** | Zero cloud dependencies; runs entirely on your machine |
 
 ---
@@ -76,9 +78,17 @@ sales-analytics-platform/
 │   └── sqlmesh_state.db    # SQLMesh run state
 │
 ├── serving/                # Serving layer
-│   ├── sync.py             # Sync marts → serving.db
-│   ├── cli.py              # CLI interface
-│   └── templates/          # BI-friendly view definitions
+│   ├── sync.py             # Sync marts → serving.db (file-swap or Quack)
+│   ├── config.py           # ServingConfig, QuackConfig, ExportConfig
+│   ├── cli.py              # CLI interface (sync, serve, export, validate, stats)
+│   ├── export/             # Export services (async, event-triggered, optional)
+│   │   ├── events.py       # SyncCompletedEvent dataclass
+│   │   ├── base_exporter.py    # BaseExporter ABC + ExportResult
+│   │   ├── csv_exporter.py     # CsvExporter — for Excel, Power Query, etc.
+│   │   ├── parquet_exporter.py # ParquetExporter — for analytics, data science
+│   │   ├── event_bus.py    # ExportEventBus (publish_and_wait / publish_background)
+│   │   └── __init__.py
+│   └── templates/          # BI-friendly view definitions (bi_views.sql)
 │
 ├── orchestration/          # Dagster pipeline
 │   ├── assets/             # file_discovery, preprocessing, ingestion, transformation, serving
@@ -139,7 +149,39 @@ Macros (`macros/clean_currency.sql`) handle currency formatting (XAF).
 
 ### 3. Serving (`serving/`)
 
-`sync.py` copies Gold mart tables from the DuckLake warehouse into `data/warehouse/serving.db`, a standalone DuckDB file that BI tools connect to directly. This decouples the transformation layer from downstream consumers.
+Copies Gold mart tables from the DuckLake warehouse into `data/warehouse/serving.db`, a standalone DuckDB file that BI tools connect to directly. This decouples the transformation layer from downstream consumers.
+
+Two sync strategies are supported, chosen via `ServingConfig`:
+
+#### File-Swap (default)
+
+The original strategy, improved. Tables are written into a temp DuckDB file using Arrow streaming (replacing the old Pandas round-trip and LIMIT/OFFSET batching), then atomically renamed to `serving.db`. Simple, zero extra dependencies, but BI clients see a brief offline window during the rename.
+
+#### Quack (opt-in, DuckDB ≥ v1.5.2 beta)
+
+A persistent Quack server wraps `serving.db`. The sync process ATTACHes to the live server as a second catalog and rewrites each table with a single SQL statement:
+
+```sql
+CREATE OR REPLACE TABLE _serving_remote.bi.fact_sales AS
+SELECT * FROM sales_lakehouse.marts__dev.fact_sales
+```
+
+No temp file, no rename, no BI outage. Streamlit, Power BI, and ad-hoc DuckDB clients all stay connected during the sync. See [Quack protocol](#quack-protocol) for setup.
+
+#### Export Services (`serving/export/`)
+
+CSV and Parquet exports are fully decoupled from the sync as **independent, async, event-triggered services**. They are completely optional: registering no exporters disables all exports with no config changes.
+
+After a successful sync, `ServingLayerSync` fires a `SyncCompletedEvent`. The `ExportEventBus` dispatches it concurrently to all registered exporters — CSV and Parquet run in parallel, not sequentially.
+
+| Service | File | Purpose |
+|---|---|---|
+| `CsvExporter` | `export/csv_exporter.py` | UTF-8 CSV files for Excel, Power Query, Pandas |
+| `ParquetExporter` | `export/parquet_exporter.py` | Columnar Parquet for analytics, data science |
+| `ExportEventBus` | `export/event_bus.py` | Pub/sub wiring; `publish_and_wait` or `publish_background` |
+| `SyncCompletedEvent` | `export/events.py` | Immutable event payload |
+
+Two dispatch modes: `publish_and_wait` (Dagster asset waits for exports to finish) and `publish_background` (fire-and-forget daemon thread, pipeline continues immediately).
 
 ### 4. Orchestration (`orchestration/`)
 
@@ -155,7 +197,7 @@ file_discovery → preprocessing → ingestion → transformation → serving
 
 ### 5. Reporting (`reporting/`)
 
-Streamlit multi-page app connecting to `serving.db`:
+Streamlit multi-page app connecting to `serving.db` (or to the Quack server in Quack mode):
 
 | Page | Content |
 |---|---|
@@ -179,6 +221,7 @@ Streamlit multi-page app connecting to `serving.db`:
 - `ingestion/config/settings.py` — file paths, sheet names, column mappings
 - `ingestion/config/sources.yaml` — source definitions per data domain
 - `sqlmesh/config.yaml` — SQLMesh project config (DuckDB connection, DuckLake path, environments)
+- `serving/config.py` — `ServingConfig` with optional `QuackConfig`
 
 ### Running the Pipeline
 
@@ -198,12 +241,195 @@ python ingestion/main.py
 cd sqlmesh
 sqlmesh run
 
-# Sync to serving DB
-python serving/cli.py sync
+# Sync to serving DB (file-swap, no exports)
+python -m serving.cli sync --env dev
+
+# Sync + CSV export (for Excel users)
+python -m serving.cli sync --env dev --csv
+
+# Sync + both formats
+python -m serving.cli sync --env dev --csv --parquet
 
 # Reporting app
 cd reporting
 streamlit run app.py
+```
+
+---
+
+## Serving Layer CLI
+
+All serving operations are available through `serving/cli.py`:
+
+```bash
+# Sync marts → serving.db
+python -m serving.cli sync --env dev
+python -m serving.cli sync --env prod --csv --parquet
+
+# Sync with Quack (requires a running Quack server)
+python -m serving.cli sync --env dev --quack --quack-token <token>
+
+# One-off export from existing serving.db (no re-sync)
+python -m serving.cli export --env dev --csv
+python -m serving.cli export --env dev --csv --csv-path /tmp/for-excel/
+python -m serving.cli export --env prod --parquet --parquet-compression zstd
+
+# Start a persistent Quack server
+python -m serving.cli serve --env dev --quack-token <token>
+
+# Check serving.db is fresh (exit 0 if synced within 24h)
+python -m serving.cli validate --env dev
+
+# Print last-sync statistics
+python -m serving.cli stats --env dev
+```
+
+### Export flags
+
+| Flag | Description |
+|---|---|
+| `--csv` | Enable CSV export (UTF-8, comma-delimited by default) |
+| `--csv-path DIR` | Override CSV output directory |
+| `--csv-delimiter CHAR` | Column separator (default: `,`) |
+| `--parquet` | Enable Parquet export |
+| `--parquet-path DIR` | Override Parquet output directory |
+| `--parquet-compression CODEC` | `snappy` (default), `zstd`, `gzip`, `brotli`, `lz4`, `uncompressed` |
+| `--export-background` | Fire exports in a background thread; pipeline returns immediately |
+| `--export-timeout SECONDS` | Max wait time in blocking mode (default: 300) |
+
+---
+
+## Quack Protocol
+
+Quack turns DuckDB into a client-server database, enabling multiple processes to hold simultaneous read-write connections to the same `serving.db`.
+
+> ⚠️ **Quack is currently in beta.** Stable release is planned for DuckDB v2.0 (September 2026). Use file-swap mode in production until then, or test Quack in your `dev` environment.
+
+### Why Quack improves the serving layer
+
+| Problem (file-swap) | Solution (Quack) |
+|---|---|
+| Pandas round-trip: `fetch_df → register → CTAS` | Direct DuckDB-to-DuckDB `CREATE OR REPLACE TABLE … AS SELECT` |
+| Manual `LIMIT`/`OFFSET` batching | DuckDB vectorised streaming — no Python loop |
+| Temp file + atomic rename dance | Sync writes directly to the live server; no temp file |
+| BI clients locked out during rename | Server stays live; clients see new data atomically per table |
+| Single-writer file lock | Multiple concurrent readers and writers |
+
+### Setup
+
+**1. Install the Quack extension** (requires DuckDB ≥ v1.5.2):
+```sql
+INSTALL quack FROM core_nightly;
+LOAD quack;
+```
+
+**2. Start the Quack server** (once, before Streamlit / Power BI):
+```bash
+python -m serving.cli serve --env dev --quack-token your_secret_token
+```
+
+**3. Configure the sync** to use Quack mode:
+```python
+from serving.config import ServingConfig, QuackConfig
+
+config = ServingConfig(
+    environment="dev",
+    quack=QuackConfig(host="localhost", port=9494, token="your_secret_token"),
+)
+config.normalize()
+```
+
+**4. Connect BI tools** to the Quack server:
+```sql
+-- In any DuckDB session (Streamlit, notebook, ad-hoc query):
+LOAD quack;
+CREATE SECRET (TYPE quack, TOKEN 'your_secret_token');
+ATTACH 'quack:localhost:9494' AS serving;
+SELECT * FROM serving.bi.fact_sales LIMIT 10;
+```
+
+**5. Run the sync** against the live server:
+```bash
+python -m serving.cli sync --env dev --quack --quack-token your_secret_token
+```
+
+---
+
+## Export Services
+
+CSV and Parquet exports are implemented as independent async services under `serving/export/`. They are decoupled from the sync via an event bus — the sync fires a `SyncCompletedEvent` and each registered exporter handles it concurrently.
+
+### Using the export bus in code
+
+```python
+from serving.config import ServingConfig
+from serving.sync import ServingLayerSync
+from serving.export import ExportEventBus, CsvExporter, ParquetExporter
+
+config = ServingConfig(environment="dev")
+config.normalize()
+
+# Register only the formats you need — omitting one disables it entirely
+bus = (
+    ExportEventBus()
+    .subscribe(CsvExporter("data/exports/csv/dev"))
+    .subscribe(ParquetExporter("data/exports/parquet/dev", compression="zstd"))
+)
+
+sync = ServingLayerSync(config, export_bus=bus)
+sync.sync()
+# → sync runs, then CSV and Parquet export concurrently
+```
+
+### Standalone export (no re-sync)
+
+```python
+import asyncio
+from serving.export import CsvExporter, SyncCompletedEvent
+
+exporter = CsvExporter("data/exports/csv/dev", delimiter=";")  # semicolon for French Excel
+event = SyncCompletedEvent(
+    environment="dev",
+    serving_path="data/warehouse/serving_dev.db",
+    bi_schema="bi",
+    tables=["fact_sales", "dim_products"],
+)
+result = asyncio.run(exporter.export(event))
+print(result)
+```
+
+### Adding a custom exporter
+
+Subclass `BaseExporter` and implement one method:
+
+```python
+from serving.export.base_exporter import BaseExporter
+from pathlib import Path
+
+class JsonExporter(BaseExporter):
+    format = "json"
+
+    def export_table(self, conn, table_name, bi_schema, output_dir):
+        out = output_dir / f"{table_name}.json"
+        conn.execute(f"""
+            COPY {bi_schema}.{table_name}
+            TO '{out}' (FORMAT JSON, ARRAY true)
+        """)
+
+# Register it like any other exporter:
+bus.subscribe(JsonExporter("data/exports/json/dev"))
+```
+
+### Encoding note for CSV
+
+DuckDB's `COPY … TO` always writes **UTF-8**. The `ENCODING` option is accepted only on `COPY … FROM` (reading). If a downstream tool requires a different encoding (e.g. latin-1 for legacy Excel on Windows), re-encode the output file after export:
+
+```python
+import pathlib, codecs
+
+src = pathlib.Path("data/exports/csv/dev/fact_sales.csv")
+dst = pathlib.Path("data/exports/csv/dev/fact_sales_latin1.csv")
+dst.write_bytes(src.read_text("utf-8").encode("latin-1", errors="replace"))
 ```
 
 ---
@@ -218,8 +444,10 @@ All data lives under `data/` (gitignored):
 | `data/archive/` | Processed files, batched by timestamp |
 | `data/warehouse/catalog.ducklake` | DuckLake catalog |
 | `data/warehouse/serving.db` | Serving DuckDB — connect BI tools here |
+| `data/warehouse/serving_dev.db` | Dev environment serving DB |
 | `data/warehouse/parquet_storage/` | Parquet files per model layer |
-| `data/exports/` | CSV and Parquet exports for dev/prod |
+| `data/exports/csv/<env>/` | CSV exports per environment |
+| `data/exports/parquet/<env>/` | Parquet exports per environment |
 | `data/sqlmesh_state.db` | SQLMesh run state |
 
 ---
@@ -228,7 +456,7 @@ All data lives under `data/` (gitignored):
 
 ### Environments
 
-SQLMesh supports `dev` and `prod` environments. Run `sqlmesh run --env dev` during development. Parquet storage is namespaced by environment (`raw__dev.sales/`, `staging__dev.stg_sales/`, etc.).
+SQLMesh supports `dev` and `prod` environments. Run `sqlmesh run --env dev` during development. Parquet storage is namespaced by environment (`raw__dev.sales/`, `staging__dev.stg_sales/`, etc.). The serving layer mirrors this: `serving_dev.db` for dev, `serving.db` for prod.
 
 ### Adding a New Data Source
 
@@ -250,6 +478,12 @@ SQLMesh supports `dev` and `prod` environments. Run `sqlmesh run --env dev` duri
 2. Reference the audit name inside the target model's `audits (...)` block
 3. Run `sqlmesh plan dev` to validate — SQLMesh resolves audits by name automatically
 
+### Adding a Custom Export Format
+
+1. Create `serving/export/<format>_exporter.py`, subclass `BaseExporter`, implement `export_table()`
+2. Register an instance on `ExportEventBus` in your pipeline entry point or Dagster asset
+3. Optionally add a CLI flag for it in `serving/cli.py`'s `_add_export_args()`
+
 ---
 
 ## Dependencies
@@ -265,3 +499,5 @@ See `requirements.txt` for the full list. Key packages:
 | `streamlit` | Reporting dashboards |
 | `openpyxl` / `xlrd` | Excel file reading |
 | `pandas` | Data manipulation in ingestion |
+
+> **Note:** The Quack extension is not a Python package. Install it inside DuckDB with `INSTALL quack FROM core_nightly` (requires DuckDB ≥ v1.5.2).

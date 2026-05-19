@@ -2,9 +2,9 @@ Seed Metadata
 ==================================================
 
 Seed Name: sales_data
-Batch ID: 20260506_204910
-Timestamp: 2026-05-06T19:53:26.994184+00:00
-Rows Written: 21,383
+Batch ID: 20260519_151526
+Timestamp: 2026-05-19T14:16:55.262046+00:00
+Rows Written: 22,708
 Columns: 20
 
 Column Names:
@@ -25,7 +25,7 @@ Column Names:
   - product_subcat
   - unit_weight
   - is_innovation
-  - sd destocke
+  - colonne1
   - sales_line_id
   - filename_subregion
 
@@ -37,4 +37,4 @@ Source Files:
   - ExSD-Sales-Yde_Sud-Ouest.xlsx
 
 Ingestion Batch IDs:
-  - 20260506_204910
+  - 20260519_151526

@@ -2,9 +2,9 @@ Seed Metadata
 ==================================================
 
 Seed Name: targets_data
-Batch ID: 20260506_194023
-Timestamp: 2026-05-06T18:42:19.755568+00:00
-Rows Written: 655
+Batch ID: 20260519_151526
+Timestamp: 2026-05-19T14:16:55.262046+00:00
+Rows Written: 1,115
 Columns: 5
 
 Column Names:
@@ -18,4 +18,4 @@ Source Files:
   - Sales_Targets.xlsx
 
 Ingestion Batch IDs:
-  - 20260506_194023
+  - 20260519_151526
