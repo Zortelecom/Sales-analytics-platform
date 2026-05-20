@@ -3,7 +3,7 @@ sales:
   file_pattern: "ExSD*.xlsx"
   table_prefix: "Sales"
   exclude_sheets: "synthese*"
-  required_columns: ['salesperson_id', 'clientsd_id', 'sale_date', 'sku', 'qty', 'amount']
+  required_columns: ['salesperson_id', 'sd_id', 'sale_date', 'sku', 'qty', 'amount']
 
 targets:
   directory: "targets"

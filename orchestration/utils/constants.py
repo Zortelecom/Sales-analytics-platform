@@ -4,9 +4,22 @@ orchestration/utils/constants.py
 Central path and environment constants shared across all Dagster assets.
 All paths are resolved relative to the project root so the pipeline
 works regardless of where it is launched from.
+
+Changes vs. previous version
+──────────────────────────────
+* get_serving_db_path(env) replaces the single SERVING_DB_PATH constant.
+  The new serving layer uses env-named files:
+      dev   → data/warehouse/serving_dev.db
+      prod  → data/warehouse/serving.db   (unchanged for production)
+* QUACK_HOST and QUACK_PORT defaults added for Quack mode.
+* CSV_EXPORTS_DIR and PARQUET_EXPORTS_DIR now point to the new
+  env-namespaced layout:  data/exports/csv/<env>/
+                          data/exports/parquet/<env>/
+* QUALITY_REPORTS_DIR kept as-is (not affected by serving changes).
 """
 
 from pathlib import Path
+
 
 # ── Project root (three levels up from this file) ─────────────────────────
 PROJECT_ROOT = Path(__file__).parent.parent.parent.resolve()
@@ -38,18 +51,37 @@ SEEDS_DIR     = SQLMESH_ROOT / "seeds"
 SQLMESH_STATE = DATA_ROOT / "sqlmesh_state.db"
 
 
-# ── Warehouse & serving ────────────────────────────────────────────────────
+# ── Warehouse ──────────────────────────────────────────────────────────────
 WAREHOUSE_DIR        = DATA_ROOT / "warehouse"
 DUCKLAKE_PATH        = WAREHOUSE_DIR / "catalog.ducklake"
 DUCKLAKE_CONN_STRING = f"ducklake:{DUCKLAKE_PATH}"
-SERVING_DB_PATH      = WAREHOUSE_DIR / "serving.db"
 PARQUET_STORAGE_DIR  = WAREHOUSE_DIR / "parquet_storage"
 
 
-# ── Export & quality report directories ───────────────────────────────────
+# ── Serving DB — env-aware ─────────────────────────────────────────────────
+# The new serving layer writes:
+#   dev  → serving_dev.db   (safe to wipe / swap during development)
+#   prod → serving.db       (stable path BI tools are hardcoded to)
+#
+# Always use get_serving_db_path(env) instead of a bare constant so assets
+# and resources never disagree about the file they point at.
+
+def get_serving_db_path(env: str = "dev") -> Path:
+    """Return the absolute path to the serving DuckDB for *env*."""
+    filename = "serving.db" if env == "prod" else f"serving_{env}.db"
+    return WAREHOUSE_DIR / filename
+
+
+# Convenience alias kept for backward compatibility with any code that
+# imported the old SERVING_DB_PATH.  Points to the dev file by default;
+# update callers to use get_serving_db_path() for full env-awareness.
+SERVING_DB_PATH = get_serving_db_path("dev")
+
+
+# ── Export directories (env-namespaced subdirs created at runtime) ─────────
 EXPORTS_DIR         = DATA_ROOT / "exports"
-CSV_EXPORTS_DIR     = EXPORTS_DIR / "csv"
-PARQUET_EXPORTS_DIR = EXPORTS_DIR / "parquet"
+CSV_EXPORTS_DIR     = EXPORTS_DIR / "csv"       # subdir /<env>/ added at runtime
+PARQUET_EXPORTS_DIR = EXPORTS_DIR / "parquet"   # subdir /<env>/ added at runtime
 QUALITY_REPORTS_DIR = EXPORTS_DIR / "quality_reports"
 
 
@@ -69,6 +101,11 @@ CATALOG_NAME = "sales_lakehouse"
 # Switch to "prod" for production runs.
 SQLMESH_ENV = "dev"
 
+
+# ── Quack defaults ─────────────────────────────────────────────────────────
+# Override at runtime via QUACK_HOST / QUACK_PORT / QUACK_TOKEN env-vars.
+QUACK_HOST = "localhost"
+QUACK_PORT = 9494 
 
 # ── Processing config ──────────────────────────────────────────────────────
 SALES_SHEET_FILTER = "Synthese *"   # Sheet pattern to delete during preprocessing

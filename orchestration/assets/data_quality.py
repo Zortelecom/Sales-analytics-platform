@@ -32,6 +32,7 @@ from orchestration.utils.constants import (
     QUALITY_REPORTS_DIR,
     SEEDS_DIR,
     SQLMESH_ENV,
+    get_serving_db_path,
 )
 
 logger = logging.getLogger(__name__)
@@ -311,6 +312,10 @@ def data_quality_full_report(duckdb: DuckDBResource) -> AssetCheckResult:
       - The JSON report is always written so engineers can inspect it.
       - The AssetCheckResult metadata contains a per-audit summary
         directly in the UI without opening a file.
+
+    The DuckDBResource resolves the correct env-aware serving DB path
+    (serving_dev.db / serving.db) via get_serving_db_path(), so this
+    check always queries the same file the serving asset just wrote.
     """
     run_ts = datetime.now(timezone.utc).isoformat()
     report: dict[str, Any] = {
