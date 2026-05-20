@@ -46,8 +46,8 @@ def _table(model: str) -> str:
     Resolve the physical DuckLake table name for a SQLMesh model in the
     configured environment.
 
-    SQLMesh names tables as:  <layer>__<env>.<model_name>
-    e.g. staging__dev.stg_sales_data  →  sqlmesh__staging.staging__stg_sales_data__<hash>__dev
+    SQLMesh names tables as:  <layer>__<<env>.<<model_name>
+    e.g. staging__dev.stg_sales_data  →  sqlmesh__staging.staging__stg_sales_data__<<hash>__dev
 
     We query the information_schema instead of hard-coding hashes so this
     is always correct regardless of model fingerprint changes.
@@ -105,24 +105,15 @@ def _source_file_summary(rows: list[dict], file_col: str = "filename_subregion")
 
 # ---------------------------------------------------------------------------
 # Audit definitions
-# Each function returns (failing_rows, trace_rows).
-# trace_rows adds filename_subregion so we know which Excel file to fix.
+# Each function now receives the resolved env string so table names are
+# evaluated at execution time, not import time.
 # ---------------------------------------------------------------------------
 
-_ENV = SQLMESH_ENV  # "dev" or "prod"
-
-# Fully-qualified view names SQLMesh exposes per environment.
-# These are the *view* names (not the hashed physical tables) —
-# always stable across plan runs.
-_FACT_SALES    = f"staging__{_ENV}.stg_sales_data"   # used for tracing
-_STG_SALES     = f"staging__{_ENV}.stg_sales_data"
-_STG_PRODUCTS  = f"staging__{_ENV}.stg_products_data"
-_STG_SALESTEAM = f"staging__{_ENV}.stg_salesteam_data"
-_FACT          = f"marts__{_ENV}.fact_sales"
-
-
-def _audit_not_null_fact_sales(conn: duckdb.DuckDBPyConnection) -> tuple[list, list]:
+def _audit_not_null_fact_sales(conn: duckdb.DuckDBPyConnection, env: str) -> tuple[list, list]:
     """Mirrors the not_null audit on fact_sales."""
+    _FACT = f"marts__{env}.fact_sales"
+    _STG_SALES = f"staging__{env}.stg_sales_data"
+
     failing = _run(conn, f"""
         SELECT
             f.sales_line_id,
@@ -180,8 +171,11 @@ def _audit_not_null_fact_sales(conn: duckdb.DuckDBPyConnection) -> tuple[list, l
     return failing, trace
 
 
-def _audit_negative_amount(conn: duckdb.DuckDBPyConnection) -> tuple[list, list]:
+def _audit_negative_amount(conn: duckdb.DuckDBPyConnection, env: str) -> tuple[list, list]:
     """Mirrors accepted_range(column := total_amount, min_v := 0, inclusive := false)."""
+    _FACT = f"marts__{env}.fact_sales"
+    _STG_SALES = f"staging__{env}.stg_sales_data"
+
     failing = _run(conn, f"""
         SELECT sales_line_id, sale_date, sku, salesperson_id, total_amount
         FROM {_FACT}
@@ -206,8 +200,11 @@ def _audit_negative_amount(conn: duckdb.DuckDBPyConnection) -> tuple[list, list]
     return failing, trace
 
 
-def _audit_orphaned_products(conn: duckdb.DuckDBPyConnection) -> tuple[list, list]:
+def _audit_orphaned_products(conn: duckdb.DuckDBPyConnection, env: str) -> tuple[list, list]:
     """Mirrors assert_no_orphaned_product."""
+    _FACT = f"marts__{env}.fact_sales"
+    _STG_SALES = f"staging__{env}.stg_sales_data"
+
     failing = _run(conn, f"""
         SELECT sales_line_id, sale_date, sku, product_key
         FROM {_FACT}
@@ -232,8 +229,11 @@ def _audit_orphaned_products(conn: duckdb.DuckDBPyConnection) -> tuple[list, lis
     return failing, trace
 
 
-def _audit_amount_vs_qty_price(conn: duckdb.DuckDBPyConnection) -> tuple[list, list]:
-    """Mirrors assert_amount_matches_qty_x_price (>1 % deviation)."""
+def _audit_amount_vs_qty_price(conn: duckdb.DuckDBPyConnection, env: str) -> tuple[list, list]:
+    """Mirrors assert_amount_matches_qty_x_price (>>1 % deviation)."""
+    _FACT = f"marts__{env}.fact_sales"
+    _STG_SALES = f"staging__{env}.stg_sales_data"
+
     failing = _run(conn, f"""
         SELECT
             sales_line_id,
@@ -273,8 +273,10 @@ def _audit_amount_vs_qty_price(conn: duckdb.DuckDBPyConnection) -> tuple[list, l
     return failing, trace
 
 
-def _audit_product_price(conn: duckdb.DuckDBPyConnection) -> tuple[list, list]:
+def _audit_product_price(conn: duckdb.DuckDBPyConnection, env: str) -> tuple[list, list]:
     """Mirrors accepted_range on unit_price in stg_products_data."""
+    _STG_PRODUCTS = f"staging__{env}.stg_products_data"
+
     failing = _run(conn, f"""
         SELECT product_key, sku, product_name, unit_price
         FROM {_STG_PRODUCTS}
@@ -317,7 +319,11 @@ def data_quality_full_report(duckdb: DuckDBResource) -> AssetCheckResult:
     (serving_dev.db / serving.db) via get_serving_db_path(), so this
     check always queries the same file the serving asset just wrote.
     """
-    run_ts = datetime.now(timezone.utc).isoformat()
+    # Resolve env at call time — never cache at import time
+    _ENV = SQLMESH_ENV
+
+    run_dt = datetime.now(timezone.utc)
+    run_ts = run_dt.isoformat()
     report: dict[str, Any] = {
         "run_at": run_ts,
         "environment": _ENV,
@@ -325,6 +331,8 @@ def data_quality_full_report(duckdb: DuckDBResource) -> AssetCheckResult:
     }
 
     all_passed = True
+    any_error = False
+    ui_summary: dict[str, str] = {}
 
     audits = [
         ("not_null_fact_sales",       _audit_not_null_fact_sales),
@@ -334,14 +342,14 @@ def data_quality_full_report(duckdb: DuckDBResource) -> AssetCheckResult:
         ("product_price_invalid",     _audit_product_price),
     ]
 
-    ui_summary: dict[str, str] = {}
-
     with duckdb.get_connection() as conn:
         for audit_name, audit_fn in audits:
             try:
-                failing_rows, trace_rows = audit_fn(conn)
+                failing_rows, trace_rows = audit_fn(conn, _ENV)
             except Exception as exc:
                 logger.error("Audit %s raised: %s", audit_name, exc)
+                all_passed = False
+                any_error = True
                 failing_rows, trace_rows = [], []
                 report["audits"][audit_name] = {"error": str(exc)}
                 ui_summary[audit_name] = f"⚠ ERROR: {exc}"
@@ -356,7 +364,7 @@ def data_quality_full_report(duckdb: DuckDBResource) -> AssetCheckResult:
                     "status": "FAILED",
                     "failing_row_count": len(failing_rows),
                     "by_source_file": by_file,
-                    "failing_rows": trace_rows,   # full detail in JSON
+                    "failing_rows": trace_rows,
                 }
                 file_breakdown = " | ".join(
                     f"{fname}: {n} row{'s' if n > 1 else ''}"
@@ -374,12 +382,46 @@ def data_quality_full_report(duckdb: DuckDBResource) -> AssetCheckResult:
                 report["audits"][audit_name] = {"status": "PASSED"}
                 ui_summary[audit_name] = "✔ passed"
 
-    report_path = _write_report(report)
-    report["report_path"] = str(report_path)
+        # Write JSON report
+        report_path = _write_report(report)
+        report["report_path"] = str(report_path)
+           
+        # Persist one row per audit to serving DB
+        try:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS bi.quality_trend (
+                    run_at      TIMESTAMPTZ,
+                    audit       TEXT,
+                    status      TEXT,
+                    failing_rows INT
+                )
+            """)
+
+            for audit_name, _ in audits:
+                audit_data = report["audits"].get(audit_name, {})
+                status = audit_data.get("status", "UNKNOWN")
+                failing_count = 0
+
+                if status == "FAILED":
+                    failing_count = audit_data.get("failing_row_count", 0)
+                elif "error" in audit_data:
+                    status = "ERROR"
+
+                conn.execute("""
+                    INSERT INTO bi.quality_trend (run_at, audit, status, failing_rows)
+                    VALUES (?, ?, ?, ?)
+                """, (run_dt, audit_name, status, failing_count))
+
+            logger.info("Quality trend persisted to bi.quality_trend (%s)", run_ts)
+
+        except Exception as exc:
+            logger.error("Failed to persist quality trend: %s", exc)
+
+    severity = AssetCheckSeverity.ERROR if any_error else AssetCheckSeverity.WARN
 
     return AssetCheckResult(
         passed=all_passed,
-        severity=AssetCheckSeverity.WARN,   # WARN = red badge, pipeline continues
+        severity=severity,
         metadata={
             "audit_results": MetadataValue.json(ui_summary),
             "report_path":   MetadataValue.path(str(report_path)),

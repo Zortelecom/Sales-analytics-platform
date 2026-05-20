@@ -2,7 +2,7 @@
 import logging
 import re
 from pathlib import Path
-from time import time
+from time import time, sleep
 from typing import Dict, List, Optional
 import openpyxl
 from openpyxl.utils.exceptions import InvalidFileException
@@ -48,7 +48,7 @@ class ExcelPreprocessor:
                     if attempt < 2:
                         logger.warning("File locked, Retrying in 2s... (%s, attempt %d): %s",
                                        source_file.name, attempt + 1, e)
-                        time.sleep(2)  # Wait before retrying
+                        sleep(2)  # Wait before retrying
                     else:
                         raise
 

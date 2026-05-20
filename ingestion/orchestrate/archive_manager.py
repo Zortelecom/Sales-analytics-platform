@@ -2,17 +2,17 @@
 import logging
 import shutil
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Dict
 
 logger = logging.getLogger(__name__)
 
 
 class ArchiveManager:
-    def __init__(self, archive_base: Path):
+    def __init__(self, batch_id: str, archive_base: Path):
         self.archive_base = archive_base
-        self.batch_id = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.batch_archive_path = archive_base / f"batch_{self.batch_id}"
+        self.batch_id = batch_id
+        self.batch_archive_path = archive_base / f"batch_{batch_id}"
 
     def archive_processed_files(self, manifest: List[Dict],
                                 move: bool = False) -> Path:
@@ -43,7 +43,7 @@ class ArchiveManager:
         manifest_file = self.batch_archive_path / "_manifest.txt"
         with open(manifest_file, "w", encoding="utf-8") as f:
             f.write(f"Batch: {self.batch_id}\n")
-            f.write(f"Timestamp: {datetime.now().isoformat()}\n")
+            f.write(f"Timestamp: {datetime.now(timezone.utc).isoformat()}\n")
             f.write(f"Files: {len(manifest)}\n\n")
             for item in manifest:
                 f.write(

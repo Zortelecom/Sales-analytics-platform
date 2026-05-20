@@ -5,7 +5,7 @@ MODEL (
     columns [region, subregion, city, key_player, is_destocked]
   ),
   cron '@daily',
-  grain (sd_id),
+  grain (sd_key),
   owner analytics_team,
   storage_format 'parquet'
 );

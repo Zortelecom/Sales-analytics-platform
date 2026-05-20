@@ -3,7 +3,7 @@ import subprocess
 import os
 from typing import List, Optional
 import json
-from dagster import ConfigurableResource, AssetExecutionContext, Failure
+from dagster import ConfigurableResource, AssetExecutionContext, Failure, MetadataValue
 from pydantic import Field
 
 
@@ -45,6 +45,22 @@ class SQLMeshResource(ConfigurableResource):
            if context:
                 context.log.error(error_msg)
            raise Failure(f"SQLMesh error: {result.stderr or result.stdout}")
+       
+        if context and result.stdout:
+            warning_lines = [
+                line.strip()
+                for line in result.stdout.splitlines()
+                if "WARNING" in line.upper() or "WARN" in line.upper()
+            ]
+            if warning_lines:
+                warnings_text = "\n".join(warning_lines)
+                context.log.warning(
+                    "SQLMesh emitted %d warning(s); attaching to asset metadata",
+                    len(warning_lines),
+                )
+                context.add_output_metadata({
+                    "sqlmesh_warnings": MetadataValue.text(warnings_text)
+                })
 
         return result
 

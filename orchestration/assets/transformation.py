@@ -2,6 +2,7 @@
 from dagster import Failure, asset, MetadataValue, AssetExecutionContext, AssetIn, RetryPolicy
 import pandas as pd
 import duckdb
+import time
 
 from orchestration.resources.sqlmesh_resource import SQLMeshResource
 from orchestration.utils.constants import DUCKLAKE_PATH, CATALOG_NAME
@@ -46,6 +47,7 @@ def sqlmesh_models(context: AssetExecutionContext, seeds_metadata: dict) -> dict
     try:
         # Run plan with auto-apply
         context.log.info("Running SQLMesh plan...")
+        t0 = time.perf_counter()
         plan_result = sqlmesh.plan(
             context, start_date='2025-01-01', auto_apply=True)
 
@@ -72,6 +74,8 @@ def sqlmesh_models(context: AssetExecutionContext, seeds_metadata: dict) -> dict
             context.log.warning("Could not retrieve model info")
             model_info = {}
             models_list = []
+            
+        duration = time.perf_counter() - t0
 
         # Verify DuckLake catalog was created
         ducklake_exists = DUCKLAKE_PATH.exists()
@@ -89,6 +93,7 @@ def sqlmesh_models(context: AssetExecutionContext, seeds_metadata: dict) -> dict
             "ducklake_exists": ducklake_exists,
             "ducklake_size_mb": f"{ducklake_size_mb:.2f}",
             "batch_id": seeds_metadata.get('batch_id', 'unknown'),
+            "transformation_duration_seconds": round(duration, 2),
         })
 
         context.log.info("="*70)

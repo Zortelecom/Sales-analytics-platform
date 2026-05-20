@@ -66,12 +66,12 @@ FROM bi.fact_sales fs
 LEFT JOIN bi.dim_date        dd ON fs.date_key        = dd.date_key
 -- SCD Type 2 guard: match the exact dimension version valid at sale time
 LEFT JOIN bi.dim_products    dp ON fs.product_key     = dp.product_key
-                                AND fs.sale_date BETWEEN dp.valid_from AND dp.valid_to
+                                AND (fs.sale_date >= dp.valid_from AND (dp.valid_to IS NULL OR fs.sale_date < dp.valid_to))
 -- dim_salesperson join removed: all salesperson fields (salesperson_name, region,
 -- subregion, sales_channel, supervisor_name) are already denormalized into fact_sales.
 -- The join added no columns but caused row fan-out on SCD Type 2 history rows.
 LEFT JOIN bi.dim_clientsd    dc ON fs.clientsd_key    = dc.clientsd_key
-                                AND fs.sale_date BETWEEN dc.valid_from AND dc.valid_to;
+                                AND (fs.sale_date >= dc.valid_from AND (dc.valid_to IS NULL OR fs.sale_date < dc.valid_to));
 
 
 -- ---------------------------------------------------------------------------

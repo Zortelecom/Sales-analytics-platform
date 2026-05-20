@@ -12,23 +12,31 @@ Changes vs. previous version
   live-validation asset).  Not wired into definitions.py by default —
   callers instantiate it directly or register it when ENABLE_QUACK=true.
 * DuckLakeResource unchanged.
+* All env-var reads centralised via PipelineConfig from orchestration/config.
 """
 
 from __future__ import annotations
 
-import os
 from typing import Optional
-
+import logging
 import duckdb
 from dagster import ConfigurableResource
 from pydantic import Field
 
+from orchestration.config import PipelineConfig
 from orchestration.utils.constants import (
     QUACK_HOST,
     QUACK_PORT,
-    SQLMESH_ENV,
     get_serving_db_path,
 )
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
+logger = logging.getLogger(__name__)
+
+_cfg = PipelineConfig()
 
 
 class DuckDBResource(ConfigurableResource):
@@ -54,8 +62,7 @@ class DuckDBResource(ConfigurableResource):
     def _resolved_path(self) -> str:
         if self.database_path:
             return self.database_path
-        env = os.getenv("SQLMESH_ENV", SQLMESH_ENV)
-        return str(get_serving_db_path(env))
+        return str(get_serving_db_path(_cfg.sqlmesh_env))
 
     def get_connection(self) -> duckdb.DuckDBPyConnection:
         """Return a new DuckDB connection to the configured database."""
@@ -127,6 +134,8 @@ class QuackResource(ConfigurableResource):
         conn.execute(
             f"ATTACH 'quack:{self.host}:{self.port}' AS {self.catalog_alias}"
         )
+        logger.warning('''Quack is in beta (DuckDB ≥ v1.5.2). Stable release: 
+            DuckDB v2.0 Sep 2026. Use file-swap in production.''')
         return conn
 
     def query(self, sql: str):

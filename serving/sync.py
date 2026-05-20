@@ -88,6 +88,8 @@ class QuackServer:
         return self.quack.uri
 
     def start(self) -> None:
+        logger.warning('''Quack is in beta (DuckDB ≥ v1.5.2). Stable release: 
+            DuckDB v2.0 Sep 2026. Use file-swap in production.''')
         logger.info("Starting Quack server on %s backed by %s ...",
                     self.quack.uri, self.serving_path)
         Path(self.serving_path).parent.mkdir(parents=True, exist_ok=True)

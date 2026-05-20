@@ -16,12 +16,13 @@ Changes vs. the previous version
                         the priority.
 * Supports Quack mode when ENABLE_QUACK=true and QUACK_TOKEN are set.
 * Reports per-exporter results and the serving-DB path in asset metadata.
+* All env-var reads centralised via PipelineConfig.
 """
 
 from __future__ import annotations
 
-import os
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -37,49 +38,35 @@ from serving.config import QuackConfig, ServingConfig
 from serving.export import CsvExporter, ExportEventBus, ParquetExporter
 from serving.sync import ServingLayerSync
 
+from orchestration.config import PipelineConfig
 from orchestration.utils.constants import (
     CSV_EXPORTS_DIR,
     PARQUET_EXPORTS_DIR,
     get_serving_db_path,
-    SQLMESH_ENV,
 )
+
+_cfg = PipelineConfig()
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
 def _build_config(env: str, context: AssetExecutionContext) -> ServingConfig:
     """
-    Build ServingConfig from environment variables so callers never have to
+    Build ServingConfig from PipelineConfig so callers never have to
     touch Python code to change runtime behaviour.
-
-    Env-vars read:
-        ENABLE_QUACK        "true" / "false"   (default false)
-        QUACK_HOST          hostname            (default localhost)
-        QUACK_PORT          integer             (default 9494)
-        QUACK_TOKEN         secret string       (required when ENABLE_QUACK=true)
     """
-    enable_quack = os.getenv("ENABLE_QUACK", "false").lower() == "true"
-
     quack_cfg: QuackConfig | None = None
-    if enable_quack:
-        token = os.getenv("QUACK_TOKEN", "")
-        if not token:
-            context.log.warning(
-                "ENABLE_QUACK=true but QUACK_TOKEN is not set — "
-                "falling back to file-swap mode."
-            )
-            enable_quack = False
-        else:
-            quack_cfg = QuackConfig(
-                host=os.getenv("QUACK_HOST", "localhost"),
-                port=int(os.getenv("QUACK_PORT", "9494")),
-                token=token,
-            )
-            context.log.info(
-                "Quack mode enabled → %s:%s",
-                quack_cfg.host,
-                quack_cfg.port,
-            )
+    if _cfg.enable_quack:
+        quack_cfg = QuackConfig(
+            host=_cfg.quack_host,
+            port=_cfg.quack_port,
+            token=_cfg.quack_token,
+        )
+        context.log.info(
+            "Quack mode enabled → %s:%s",
+            quack_cfg.host,
+            quack_cfg.port,
+        )
 
     config = ServingConfig(environment=env, quack=quack_cfg)
     config.normalize(project_root=_PROJECT_ROOT)
@@ -88,32 +75,24 @@ def _build_config(env: str, context: AssetExecutionContext) -> ServingConfig:
 
 def _build_export_bus(env: str, context: AssetExecutionContext) -> ExportEventBus | None:
     """
-    Build an ExportEventBus with whichever exporters are enabled via env-vars.
-
-    Env-vars read:
-        ENABLE_CSV_EXPORT           "true" / "false"   (default false)
-        CSV_DELIMITER               single char         (default ,)
-        ENABLE_PARQUET_EXPORT       "true" / "false"   (default false)
-        PARQUET_COMPRESSION         codec name          (default snappy)
+    Build an ExportEventBus with whichever exporters are enabled via PipelineConfig.
 
     Returns None when no exporters are enabled (skips bus entirely).
     """
     exporters = []
 
-    if os.getenv("ENABLE_CSV_EXPORT", "false").lower() == "true":
+    if _cfg.enable_csv_export:
         csv_dir = CSV_EXPORTS_DIR / env
         csv_dir.mkdir(parents=True, exist_ok=True)
-        delimiter = os.getenv("CSV_DELIMITER", ",")
-        exporters.append(CsvExporter(str(csv_dir), delimiter=delimiter))
-        context.log.info("CSV export enabled → %s (delimiter=%r)", csv_dir, delimiter)
+        exporters.append(CsvExporter(str(csv_dir), delimiter=_cfg.csv_delimiter))
+        context.log.info("CSV export enabled → %s (delimiter=%r)", csv_dir, _cfg.csv_delimiter)
 
-    if os.getenv("ENABLE_PARQUET_EXPORT", "false").lower() == "true":
+    if _cfg.enable_parquet_export:
         pq_dir = PARQUET_EXPORTS_DIR / env
         pq_dir.mkdir(parents=True, exist_ok=True)
-        compression = os.getenv("PARQUET_COMPRESSION", "snappy")
-        exporters.append(ParquetExporter(str(pq_dir), compression=compression))
+        exporters.append(ParquetExporter(str(pq_dir), compression=_cfg.parquet_compression))
         context.log.info(
-            "Parquet export enabled → %s (compression=%s)", pq_dir, compression
+            "Parquet export enabled → %s (compression=%s)", pq_dir, _cfg.parquet_compression
         )
 
     if not exporters:
@@ -191,27 +170,20 @@ def serving_database(
     marts_validation: pd.DataFrame,
 ) -> dict:
     """
-    1. Build ServingConfig (Quack or file-swap) from env-vars.
+    1. Build ServingConfig (Quack or file-swap) from PipelineConfig.
     2. Optionally wire an ExportEventBus with CSV / Parquet exporters.
     3. Run the sync.
     4. Validate the resulting serving DB.
     5. Emit rich metadata for the Dagster UI.
     """
-    env = os.getenv("SQLMESH_ENV", SQLMESH_ENV)
-    background_exports = os.getenv("EXPORT_BACKGROUND", "false").lower() == "true"
+    env = _cfg.sqlmesh_env
+    background_exports = _cfg.export_background
 
     # ── config ────────────────────────────────────────────────────────────────
     config = _build_config(env, context)
     export_bus = _build_export_bus(env, context)
 
     # ── sync ──────────────────────────────────────────────────────────────────
-    # sync() only accepts dry_run; dispatch mode is controlled by what we pass
-    # to the constructor:
-    #   blocking  → pass export_bus to ServingLayerSync; _trigger_exports()
-    #               calls publish_and_wait internally before sync() returns.
-    #   background → withhold the bus from ServingLayerSync so sync() returns
-    #               as soon as tables are written, then we fire the bus here
-    #               via publish_background (same pattern as cli.py cmd_sync).
     if background_exports and export_bus is not None:
         sync = ServingLayerSync(config, export_bus=None)
     else:
@@ -223,8 +195,20 @@ def serving_database(
             env,
             "quack" if config.quack else "file-swap",
         )
-
+        t0 = time.perf_counter()
         summary = sync.sync(dry_run=False)
+        duration = time.perf_counter() - t0
+         
+        # ── partial success handling ────────────────────────────────────────
+        failed_tables: list[str] = []
+        if summary.get("status") == "partial_success":
+            failed_tables = getattr(sync, "failed_tables", []) or []
+            if failed_tables:
+                context.log.warning(
+                    "Serving sync partial_success — stale data possible for %d table(s): %s",
+                    len(failed_tables),
+                    ", ".join(failed_tables),
+                )
 
         # Background export: fire after sync returns, don't wait
         if background_exports and export_bus is not None:
@@ -257,6 +241,7 @@ def serving_database(
                 "validation_passed": is_valid,
                 "size_mb": round(size_mb, 2),
                 "marts_schema": config.marts_schema,
+                "sync_duration_seconds": round(duration, 2),
                 **export_meta,
             }
         )

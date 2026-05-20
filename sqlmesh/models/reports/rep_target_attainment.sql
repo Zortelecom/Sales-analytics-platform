@@ -21,7 +21,7 @@ WITH monthly_sales AS (
     f.sales_channel,
     f.product_category,
     SUM(f.total_amount) AS actual_sales,
-    SUM(f.quantity) AS total_quantity,
+    SUM(f.quantity) AS total_quantity
   FROM marts.fact_sales f
   WHERE f.sale_date >= @start_date 
     AND f.sale_date < @end_date

@@ -10,7 +10,7 @@ from pathlib import Path
 from datetime import datetime
 
 # Use absolute imports for package structure
-from ingestion.config.settings import load_sources_config, INPUT_PATHS
+from ingestion.config.settings import ARCHIVE_DIR, load_sources_config, INPUT_PATHS, SQLMESH_SEEDS_DIR
 from ingestion.orchestrate import FileDiscovery, ExcelPreprocessor, ArchiveManager
 from ingestion.extract.sales_extractor import SalesExtractor
 from ingestion.extract.target_extractor import TargetExtractor
@@ -174,7 +174,7 @@ def run_ingestion_pipeline(dry_run: bool = False,
     # ─────────────────────────────────────────────────────────────
     # Write seeds
     # ─────────────────────────────────────────────────────────────
-    seeds_dir = Path("sqlmesh/seeds")
+    seeds_dir = SQLMESH_SEEDS_DIR
     seeds_dir.mkdir(exist_ok=True)
 
     writer = SeedWriter(seeds_dir, batch_id)
@@ -194,7 +194,7 @@ def run_ingestion_pipeline(dry_run: bool = False,
     # ─────────────────────────────────────────────────────────────
     if not skip_archive and not dry_run:
         logger.info("\n📦 Phase 4: Archiving Source Files")
-        archive_mgr = ArchiveManager(Path("data/archive"))
+        archive_mgr = ArchiveManager(batch_id=batch_id, archive_base=ARCHIVE_DIR)
         archive_path = archive_mgr.archive_processed_files(
             manifest=results["successful"],
             move=False  # Set to True to move instead of copy

@@ -1,8 +1,9 @@
 """Discover and validate source files from SharePoint/local sync"""
 import logging
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import List, Dict, Optional, TYPE_CHECKING
+from ingestion.config.settings import INPUT_PATHS
 if TYPE_CHECKING:
     from config import SourceConfig
 
@@ -79,13 +80,13 @@ class FileDiscovery:
         """Filter for files modified since last run"""
         if since is None:
             # Default to files modified in last 24 hours
-            since = datetime.now() - timedelta(hours=24)
+            since = datetime.now(timezone.utc) - timedelta(hours=24)
 
         new_files = {}
         for source_type, files in self.discovered_files.items():
             new_files[source_type] = [
                 f for f in files
-                if datetime.fromtimestamp(f.stat().st_mtime) > since
+                if datetime.fromtimestamp(f.stat().st_mtime, tz=timezone.utc) > since
             ]
 
         return new_files
@@ -101,10 +102,10 @@ class FileDiscovery:
                 manifest.append({
                     "source_path": file,
                     "source_type": source_type,
-                    "target_dir": Path(f"data/input/{source_type}"),
+                    "target_dir": INPUT_PATHS[source_type],
                     "rules": rules,
                     "size_bytes": file.stat().st_size,
-                    "modified": datetime.fromtimestamp(file.stat().st_mtime),
+                    "modified": datetime.fromtimestamp(file.stat().st_mtime, tz=timezone.utc),
                     "preprocessing": {
                         "delete_sheets": rules.get("delete_sheets_pattern"),
                         "required_sheets": rules.get("required_sheets", [])

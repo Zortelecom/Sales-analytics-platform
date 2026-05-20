@@ -242,10 +242,10 @@ class SeedWriter:
                 with open(csv_file, 'r', encoding='utf-8') as f:
                     row_count = sum(1 for _ in f) - 1  # Exclude header
             except FileNotFoundError:
-                print(f"Error: File {csv_file} not found.")
+                logger.error('Seed file not found: %s', csv_file)
                 row_count = None
             except OSError as e:
-                print(f"Error reading file {csv_file}: {e}")
+                logger.error('Error reading file %s: %s', csv_file, e)
                 row_count = None
 
             summary[seed_name] = {
