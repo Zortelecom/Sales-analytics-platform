@@ -2,10 +2,11 @@
 import logging
 import json
 from collections import deque
-from datetime import datetime
-from typing import Optional
+from typing import Dict
 from typing import Union
+from pathlib import Path
 
+import duckdb
 from dagster import (
     sensor,
     RunRequest,
@@ -25,11 +26,57 @@ DURATION_DEGRADATION_THRESHOLD = 2.0  # Alert if avg_duration_ms > rolling_avg *
 
 
 def get_default_cursor_state() -> str:
-    """Initialize cursor state with empty rolling window"""
+    """Initialize cursor state with empty rolling window and fingerprints"""
     return json.dumps({
         "durations_ms": [],  # Rolling window of duration_ms values
         "last_sync_timestamp": None,
+        "previous_fingerprints": {},  # {table_name: column_fingerprint}
     })
+
+
+def _get_latest_fingerprints(config: ServingConfig) -> Dict[str, str]:
+    """
+    Query the latest column fingerprints from _sync_log for each table.
+    
+    Returns dict: {table_name: column_fingerprint, ...}
+    """
+    serving_path = Path(config.serving_path)
+    if not serving_path.exists():
+        return {}
+    
+    try:
+        conn = duckdb.connect(str(serving_path), read_only=True)
+        # Get the latest fingerprint for each table (most recent sync_timestamp)
+        result = conn.execute(f"""
+            SELECT DISTINCT
+                target_table,
+                column_fingerprint
+            FROM (
+                SELECT
+                    target_table,
+                    column_fingerprint,
+                    ROW_NUMBER() OVER (PARTITION BY target_table ORDER BY sync_timestamp DESC) as rn
+                FROM {config.bi_schema}._sync_log
+                WHERE status = 'success' AND column_fingerprint IS NOT NULL
+            ) t
+            WHERE rn = 1
+            ORDER BY target_table
+        """).fetchall()
+        
+        conn.close()
+        
+        # Build dict: extract table name from full path (schema.table -> table)
+        fingerprints = {}
+        for full_table, fp in result:
+            # Extract just the table name (last component after '.')
+            table_name = full_table.split(".")[-1] if "." in full_table else full_table
+            fingerprints[table_name] = fp
+        
+        logger.debug("Latest fingerprints: %s", fingerprints)
+        return fingerprints
+    except duckdb.Error as exc:
+        logger.error("Failed to get latest fingerprints: %s", exc)
+        return {}
 
 
 @sensor(
@@ -101,7 +148,31 @@ def sync_health_sensor(context: SensorExecutionContext) -> Union[RunRequest, Ski
         should_alert = False
     
     # ─────────────────────────────────────────────────────────────────────────
-    # Check 2: Duration degradation (vs rolling average)
+    # Check 2: Column fingerprint changes (schema drift detection)
+    # ─────────────────────────────────────────────────────────────────────────
+    current_fingerprints = _get_latest_fingerprints(config)
+    previous_fingerprints = cursor_data.get("previous_fingerprints", {})
+    
+    fingerprint_changes = []
+    
+    if previous_fingerprints:  # Only check if we have a baseline
+        for table, current_fp in current_fingerprints.items():
+            previous_fp = previous_fingerprints.get(table)
+            if previous_fp and current_fp != previous_fp:
+                fingerprint_changes.append((table, previous_fp, current_fp))
+        
+        if fingerprint_changes:
+            for table, old_fp, new_fp in fingerprint_changes:
+                message = (
+                    f"⚠️ SCHEMA ALERT: Column fingerprint changed for table '{table}'. "
+                    f"Previous: {old_fp}, Current: {new_fp}. "
+                    f"This indicates the table schema has changed."
+                )
+                context.log.warning(message)
+            should_alert = True
+    
+    # ─────────────────────────────────────────────────────────────────────────
+    # Check 3: Duration degradation (vs rolling average)
     # ─────────────────────────────────────────────────────────────────────────
     durations_ms = cursor_data.get("durations_ms", [])
     
@@ -129,6 +200,7 @@ def sync_health_sensor(context: SensorExecutionContext) -> Union[RunRequest, Ski
     # Update cursor with current state
     cursor_data["durations_ms"] = durations_ms
     cursor_data["last_sync_timestamp"] = str(last_sync) if last_sync else None
+    cursor_data["previous_fingerprints"] = current_fingerprints  # Store for next comparison
     context.cursor = json.dumps(cursor_data)
     
     # ─────────────────────────────────────────────────────────────────────────
@@ -139,14 +211,17 @@ def sync_health_sensor(context: SensorExecutionContext) -> Union[RunRequest, Ski
         context.log.warning(
             "Sync health alert triggered. Would dispatch remediation job here."
         )
-        return RunRequest(
-            tags={
-                "alert_type": "sync_health",
-                "failed_syncs": str(failed_syncs),
-                "avg_duration_ms": f"{avg_duration_ms:.0f}",
-                "rolling_avg_ms": f"{rolling_avg_ms:.0f}" if rolling_avg_ms else "N/A",
-            }
-        )
+        tags = {
+            "alert_type": "sync_health",
+            "failed_syncs": str(failed_syncs),
+            "avg_duration_ms": f"{avg_duration_ms:.0f}",
+            "rolling_avg_ms": f"{rolling_avg_ms:.0f}" if rolling_avg_ms else "N/A",
+        }
+        
+        if fingerprint_changes:
+            tags["schema_changes"] = ",".join(f"{t}({o}->{n})" for t, o, n in fingerprint_changes)
+        
+        return RunRequest(tags=tags)
     
     # No alert: skip this run
     logger.info(

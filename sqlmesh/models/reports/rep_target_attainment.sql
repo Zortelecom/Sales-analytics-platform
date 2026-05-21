@@ -8,6 +8,7 @@ MODEL (
   owner analytics_team,
   cron '@daily',
   storage_format 'parquet',
+  start '2025-01-01', 
   description 'Target achievement analysis by salesperson and product category'
 );
 

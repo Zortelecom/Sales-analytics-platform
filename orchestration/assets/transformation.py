@@ -1,6 +1,5 @@
 """Asset for SQLMesh transformations"""
 from dagster import Failure, asset, MetadataValue, AssetExecutionContext, AssetIn, RetryPolicy
-import pandas as pd
 import duckdb
 import time
 
@@ -125,14 +124,17 @@ def sqlmesh_models(context: AssetExecutionContext, seeds_metadata: dict) -> dict
     ins={"sqlmesh_models": AssetIn()},
     retry_policy=RetryPolicy(max_retries=2, delay=10)
 )
-def marts_validation(context: AssetExecutionContext, sqlmesh_models: dict) -> pd.DataFrame:
+def marts_validation(context: AssetExecutionContext, sqlmesh_models: dict) -> dict:
     """
     Validate that marts tables were created successfully in DuckLake.
     
-    Uses robust discovery logic from test.py:
+    Returns a dictionary with table names as keys and row counts as values.
+    This is lighter than a DataFrame and avoids Pandas dependency.
+    
+    Process:
     1. Explicitly loads DuckLake extension
     2. Dynamically searches for the schema (doesn't assume exact name)
-    3. Validates row counts and columns
+    3. Queries row counts directly from DuckDB
     """
 
     context.log.info("Validating marts tables in DuckLake...")
@@ -213,8 +215,8 @@ def marts_validation(context: AssetExecutionContext, sqlmesh_models: dict) -> pd
         context.log.info(
             f"Found {len(tables_df)} table(s) in '{actual_schema}'")
 
-        # 5. VALIDATE CONTENT
-        validation_results = []
+        # 5. VALIDATE CONTENT AND COLLECT ROW COUNTS
+        table_row_counts = {}
 
         for _, row in tables_df.iterrows():
             schema = row['table_schema']
@@ -229,64 +231,43 @@ def marts_validation(context: AssetExecutionContext, sqlmesh_models: dict) -> pd
                     f"SELECT COUNT(*) FROM {full_name}").fetchone()
                 row_count = count_result[0] if count_result else 0
 
-                # Count columns
-                columns_df = conn.execute("""
-                    SELECT column_name 
-                    FROM information_schema.columns 
-                    WHERE table_schema = ? AND table_name = ?
-                """, [schema, table]).fetchdf()
-                column_count = len(columns_df)
+                # Store in dict: {table_name: row_count}
+                table_row_counts[table] = row_count
 
-                # Determine status
-                status = "valid" if row_count > 0 and column_count > 0 else "warning"
-                status_icon = "✅" if status == "valid" else "⚠️"
-
-                validation_results.append({
-                    "table_schema": schema,
-                    "table_name": table,
-                    "row_count": row_count,
-                    "column_count": column_count,
-                    "status": status,
-                })
-
+                # Log validation
+                status_icon = "✅" if row_count > 0 else "⚠️"
                 context.log.info(
-                    f"  {status_icon} {table}: {row_count:,} rows, {column_count} cols"
+                    f"  {status_icon} {table}: {row_count:,} rows"
                 )
 
             except Exception as table_error:
                 context.log.error(
                     f"  ❌ Error validating {table}: {table_error}")
-                validation_results.append({
-                    "table_schema": schema,
-                    "table_name": table,
-                    "row_count": -1,
-                    "column_count": -1,
-                    "status": "error",
-                    "error": str(table_error),
-                })
+                table_row_counts[table] = -1
 
-        result_df = pd.DataFrame(validation_results)
-
-        # 6. REPORTING
-        valid_tables = len(result_df[result_df["status"] == "valid"])
-        total_rows = result_df[result_df["row_count"] > 0]["row_count"].sum()
-
-        context.add_output_metadata({
-            "row_count": len(result_df),
-            "valid_tables": valid_tables,
-            "total_rows": int(total_rows),
-            "marts_schema": actual_schema,
-            "ducklake_path": str(DUCKLAKE_PATH),
-            "preview": MetadataValue.md(
-                result_df[["table_name", "row_count",
-                           "column_count", "status"]].to_markdown()
-            ),
-        })
+        # 6. REPORTING AND VALIDATION
+        valid_tables = sum(1 for count in table_row_counts.values() if count > 0)
+        total_rows = sum(count for count in table_row_counts.values() if count > 0)
 
         if valid_tables == 0:
             raise Failure("No valid marts tables found (all empty or errors)")
 
-        return result_df
+        context.add_output_metadata({
+            "tables_count": len(table_row_counts),
+            "valid_tables": valid_tables,
+            "total_rows": int(total_rows),
+            "marts_schema": actual_schema,
+            "ducklake_path": str(DUCKLAKE_PATH),
+            "table_counts": MetadataValue.md(
+                "\n".join(f"- {table}: {count:,} rows" for table, count in sorted(table_row_counts.items()))
+            ),
+        })
+
+        context.log.info(
+            f"Validation complete: {valid_tables}/{len(table_row_counts)} tables valid, {total_rows:,} total rows"
+        )
+
+        return table_row_counts
 
     except Failure:
         raise

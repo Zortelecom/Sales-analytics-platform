@@ -38,6 +38,7 @@ optional: registering nothing disables exports with no config changes.
 
 import shutil
 import logging
+import hashlib
 from pathlib import Path
 from datetime import datetime
 from time import sleep
@@ -52,6 +53,44 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Helper: Column fingerprinting
+# ---------------------------------------------------------------------------
+
+def _compute_column_fingerprint(conn: duckdb.DuckDBPyConnection, full_table_name: str) -> str:
+    """
+    Compute a fingerprint (MD5 hash of sorted column names) for a table.
+    
+    Returns the hex digest of the sorted, comma-joined column names.
+    Example: columns [b, a, c] -> MD5(hash of "a,b,c")
+    """
+    try:
+        columns = conn.execute("""
+            SELECT column_name FROM information_schema.columns
+            WHERE table_catalog || '.' || table_schema || '.' || table_name = ?
+            ORDER BY ordinal_position
+        """, [full_table_name]).fetchall()
+        
+        if not columns:
+            # Fallback: try without full qualification
+            parts = full_table_name.split(".")
+            if len(parts) == 3:
+                columns = conn.execute("""
+                    SELECT column_name FROM information_schema.columns
+                    WHERE table_schema = ? AND table_name = ?
+                    ORDER BY ordinal_position
+                """, [parts[1], parts[2]]).fetchall()
+        
+        col_names = sorted([c[0] for c in columns])
+        col_string = ",".join(col_names)
+        fingerprint = hashlib.md5(col_string.encode()).hexdigest()
+        logger.debug("Fingerprint for %s: %s -> %s", full_table_name, col_names, fingerprint)
+        return fingerprint
+    except duckdb.Error as exc:
+        logger.error("Failed to compute fingerprint for %s: %s", full_table_name, exc)
+        return ""
 
 
 # ---------------------------------------------------------------------------
@@ -367,6 +406,7 @@ class ServingLayerSync:
                 row_count      BIGINT    NOT NULL,
                 duration_ms    BIGINT    NOT NULL,
                 status         VARCHAR   NOT NULL,
+                column_fingerprint VARCHAR,
                 error_message  VARCHAR
             )
         """)
@@ -399,17 +439,18 @@ class ServingLayerSync:
         """)
 
         row_count = conn.execute(f"SELECT COUNT(*) FROM {target_full}").fetchone()[0]
+        column_fingerprint = _compute_column_fingerprint(conn, target_full)
         duration_ms = int((datetime.now() - start).total_seconds() * 1_000)
 
         conn.execute(f"""
             INSERT INTO {alias}.{bi}._sync_log
-                (sync_timestamp, source_table, target_table, row_count, duration_ms, status)
-            VALUES (?, ?, ?, ?, ?, ?)
+                (sync_timestamp, source_table, target_table, row_count, duration_ms, status, column_fingerprint)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         """, [datetime.now(), f"{source_schema}.{table}", target_full,
-              row_count, duration_ms, "success"])
+              row_count, duration_ms, "success", column_fingerprint])
 
-        self.sync_metadata.append({"table": table, "row_count": row_count, "status": "success"})
-        logger.info("    %s rows in %d ms", f"{row_count:,}", duration_ms)
+        self.sync_metadata.append({"table": table, "row_count": row_count, "column_fingerprint": column_fingerprint, "status": "success"})
+        logger.info("    %s rows in %d ms (fingerprint: %s)", f"{row_count:,}", duration_ms, column_fingerprint)
 
     def _log_sync_failure_quack(self, conn, schema, table, error):
         alias = self.config.quack.catalog_alias
@@ -530,6 +571,7 @@ class ServingLayerSync:
                 row_count      BIGINT    NOT NULL,
                 duration_ms    BIGINT    NOT NULL,
                 status         VARCHAR   NOT NULL,
+                column_fingerprint VARCHAR,
                 error_message  VARCHAR
             )
         """)
@@ -561,17 +603,18 @@ class ServingLayerSync:
         target.unregister("_arrow_tmp")
 
         row_count = target.execute(f"SELECT COUNT(*) FROM {target_table}").fetchone()[0]
+        column_fingerprint = _compute_column_fingerprint(target, target_table)
         duration_ms = int((datetime.now() - start).total_seconds() * 1_000)
 
         target.execute(f"""
             INSERT INTO {self.config.bi_schema}._sync_log
-                (sync_timestamp, source_table, target_table, row_count, duration_ms, status)
-            VALUES (?, ?, ?, ?, ?, ?)
+                (sync_timestamp, source_table, target_table, row_count, duration_ms, status, column_fingerprint)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         """, [datetime.now(), f"{source_schema}.{table}", target_table,
-              row_count, duration_ms, "success"])
+              row_count, duration_ms, "success", column_fingerprint])
 
-        self.sync_metadata.append({"table": table, "row_count": row_count, "status": "success"})
-        logger.info("    %s rows in %d ms", f"{row_count:,}", duration_ms)
+        self.sync_metadata.append({"table": table, "row_count": row_count, "column_fingerprint": column_fingerprint, "status": "success"})
+        logger.info("    %s rows in %d ms (fingerprint: %s)", f"{row_count:,}", duration_ms, column_fingerprint)
 
     def _log_sync_failure_file(self, target, schema, table, error):
         try:
@@ -688,6 +731,7 @@ class ServingLayerSync:
         return {"status": "dry_run", "tables_count": len(tables), "total_rows": total_rows}
 
     def validate_serving_db(self) -> bool:
+        """Validate that the serving database exists and has recent sync data."""
         serving_path = Path(self.config.serving_path)
         if not serving_path.exists():
             logger.warning("Serving database not found: %s", serving_path)

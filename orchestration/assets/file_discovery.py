@@ -4,11 +4,20 @@ from datetime import datetime, timedelta
 from pathlib import Path
 import sys
 import json
+import tempfile
 import pandas as pd
 from ingestion.orchestrate.file_discovery import FileDiscovery as FileDiscoveryClass
 from ingestion.config.settings import load_sources_config
-from orchestration.utils.constants import STATE_FILE
-from dagster import asset, MetadataValue, AssetExecutionContext, AssetIn
+from orchestration.utils.constants import DEAD_LETTER_DIR, STATE_FILE
+from dagster import (
+    asset,
+    asset_check,
+    AssetCheckResult,
+    AssetCheckSeverity,
+    MetadataValue,
+    AssetExecutionContext,
+    AssetIn,
+)
 
 # Add ingestion to path for imports
 sys.path.append(str(Path(__file__).parent.parent.parent / "ingestion"))
@@ -18,17 +27,29 @@ def load_processed_files():
     if STATE_FILE.exists():
         try:
             with open(STATE_FILE, "r", encoding="utf-8") as f:
-                return set(json.load(f))
+                state = json.load(f)
+                if isinstance(state, dict):
+                    return set(state.get("processed_files", []))
+                return set(state)
         except (json.JSONDecodeError, IOError):
             return set()
     return set()
 
 
 def save_processed_files(files: set):
-    """Save processed file paths to persistent state"""
+    """Save processed file paths to persistent state atomically."""
     STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
-    with open(STATE_FILE, "w", encoding="utf-8") as f:
-        json.dump(list(files), f, indent=2)
+    with tempfile.NamedTemporaryFile(
+        mode="w",
+        encoding="utf-8",
+        delete=False,
+        dir=str(STATE_FILE.parent),
+        suffix=".tmp",
+    ) as temp_file:
+        json.dump(list(files), temp_file, indent=2)
+        temp_path = Path(temp_file.name)
+
+    temp_path.replace(STATE_FILE)
 
 
 @asset(
@@ -48,6 +69,8 @@ def discovered_files(context: AssetExecutionContext) -> pd.DataFrame:
     - modified_time: Last modification timestamp
     - discovered_at: Current timestamp
     """
+
+    processed_files = load_processed_files()
 
     config = load_sources_config()
     discovery = FileDiscoveryClass(config)
@@ -78,9 +101,14 @@ def discovered_files(context: AssetExecutionContext) -> pd.DataFrame:
         "targets_files": len(df[df["source_type"] == "targets"]) if not df.empty else 0,
         "references_files": len(df[df["source_type"] == "references"]) if not df.empty else 0,
         "total_size_mb": f"{df['size_mb'].sum():.2f}" if not df.empty else "0",
+        "state_file": MetadataValue.path(str(STATE_FILE)),
+        "processed_files_in_state": len(processed_files),
     })
 
-    context.log.info(f"Discovered {len(df)} files")
+    context.log.info(
+        f"Discovered {len(df)} files "
+        f"({len(processed_files)} already recorded in state)"
+    )
     return df
 
 
@@ -128,14 +156,6 @@ def files_to_process(context: AssetExecutionContext, discovered_files: pd.DataFr
             f"No state file found, using 24h lookback: {len(to_process)} files"
         )
 
-    # Update processed files state
-    if not to_process.empty:
-        new_files = set(to_process["file_path"])
-        updated_state = processed_files | new_files
-        save_processed_files(updated_state)
-        context.log.info(
-            f"Updated state: {len(updated_state)} total processed files")
-
     context.add_output_metadata({
         "row_count": len(to_process),
         "new_files": len(to_process),
@@ -155,3 +175,53 @@ def files_to_process(context: AssetExecutionContext, discovered_files: pd.DataFr
             context.log.info(f"  - [{row['source_type']}] {row['file_name']}")
 
     return to_process
+
+
+@asset_check(
+    asset="discovered_files",
+    name="dead_letter_queue_check",
+    description=(
+        "Alerts when the dead-letter folder contains files that failed processing."
+    ),
+    blocking=False,
+)
+def dead_letter_queue_check() -> AssetCheckResult:
+    """Fail if any files exist in the dead-letter queue."""
+    if not DEAD_LETTER_DIR.exists():
+        return AssetCheckResult(
+            passed=True,
+            severity=AssetCheckSeverity.WARN,
+            metadata={
+                "dead_letter_path": MetadataValue.path(str(DEAD_LETTER_DIR)),
+                "dead_letter_count": MetadataValue.text("0"),
+            },
+        )
+
+    dead_files = [
+        path for path in DEAD_LETTER_DIR.rglob("*")
+        if path.is_file()
+    ]
+    if not dead_files:
+        return AssetCheckResult(
+            passed=True,
+            severity=AssetCheckSeverity.WARN,
+            metadata={
+                "dead_letter_path": MetadataValue.path(str(DEAD_LETTER_DIR)),
+                "dead_letter_count": MetadataValue.text("0"),
+            },
+        )
+
+    sample_files = "\n".join(
+        str(path.relative_to(DEAD_LETTER_DIR))
+        for path in sorted(dead_files)[:20]
+    )
+
+    return AssetCheckResult(
+        passed=False,
+        severity=AssetCheckSeverity.ERROR,
+        metadata={
+            "dead_letter_path": MetadataValue.path(str(DEAD_LETTER_DIR)),
+            "dead_letter_count": MetadataValue.text(str(len(dead_files))),
+            "dead_letter_sample": MetadataValue.text(sample_files),
+        },
+    )

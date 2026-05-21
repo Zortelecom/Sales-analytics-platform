@@ -4,7 +4,15 @@ MODEL (
   cron '@daily',
   grain (salesperson_key),
   owner analytics_team,
-  storage_format 'parquet'
+  storage_format 'parquet',
+  audits (
+    -- Built-in: primary key integrity.
+    unique_values(columns := (salesperson_key)),
+    not_null(columns := (salesperson_key, salesperson_id)),
+
+    -- Custom: SCD window overlap check — see audits/*.
+    assert_no_overlapping_scd_windows
+  )
 );
 
 SELECT

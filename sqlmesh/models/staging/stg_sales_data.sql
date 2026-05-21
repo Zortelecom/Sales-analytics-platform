@@ -27,7 +27,9 @@ MODEL (
     -- would silently distort revenue and weight totals.
     accepted_range(column := quantity,     min_v := 0, inclusive := false, blocking := false),
     accepted_range(column := sales_amount, min_v := 0, inclusive := false, blocking := false),
-    accepted_range(column := unit_price,   min_v := 0, inclusive := false, blocking := false)
+    accepted_range(column := unit_price,   min_v := 0, inclusive := false, blocking := false),
+    
+    assert_sales_data_is_fresh
   )
 );
 
@@ -77,4 +79,5 @@ FROM raw.sales_data
 WHERE sale_date IS NOT NULL
   AND TRY_CAST(sale_date AS DATE) BETWEEN @start_date AND @end_date
   AND TRIM(sku) IS NOT NULL
-  AND TRIM(sku) != '';
+  AND TRIM(sku) != ''
+  AND (has_null_key = FALSE OR has_null_key IS NULL);

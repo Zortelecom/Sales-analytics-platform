@@ -19,8 +19,8 @@ dependencies = [
 dev = ["pytest", "black", "ruff"]
 
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["orchestration*"]
+where = [".."]
+include = ["orchestration*", "shared*"]
 
 [tool.dagster]
 module = "orchestration.definitions"

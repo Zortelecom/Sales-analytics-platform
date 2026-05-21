@@ -37,9 +37,11 @@ from orchestration.jobs.daily_pipeline import (
 )
 from orchestration.schedules.daily_schedule import daily_6am_schedule, midday_schedule
 from orchestration.sensors.file_sensor import new_file_sensor
+from orchestration.sensors.prod_promotion_sensor import prod_promotion_sensor
 from orchestration.sensors.sync_health_sensor import sync_health_sensor
 from orchestration.resources import DuckDBResource, DuckLakeResource, SQLMeshResource
 from orchestration.assets.data_quality import data_quality_full_report
+from orchestration.assets.file_discovery import dead_letter_queue_check
 from orchestration.utils.constants import get_serving_db_path
 from orchestration.config import PipelineConfig
 
@@ -81,6 +83,7 @@ defs = Definitions(
     assets=assets,
     asset_checks=[
         data_quality_full_report,
+        dead_letter_queue_check,
     ],
     jobs=[
         daily_pipeline_job,
@@ -95,6 +98,7 @@ defs = Definitions(
     sensors=[
         new_file_sensor,
         sync_health_sensor,
+        prod_promotion_sensor,
     ],
     resources={
         # ── DuckDB ──────────────────────────────────────────────────────────

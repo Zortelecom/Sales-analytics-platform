@@ -99,6 +99,10 @@ LEFT JOIN bi.dim_salesperson ds ON ft.salesperson_key = ds.salesperson_key;
 -- ---------------------------------------------------------------------------
 -- 3. MONTHLY KPI — core aggregation grain
 -- ---------------------------------------------------------------------------
+-- region excluded from join key: SCD changes split sales across regions
+-- but targets are salesperson-keyed only. Joining on region would orphan
+-- targets when a salesperson moves, producing duplicate rows.
+-- ---------------------------------------------------------------------------
 CREATE OR REPLACE VIEW v_monthly_kpi AS
 WITH sales_agg AS (
     SELECT
@@ -161,7 +165,6 @@ FROM sales_agg s
 FULL OUTER JOIN target_agg t
     ON  s.sale_year        = t.target_year
     AND s.sale_month       = t.target_month
-    AND s.region           = t.region
     AND s.salesperson_id   = t.salesperson_id
     AND s.product_category = t.product_category;
 
@@ -449,5 +452,3 @@ SELECT
     COUNT(sb.sales_line_id)    AS transaction_count
 FROM v_sales_base sb
 GROUP BY ALL;
-
--- Done — run: SELECT * FROM v_executive_summary LIMIT 5  to verify.

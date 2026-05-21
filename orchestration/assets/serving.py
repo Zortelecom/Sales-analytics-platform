@@ -27,7 +27,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-import pandas as pd
 from dagster import AssetExecutionContext, AssetIn, Failure, asset
 
 # ── project root on sys.path ────────────────────────────────────────────────
@@ -167,7 +166,7 @@ def _fire_background_exports(
 )
 def serving_database(
     context: AssetExecutionContext,
-    marts_validation: pd.DataFrame,
+    marts_validation: dict,
 ) -> dict:
     """
     1. Build ServingConfig (Quack or file-swap) from PipelineConfig.

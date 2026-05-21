@@ -180,48 +180,6 @@ class SeedWriter:
 
         return written_paths
 
-    def cleanup_old_seeds(self, keep_latest: int = 5):
-        """
-        Clean up old seed metadata files, keeping only the most recent.
-        Actual CSV seeds are kept (SQLMesh manages them).
-        
-        Args:
-            keep_latest: Number of latest metadata files to keep per seed
-        """
-        # Find all metadata files
-        metadata_files = sorted(self.seeds_dir.glob("*_metadata.txt"))
-
-        if len(metadata_files) <= keep_latest:
-            logger.debug(
-                "No cleanup needed: %s metadata files", len(metadata_files))
-            return
-
-        # Group by seed name
-        seeds_metadata = {}
-        for meta_file in metadata_files:
-            seed_name = meta_file.stem.replace('_metadata', '')
-            if seed_name not in seeds_metadata:
-                seeds_metadata[seed_name] = []
-            seeds_metadata[seed_name].append(meta_file)
-
-        # Keep only latest N for each seed
-        removed_count = 0
-        for seed_name, files in seeds_metadata.items():
-            if len(files) > keep_latest:
-                # Sort by modification time, keep newest
-                files_sorted = sorted(
-                    files, key=lambda f: f.stat().st_mtime, reverse=True)
-                to_remove = files_sorted[keep_latest:]
-
-                for file_to_remove in to_remove:
-                    file_to_remove.unlink()
-                    removed_count += 1
-                    logger.debug(
-                        "Removed old metadata: %s", file_to_remove.name)
-
-        if removed_count > 0:
-            logger.info("Cleaned up %s old metadata file(s)", removed_count)
-
     def get_seed_summary(self) -> Dict[str, Dict]:
         """
         Get summary of all seeds in the directory.

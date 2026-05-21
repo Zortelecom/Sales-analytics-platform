@@ -23,6 +23,7 @@ MODEL (
     assert_no_orphaned_salesperson,
     assert_no_orphaned_product,
     -- assert_no_orphaned_client,
+    assert_amount_is_integer_xaf,
 
     -- Custom: amount coherence check.
     assert_amount_matches_qty_x_price

@@ -20,16 +20,26 @@ Changes vs. previous version
 
 from pathlib import Path
 
+from shared.paths import (
+    ARCHIVE_DIR,
+    DATA_DIR,
+    INPUT_PATHS,
+    PROJECT_ROOT,
+    SQLMESH_SEEDS_DIR,
+    WAREHOUSE_DIR,
+)
 
-# ── Project root (three levels up from this file) ─────────────────────────
-PROJECT_ROOT = Path(__file__).parent.parent.parent.resolve()
+
+# ── Project root (root package anchor) ─────────────────────────────────────
+# Shared path definitions are centralized in shared.paths so ingestion and
+# orchestration stay aligned on the filesystem layout.
 
 
 # ── Sub-project roots ──────────────────────────────────────────────────────
 INGESTION_ROOT = PROJECT_ROOT / "ingestion"
 SQLMESH_ROOT   = PROJECT_ROOT / "sqlmesh"
 SERVING_ROOT   = PROJECT_ROOT / "serving"
-DATA_ROOT      = PROJECT_ROOT / "data"
+DATA_ROOT      = DATA_DIR
 
 
 # ── Input & source directories ─────────────────────────────────────────────
@@ -39,20 +49,15 @@ SOURCE_PATHS = {
     "references": DATA_ROOT / "source" / "references",
 }
 
-INPUT_PATHS = {
-    "sales":      DATA_ROOT / "input" / "sales",
-    "targets":    DATA_ROOT / "input" / "targets",
-    "references": DATA_ROOT / "input" / "references",
-}
+# Shared input paths derived from the canonical project layout.
 
 
 # ── SQLMesh paths ──────────────────────────────────────────────────────────
-SEEDS_DIR     = SQLMESH_ROOT / "seeds"
-SQLMESH_STATE = DATA_ROOT / "sqlmesh_state.db"
+SEEDS_DIR     = SQLMESH_SEEDS_DIR
+SQLMESH_STATE = SQLMESH_ROOT / "sqlmesh_state.db"
 
 
 # ── Warehouse ──────────────────────────────────────────────────────────────
-WAREHOUSE_DIR        = DATA_ROOT / "warehouse"
 DUCKLAKE_PATH        = WAREHOUSE_DIR / "catalog.ducklake"
 DUCKLAKE_CONN_STRING = f"ducklake:{DUCKLAKE_PATH}"
 PARQUET_STORAGE_DIR  = WAREHOUSE_DIR / "parquet_storage"
@@ -86,7 +91,10 @@ QUALITY_REPORTS_DIR = EXPORTS_DIR / "quality_reports"
 
 
 # ── Archive ────────────────────────────────────────────────────────────────
-ARCHIVE_DIR = DATA_ROOT / "archive"
+
+
+# ── Dead-letter queue (failed file processing) ─────────────────────────────
+DEAD_LETTER_DIR = DATA_ROOT / "dead_letter"
 
 
 # ── Pipeline state ─────────────────────────────────────────────────────────

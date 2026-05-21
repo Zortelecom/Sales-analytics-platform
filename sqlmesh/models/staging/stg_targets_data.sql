@@ -29,7 +29,10 @@ SELECT
   target_line_id,
   
   -- Parse month_year (format: YYYY-MM-01)
-  TRY_CAST(month_year AS DATE)            AS target_month,
+  COALESCE(TRY_CAST(month_year AS DATE), 
+    TRY_STRPTIME(month_year, '%m/%Y'), T
+    RY_STRPTIME(month_year, '%b-%Y')
+  )::DATE AS target_month,
   
   TRIM(salesperson_id)                    AS salesperson_id,
   TRIM(product_category)                  AS product_category,

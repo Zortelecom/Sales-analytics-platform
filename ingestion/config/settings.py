@@ -16,31 +16,14 @@ from dataclasses import dataclass
 from typing import Dict
 import yaml
 
-
-# ── Project roots ──────────────────────────────────────────────────────────
-# ingestion/config/settings.py  →  ingestion/config  →  ingestion  →  root
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-DATA_DIR     = PROJECT_ROOT / "data"
-
-# ── Input directories (source → preprocessed landing zone) ────────────────
-INPUT_SALES_DIR       = DATA_DIR / "input" / "sales"
-INPUT_TARGETS_DIR     = DATA_DIR / "input" / "targets"
-INPUT_REFERENCES_DIR  = DATA_DIR / "input" / "references"
-
-# Structured dict used by extractors and file_discovery.
-# Keys must match the source_type strings used throughout the pipeline.
-INPUT_PATHS = {
-    "sales":      INPUT_SALES_DIR,
-    "targets":    INPUT_TARGETS_DIR,
-    "references": INPUT_REFERENCES_DIR,
-}
-
-# ── Downstream directories ─────────────────────────────────────────────────
-ARCHIVE_DIR        = DATA_DIR / "archive"
-DEAD_LETTER_DIR    = DATA_DIR / "dead_letter"   # corrupt / unprocessable files
-WAREHOUSE_DIR      = DATA_DIR / "warehouse"
-SQLMESH_DIR        = PROJECT_ROOT / "sqlmesh"
-SQLMESH_SEEDS_DIR  = SQLMESH_DIR / "seeds"
+from shared.paths import (
+    ARCHIVE_DIR,
+    DATA_DIR,
+    INPUT_PATHS,
+    PROJECT_ROOT,
+    SQLMESH_SEEDS_DIR,
+    WAREHOUSE_DIR,
+)
 
 # ── DuckLake / serving ─────────────────────────────────────────────────────
 COMPUTE_DB_PATH      = WAREHOUSE_DIR / "ducklake.db"
