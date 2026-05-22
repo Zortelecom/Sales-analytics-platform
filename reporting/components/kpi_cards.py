@@ -99,8 +99,10 @@ def render_kpi_row(kpis: list[dict]) -> None:
     """
     Render a row of KPI cards.
     Each dict: {title, value, subtitle?, delta?, delta_positive?, accent_color?, icon?}
+    Capped at 4 columns to prevent overflow on narrow viewports (§3.5).
     """
-    cols = st.columns(len(kpis))
+    n = min(len(kpis), 4)
+    cols = st.columns(n)
     for col, kpi in zip(cols, kpis):
         with col:
             kpi_card(
@@ -112,6 +114,9 @@ def render_kpi_row(kpis: list[dict]) -> None:
                 accent_color=kpi.get("accent_color", COLORS["accent"]),
                 icon=kpi.get("icon", ""),
             )
+    # If >4 KPIs, wrap to a second row
+    if len(kpis) > 4:
+        render_kpi_row(kpis[4:])
 
 
 def render_section_header(title: str, subtitle: str = "") -> None:
@@ -126,6 +131,31 @@ def render_section_header(title: str, subtitle: str = "") -> None:
             <h3 style="color:{COLORS['text_primary']}; font-size:1.05rem;
                        font-weight:600; margin:0; letter-spacing:0.01em;">{title}</h3>
             {sub_html}
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_page_header(title: str, period_label: str, meeting_type: str) -> None:
+    """Standardised page header used by all reporting pages (§5.2)."""
+    st.markdown(
+        f"""
+        <div style="display:flex; align-items:center; justify-content:space-between;
+                    margin-bottom:1.2rem; border-bottom:1px solid {COLORS['border']};
+                    padding-bottom:0.8rem;">
+            <div>
+                <h1 style="margin:0; font-size:1.6rem; font-weight:700;
+                           color:{COLORS['text_primary']};">{html.escape(title)}</h1>
+                <p style="margin:0; color:{COLORS['text_secondary']}; font-size:0.85rem;">
+                    {html.escape(period_label)} &nbsp;·&nbsp; {html.escape(meeting_type)} Report
+                </p>
+            </div>
+            <div style="background:{COLORS['bg_card']}; border:1px solid {COLORS['border']};
+                        border-radius:6px; padding:0.4rem 0.9rem; font-size:0.78rem;
+                        color:{COLORS['text_secondary']};">
+                📅 {html.escape(meeting_type.upper())} MEETING
+            </div>
         </div>
         """,
         unsafe_allow_html=True,

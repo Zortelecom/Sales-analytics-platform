@@ -8,7 +8,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 import streamlit as st
 from reporting.config import COLORS
-from reporting.utils.formatters import fmt_currency, fmt_pct, month_name
+from reporting.utils.formatters import fmt_currency, fmt_pct, month_name, achievement_color
 
 
 # ---------------------------------------------------------------------------
@@ -140,7 +140,7 @@ def horizontal_bar_chart(df: pd.DataFrame,
     bar_colors = [COLORS["accent"]] * len(df)
     if color_col and color_col in df.columns:
         bar_colors = [
-            achievement_color_from_pct(p) for p in df[color_col]
+            achievement_color(p) for p in df[color_col]
         ]
 
     fig = go.Figure(go.Bar(
@@ -151,25 +151,18 @@ def horizontal_bar_chart(df: pd.DataFrame,
         marker_line_width=0,
         hovertemplate=f"%{{y}}<br>{x_col.replace('_',' ').title()}: %{{x:,.0f}}<extra></extra>",
         text=[fmt_currency(v, short=True) for v in df[x_col]],
-        textposition="outside",  # This might be causing clipping
+        textposition="outside",
         textfont=dict(color=COLORS["text_secondary"], size=10),
-        # Add cliponaxis=False to prevent text clipping
         cliponaxis=False,
     ))
     
-    # Adjust margins to accommodate outside labels
     fig.update_layout(
-        margin=dict(l=8, r=80, t=32, b=8),  # Increased right margin
+        margin=dict(l=8, r=80, t=32, b=8),
     )
     
     _apply_base(fig, title, height)
     fig.update_layout(yaxis=dict(tickfont=dict(size=10)))
     st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
-
-
-def achievement_color_from_pct(pct) -> str:
-    from reporting.utils.formatters import achievement_color
-    return achievement_color(pct)
 
 
 # ---------------------------------------------------------------------------
@@ -206,7 +199,12 @@ def trend_line_chart(df: pd.DataFrame,
 
 
 def _hex_to_rgb(hex_color: str) -> str:
+    """Convert hex colour to comma-separated RGB. Handles 3-digit shorthand."""
     h = hex_color.lstrip("#")
+    if len(h) == 3:
+        h = "".join(c * 2 for c in h)
+    if len(h) != 6:
+        return "128,128,128"  # safe fallback
     return ",".join(str(int(h[i:i+2], 16)) for i in (0, 2, 4))
 
 

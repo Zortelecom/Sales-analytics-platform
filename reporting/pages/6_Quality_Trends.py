@@ -4,6 +4,11 @@ Query bi.quality_trend to see how each audit behaves over time.
 """
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+import reporting._bootstrap  # noqa: F401
+
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
@@ -11,17 +16,13 @@ from datetime import datetime, timedelta
 from reporting.config import COLORS, DB_SCHEMA
 from reporting.utils.db import query
 from reporting.utils.formatters import fmt_number, fmt_pct, achievement_color
+from reporting.components.kpi_cards import render_page_header
 
-
-st.set_page_config(page_title="Quality Trends", page_icon="🔍", layout="wide")
 
 # ---------------------------------------------------------------------------
 # Header
 # ---------------------------------------------------------------------------
-st.markdown(
-    f'<h1 style="color:{COLORS["text_primary"]}; margin-bottom:0;">🔍 Data Quality Trends</h1>',
-    unsafe_allow_html=True,
-)
+render_page_header("Data Quality Trends", "Audit failure tracking over time", "")
 st.markdown(
     f'<p style="color:{COLORS["text_secondary"]}; margin-top:0;">'
     f"Did <code>orphaned_products</code> failures increase this week?  "
@@ -45,7 +46,8 @@ with st.sidebar:
     end_date = st.date_input("To", today, key="qt_end")
 
     # Audit picker (populated from the table itself)
-    audit_df = query(f"SELECT DISTINCT audit FROM {DB_SCHEMA}.quality_trend ORDER BY audit")
+    with st.spinner("Loading audit list…"):
+        audit_df = query(f"SELECT DISTINCT audit FROM {DB_SCHEMA}.quality_trend ORDER BY audit")
     all_audits = audit_df.iloc[:, 0].tolist() if not audit_df.empty else []
     selected_audits = st.multiselect(
         "Audits", all_audits, default=all_audits, key="qt_audits"
@@ -76,7 +78,8 @@ sql = f"""
     {where}
     ORDER BY run_at DESC, audit
 """
-df = query(sql, tuple(params))
+with st.spinner("Loading quality trend data…"):
+    df = query(sql, tuple(params))
 
 if df.empty:
     st.info("No quality trend data found. Run the **data_quality_full_report** asset check first.")
@@ -181,5 +184,6 @@ summary_sql = f"""
     GROUP BY audit
     ORDER BY total_failing_rows DESC
 """
-summary_df = query(summary_sql, tuple(params))
+with st.spinner("Loading audit summary…"):
+    summary_df = query(summary_sql, tuple(params))
 st.dataframe(summary_df, use_container_width=True)

@@ -6,7 +6,7 @@ from __future__ import annotations
 import streamlit as st
 from datetime import date
 from reporting.utils.db import available_years, available_months, available_regions, available_channels, available_categories
-from reporting.config import MEETING_TYPES, COLORS
+from reporting.config import MEETING_TYPES, DEFAULT_MEETING_TYPE, COLORS
 import calendar
 
 
@@ -41,19 +41,20 @@ def render_sidebar_filters(show_month: bool = True,
         )
 
         st.markdown(
-            f'<div style="text-align:center; padding: 1rem 0;">'
-            f'<span style="font-size:1.8rem;">📊</span><br>'
-            f'<span style="color:#F59E0B; font-weight:700; font-size:1rem; letter-spacing:0.05em;">SALES ANALYTICS</span>'
-            f'</div>',
+            '<div style="text-align:center; padding: 1rem 0;">'
+            '<span style="font-size:1.8rem;">📊</span><br>'
+            '<span style="color:#F59E0B; font-weight:700; font-size:1rem; letter-spacing:0.05em;">SALES ANALYTICS</span>'
+            '</div>',
             unsafe_allow_html=True,
         )
 
         st.markdown("---")
 
-        # Meeting type selector
+        # Meeting type selector — now honours DEFAULT_MEETING_TYPE (§4.5)
         meeting_type = st.radio(
             "Meeting Mode",
             MEETING_TYPES,
+            index=MEETING_TYPES.index(DEFAULT_MEETING_TYPE),
             horizontal=False,
             key="meeting_type",
         )
@@ -74,13 +75,13 @@ def render_sidebar_filters(show_month: bool = True,
 
         year = st.selectbox("Year", years, index=default_year_idx, key="filter_year")
 
-        # Month (contextual)
+        # Month (contextual) — available_months extracted once (§3.2)
         selected_month = None
         selected_quarter = None
         selected_months: list[int] = []
+        months = available_months(year)  # single call, reused below
 
         if meeting_type == "Weekly":
-            months = available_months(year)
             month_labels = [f"{MONTH_NAMES[m]} {year}" for m in months]
             current_month = date.today().month
             default_m_idx = 0
@@ -91,7 +92,6 @@ def render_sidebar_filters(show_month: bool = True,
             selected_months = [selected_month]
 
         elif meeting_type == "Monthly":
-            months = available_months(year)
             month_labels = [MONTH_NAMES[m] for m in months]
             current_month = date.today().month
             default_m_idx = 0
@@ -142,9 +142,13 @@ def render_sidebar_filters(show_month: bool = True,
             )
 
         st.markdown("---")
+        # Data freshness footer (§4.1)
+        from reporting.utils.db import data_freshness
+        fresh = data_freshness()
+        fresh_text = f"Last sale: {fresh}" if fresh else "No data"
         st.markdown(
             f'<p style="color:#374151; font-size:0.65rem; text-align:center;">'
-            f'Data refreshes every 5 min</p>',
+            f'{fresh_text}<br>Data refreshes every 5 min</p>',
             unsafe_allow_html=True,
         )
 

@@ -3,18 +3,10 @@ reporting/pages/1_Executive_Overview.py
 Executive Overview — top-level KPIs, achievement gauge, YoY trend.
 Suitable for: Weekly briefing banner, Monthly/Quarterly/Annual reviews.
 
-Fixes applied:
-  - sys.path.insert restored before bootstrap import (both are required: insert
-    makes 'reporting' importable; _bootstrap provides idempotency for other entry points)
-  - get_executive_kpis now receives regions + channels so KPI cards
-    reflect the same scope as the trend chart below them
-  - _delta: uses _is_null() before `or 0` coercion so a genuine None
-    prior-year value shows "—" instead of silently suppressing the delta
+
 """
 import sys
 from pathlib import Path
-# Add project root to sys.path so the 'reporting' package is importable,
-# then import _bootstrap which keeps it idempotent for other entry points.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 import reporting._bootstrap  # noqa: F401
 
@@ -30,7 +22,7 @@ from reporting.utils.queries import (
     get_top_regions,
     get_category_performance,
 )
-from reporting.components.kpi_cards import render_kpi_row, render_section_header, kpi_card
+from reporting.components.kpi_cards import render_kpi_row, render_section_header, render_page_header
 from reporting.components.charts import (
     revenue_vs_target_chart,
     achievement_gauge,
@@ -59,37 +51,17 @@ period_label = (
     f"Full Year {year}"
 )
 
-st.markdown(
-    f"""
-    <div style="display:flex; align-items:center; justify-content:space-between;
-                margin-bottom:1.2rem; border-bottom:1px solid {COLORS['border']};
-                padding-bottom:0.8rem;">
-        <div>
-            <h1 style="margin:0; font-size:1.6rem; font-weight:700;
-                       color:{COLORS['text_primary']};">Executive Overview</h1>
-            <p style="margin:0; color:{COLORS['text_secondary']}; font-size:0.85rem;">
-                {period_label} &nbsp;·&nbsp; {mt} Report
-            </p>
-        </div>
-        <div style="background:{COLORS['bg_card']}; border:1px solid {COLORS['border']};
-                    border-radius:6px; padding:0.4rem 0.9rem; font-size:0.78rem;
-                    color:{COLORS['text_secondary']};">
-            📅 {mt.upper()} MEETING
-        </div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+render_page_header("Executive Overview", period_label, mt)
 
 
 # ---- KPI Data --------------------------------------------------------------
-# Both current-year and prior-year queries receive the same scope filters so
-# KPI cards and the trend chart reflect a consistent view of the data.
-kpi_df = get_executive_kpis(year, month, regions, channels)
-kpi    = kpi_df.iloc[0] if not kpi_df.empty else {}
+with st.spinner("Loading KPIs…"):
+    kpi_df = get_executive_kpis(year, month, regions, channels)
+    kpi    = kpi_df.iloc[0] if not kpi_df.empty else {}
 
-kpi_py_df = get_executive_kpis(year - 1, month, regions, channels)
-kpi_py    = kpi_py_df.iloc[0] if not kpi_py_df.empty else {}
+with st.spinner("Loading prior-year comparison…"):
+    kpi_py_df = get_executive_kpis(year - 1, month, regions, channels)
+    kpi_py    = kpi_py_df.iloc[0] if not kpi_py_df.empty else {}
 
 
 def _delta(key: str) -> tuple[str, bool]:
@@ -175,7 +147,8 @@ with col_gauge:
     st.markdown('<div class="spacer-sm"></div>', unsafe_allow_html=True)
 
 with col_trend:
-    trend_df = get_monthly_trend(year, regions, channels)
+    with st.spinner("Loading monthly trend…"):
+        trend_df = get_monthly_trend(year, regions, channels)
     revenue_vs_target_chart(
         trend_df,
         x_col="month",
@@ -194,7 +167,8 @@ render_section_header("Year-over-Year Comparison",
 col_yoy, col_cat = st.columns([3, 2])
 
 with col_yoy:
-    yoy_df = get_ytd_vs_prior_year(year)
+    with st.spinner("Loading YoY data…"):
+        yoy_df = get_ytd_vs_prior_year(year)
     trend_line_chart(
         yoy_df,
         x_col="month",
@@ -207,7 +181,8 @@ with col_yoy:
     )
 
 with col_cat:
-    cat_df = get_category_performance(year, month)
+    with st.spinner("Loading category breakdown…"):
+        cat_df = get_category_performance(year, month, region=None, channels=channels)
     donut_chart(
         cat_df,
         label_col="product_category",
@@ -224,8 +199,10 @@ render_section_header("Regional Snapshot", "Top performing regions this period")
 
 col_bar, col_tbl = st.columns([3, 2])
 
+with st.spinner("Loading regional data…"):
+    top_reg = get_top_regions(year, month, channels=channels, limit=10)
+
 with col_bar:
-    top_reg = get_top_regions(year, month, limit=10)
     if not top_reg.empty:
         horizontal_bar_chart(
             top_reg.sort_values("revenue"),
@@ -241,7 +218,7 @@ with col_bar:
 
 with col_tbl:
     render_ranking_table(
-        get_top_regions(year, month, limit=10),
+        top_reg,
         name_col="region",
         title="Regional Ranking",
         rank_col=True,

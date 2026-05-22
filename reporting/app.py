@@ -146,6 +146,8 @@ pages = [
     st.Page("pages/3_Salesforce_Performance.py", title="Salesforce Performance", icon="👥"),
     st.Page("pages/4_Product_Performance.py",  title="Product Performance",     icon="📦"),
     st.Page("pages/5_Time_Intelligence.py",    title="Time Intelligence",       icon="⏱️"),
+    st.Page("pages/6_Quality_Trends.py",       title="Data Quality",            icon="🔍"),
+    st.Page("pages/7_Ask_Data.py", title="Ask Your Data", icon="💬"),
 ]
 
 pg = st.navigation(pages)

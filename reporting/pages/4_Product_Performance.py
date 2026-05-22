@@ -2,17 +2,9 @@
 reporting/pages/4_Product_Performance.py
 Product Performance — Category, subcategory, SKU ranking, and Innovation spotlight.
 
-Fixes applied:
-  - sys.path.insert restored before bootstrap import (both are required: insert
-    makes 'reporting' importable; _bootstrap provides idempotency for other entry points)
-  - Inline SQL for cat_trend moved to queries.get_category_monthly_trend()
-  - Category filter now works correctly: get_category_performance no longer
-    applies UPPER(), so case matches between the selectbox and the filter param
 """
 import sys
 from pathlib import Path
-# Add project root to sys.path so the 'reporting' package is importable,
-# then import _bootstrap which keeps it idempotent for other entry points.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 import reporting._bootstrap  # noqa: F401
 
@@ -29,7 +21,7 @@ from reporting.utils.queries import (
     get_innovation_trend,
     get_category_monthly_trend,
 )
-from reporting.components.kpi_cards import render_kpi_row, render_section_header, kpi_card
+from reporting.components.kpi_cards import render_kpi_row, render_section_header, render_page_header
 from reporting.components.charts import (
     donut_chart,
     horizontal_bar_chart,
@@ -55,28 +47,14 @@ period_label = (
 region_arg = regions[0] if (regions and len(regions) == 1) else None
 cat_arg    = categories[0] if (categories and len(categories) == 1) else None
 
-# ---- Page Header -----------------------------------------------------------
-st.markdown(
-    f"""
-    <div style="display:flex; align-items:center; justify-content:space-between;
-                margin-bottom:1.2rem; border-bottom:1px solid {COLORS['border']};
-                padding-bottom:0.8rem;">
-        <div>
-            <h1 style="margin:0; font-size:1.6rem; font-weight:700;">Product Performance</h1>
-            <p style="margin:0; color:{COLORS['text_secondary']}; font-size:0.85rem;">
-                {period_label} &nbsp;·&nbsp; {mt} Report
-            </p>
-        </div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+render_page_header("Product Performance", period_label, mt)
 
 
 # ---- Data ------------------------------------------------------------------
-cat_df   = get_category_performance(year, month, region_arg)
-prod_df  = get_product_ranking(year, month, cat_arg, region_arg, limit=30)
-innov_df = get_innovation_performance(year, month)
+with st.spinner("Loading product data…"):
+    cat_df   = get_category_performance(year, month, region_arg)
+    prod_df  = get_product_ranking(year, month, cat_arg, region_arg, limit=30)
+    innov_df = get_innovation_performance(year, month)
 
 if cat_df.empty:
     st.warning("No product data for the selected period.")
@@ -87,7 +65,6 @@ total_tgt = cat_df["target"].sum()
 total_ach = round(total_rev / total_tgt * 100, 2) if total_tgt > 0 else None
 top_cat   = cat_df.iloc[0] if not cat_df.empty else {}
 
-# Innovation split
 innov_rev   = innov_df[innov_df["is_innovation_product"] == True]["revenue"].sum() if not innov_df.empty else 0
 innov_share = round(innov_rev / total_rev * 100, 1) if total_rev > 0 else None
 
@@ -149,13 +126,12 @@ with tab1:
 
 # ====== TAB 2: Product Ranking ==============================================
 with tab2:
-    # Category list comes from get_category_performance which no longer applies
-    # UPPER(), so case matches the values stored in v_sales_base.
     all_cats = ["All Categories"] + cat_df["product_category"].tolist()
     sel_cat  = st.selectbox("Filter by Category", all_cats, key="prod_cat_filter")
 
     cat_filter    = None if sel_cat == "All Categories" else sel_cat
-    filtered_prod = get_product_ranking(year, month, cat_filter, region_arg, limit=30)
+    with st.spinner("Loading product ranking…"):
+        filtered_prod = get_product_ranking(year, month, cat_filter, region_arg, limit=30)
 
     if filtered_prod.empty:
         st.info("No product data.")
@@ -283,7 +259,6 @@ with tab4:
     st.markdown('<div class="spacer-sm"></div>', unsafe_allow_html=True)
     render_section_header("Category Monthly Trend")
 
-    # Inline SQL extracted to queries.get_category_monthly_trend()
     cat_trend = get_category_monthly_trend(year)
 
     if not cat_trend.empty:

@@ -1,6 +1,6 @@
 # 🏗️ Sales Analytics Platform
 
-&gt; **A production-grade, local-first data pipeline** that transforms raw Excel sales reports into analytics-ready datasets using Medallion architecture, SQLMesh, and DuckDB.
+> **A production-grade, local-first data pipeline** that transforms raw Excel sales reports into analytics-ready datasets using Medallion architecture, SQLMesh, and DuckDB.
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/)
 [![DuckDB](https://img.shields.io/badge/DuckDB-OLAP-yellow)](https://duckdb.org/)
@@ -8,6 +8,7 @@
 [![Ducklake](https://img.shields.io/badge/Ducklake-Lakehouse-orange)](https://ducklake.select/)
 [![Dagster](https://img.shields.io/badge/Dagster-Orchestration-purple)](https://dagster.io/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-Reporting-red)](https://streamlit.io/)
+[![pytest](https://img.shields.io/badge/pytest-tested-brightgreen)](https://docs.pytest.org/)
 
 ---
 
@@ -29,13 +30,14 @@ and powers Streamlit and Power BI dashboards.
 | Feature | Implementation |
 |---|---|
 | **Medallion Architecture** | Bronze (raw seeds) → Silver (staging) → Gold (marts) |
-| **Data Quality Gates** | 10+ audits: uniqueness, referential integrity, amount coherence (`qty × price` within 1%) |
-| **SCD-Aware Dimensions** | Slowly Changing Dimension logic for clients, products, and salespeople |
-| **DuckLake Storage** | Parquet-backed models with environment namespacing (`dev`/`prod`) |
+| **Data Quality Gates** | 10+ audits: uniqueness, referential integrity, null-key flagging, XAF integer amounts, SCD window overlap, data freshness SLA |
+| **SCD-Aware Dimensions** | Slowly Changing Dimension Type 2 logic for clients, products, and salespeople |
+| **DuckLake Storage** | Parquet-backed models with environment namespacing (`dev` / `prod`) |
 | **Orchestrated DAG** | Dagster assets with file sensors, daily schedules, and asset checks |
-| **BI-Ready Serving** | Decoupled DuckDB (`serving.db`) for Streamlit + external tools |
-| **Quack Protocol** | Optional client-server mode: zero BI downtime, concurrent connections (DuckDB ≥ v1.5.2) |
+| **BI-Ready Serving** | Decoupled DuckDB (`serving_<env>.db`) for Streamlit + external tools |
+| **Quack Protocol** | Optional client-server mode: zero BI downtime, concurrent connections (DuckDB ≥ v1.5.2, beta) |
 | **Export Services** | Async, event-triggered CSV and Parquet exports — optional, independently toggled |
+| **Dead-Letter Handling** | Corrupt or unprocessable files are moved to `data/dead_letter/` instead of blocking future runs |
 | **Local-First** | Zero cloud dependencies; runs entirely on your machine |
 
 ---
@@ -45,62 +47,77 @@ and powers Streamlit and Power BI dashboards.
 ```
 sales-analytics-platform/
 ├── ingestion/              # Data extraction layer
-│   ├── config/             # Settings and source definitions
-│   ├── extract/            # Extractor classes (sales, targets, references)
-│   ├── load/               # CSV seed writer
-│   └── orchestrate/        # File discovery, movement, preprocessing, archival
+│   ├── config/             # settings.py (absolute paths), sources.yaml
+│   ├── extract/            # BaseExcelExtractor, SalesExtractor, TargetExtractor, ReferenceExtractor
+│   ├── load/               # SeedWriter — writes CSV seeds + metadata
+│   └── orchestrate/        # FileDiscovery, ExcelPreprocessor, ArchiveManager
 │
 ├── sqlmesh/                # Transformation layer
-│   ├── seeds/              # CSV files written by ingestion
+│   ├── seeds/              # CSV files written by ingestion (gitignored)
 │   ├── models/
 │   │   ├── raw/            # Bronze: seed-loading models
-│   │   ├── staging/        # Silver: cleaning & normalization
+│   │   ├── staging/        # Silver: type casting, null handling, deduplication
 │   │   └── marts/
 │   │       ├── dimensions/ # dim_clientsd, dim_date, dim_salesperson, dim_products
-│   │       ├── facts/      # fact_sales, f_targets
-│   │       └── reports/    # rep_weekly_meeting, rep_top_products
-│   ├── audits/             # Standalone custom audit definitions
-│   │   │                   # One AUDIT block per file (SQLMesh requirement).
-│   │   │                   # Each returns failing rows, not a count.
-│   │   │                   # Referenced by name in model audits() blocks.
-│   │   ├── assert_no_orphaned_salesperson.sql   # NULL salesperson_key after SCD join
-│   │   ├── assert_no_orphaned_product.sql        # NULL product_key after SCD join
-│   │   ├── assert_no_orphaned_client.sql         # NULL clientsd_key after SCD join
-│   │   └── assert_amount_matches_qty_x_price.sql # amount deviates >1% from qty×price
-│   ├── macros/             # Reusable SQL logic
+│   │       ├── facts/      # fact_sales, fact_targets
+│   │       └── reports/    # rep_weekly_meeting, rep_top_products, rep_target_attainment
+│   ├── audits/             # One AUDIT block per file — each returns failing rows
+│   │   ├── assert_no_orphaned_salesperson.sql
+│   │   ├── assert_no_orphaned_product.sql
+│   │   ├── assert_no_orphaned_client.sql
+│   │   ├── assert_amount_matches_qty_x_price.sql
+│   │   ├── assert_no_overlapping_scd_windows.sql
+│   │   ├── assert_amount_is_integer_xaf.sql
+│   │   └── assert_sales_data_is_fresh.sql
+│   ├── macros/             # clean_currency.sql (XAF formatting)
 │   └── tests/              # SQLMesh YAML unit tests
 │
 ├── data/                   # Local data storage (gitignored)
-│   ├── input/              # Source Excel files (sales/, targets/, References/)
-│   ├── archive/            # Processed Excel files (batch_YYYYMMDD_HHMMSS/)
-│   ├── warehouse/          # DuckLake catalog + serving DB + Parquet storage
-│   ├── exports/            # CSV and Parquet exports (dev/ and prod/)
-│   └── sqlmesh_state.db    # SQLMesh run state
+│   ├── source/             # Synced from SharePoint / local share (read-only)
+│   ├── input/              # Preprocessed Excel files ready for extraction
+│   ├── archive/            # Processed files, batched as batch_YYYYMMDD_HHMMSS/
+│   ├── dead_letter/        # Corrupt or unprocessable files — investigate and remove
+│   ├── warehouse/          # DuckLake catalog + serving DBs + Parquet storage
+│   └── exports/            # CSV and Parquet exports (csv/<env>/, parquet/<env>/)
 │
 ├── serving/                # Serving layer
-│   ├── sync.py             # Sync marts → serving.db (file-swap or Quack)
+│   ├── sync.py             # ServingLayerSync (file-swap or Quack), QuackServer
 │   ├── config.py           # ServingConfig, QuackConfig, ExportConfig
-│   ├── cli.py              # CLI interface (sync, serve, export, validate, stats)
-│   ├── export/             # Export services (async, event-triggered, optional)
-│   │   ├── events.py       # SyncCompletedEvent dataclass
+│   ├── cli.py              # CLI: sync, serve, export, validate, stats
+│   ├── export/             # Async, event-triggered export services
+│   │   ├── events.py           # SyncCompletedEvent
 │   │   ├── base_exporter.py    # BaseExporter ABC + ExportResult
-│   │   ├── csv_exporter.py     # CsvExporter — for Excel, Power Query, etc.
-│   │   ├── parquet_exporter.py # ParquetExporter — for analytics, data science
-│   │   ├── event_bus.py    # ExportEventBus (publish_and_wait / publish_background)
+│   │   ├── csv_exporter.py     # CsvExporter
+│   │   ├── parquet_exporter.py # ParquetExporter
+│   │   ├── event_bus.py        # ExportEventBus (publish_and_wait / publish_background)
 │   │   └── __init__.py
-│   └── templates/          # BI-friendly view definitions (bi_views.sql)
+│   └── templates/          # bi_views.sql — 13 BI-ready views
 │
 ├── orchestration/          # Dagster pipeline
-│   ├── assets/             # file_discovery, preprocessing, ingestion, transformation, serving
-│   ├── jobs/               # daily_pipeline
-│   ├── schedules/          # 6 AM daily schedule
-│   ├── sensors/            # File-arrival trigger
-│   └── resources/          # DuckDB and SQLMesh resources
+│   ├── assets/             # file_discovery, preprocessing, ingestion, transformation, serving, data_quality
+│   ├── config.py           # PipelineConfig (typed env-var schema via Pydantic BaseSettings)
+│   ├── jobs/               # daily_pipeline, ingestion_only, transformation_only, serving_only
+│   ├── schedules/          # 6 AM daily, midday
+│   ├── sensors/            # new_file_sensor, sync_health_sensor, prod_promotion_sensor
+│   └── resources/          # DuckDBResource, DuckLakeResource, SQLMeshResource, QuackResource
 │
-└── reporting/              # Streamlit dashboards
-    ├── pages/              # Executive, Regional, Salesforce, Product, Time Intelligence
-    ├── utils/              # DB connection, queries, formatters, filters
-    └── Components/         # KPI cards, charts, ranking tables
+├── shared/                 # Shared path constants (imported by both ingestion and orchestration)
+│   └── paths.py
+│
+├── tests/                  # pytest suite
+│   ├── ingestion/          # Unit tests for extractors, preprocessor, seed writer
+│   ├── serving/            # Integration test against fixture DuckLake
+│   ├── orchestration/      # Unit tests for constants, serving helpers, data quality
+│   └── fixtures/           # Minimal DuckLake catalog + seed CSV files for CI
+│
+├── reporting/              # Streamlit dashboards
+│   ├── pages/              # Executive, Regional, Salesforce, Product, Time Intelligence
+│   ├── utils/              # DB connection, queries, formatters, filters
+│   └── Components/         # KPI cards, charts, ranking tables
+│
+├── .env.example            # All environment variables with types and defaults
+├── COLD_START.md           # Fresh-clone procedure (SQLMesh state, first plan)
+└── sqlmesh_state.db        # SQLMesh run state (outside data/ so it survives git clone)
 ```
 
 ---
@@ -111,19 +128,35 @@ sales-analytics-platform/
 
 Handles everything from raw Excel files to CSV seeds.
 
-- **Orchestrate**: `file_discovery.py` scans `data/input/` for new files; `file_mover.py` copies them with validation; `excel_preprocessor.py` strips unwanted sheets from `ExSD-*.xlsx` files; `archive_manager.py` moves processed files to `data/archive/batch_YYYYMMDD_HHMMSS/`
-- **Extract**: Typed extractor classes (`sales_extractor`, `target_extractor`, `reference_extractor`) parse each Excel file against expected schemas
-- **Load**: `seed_writer.py` writes cleaned data to `sqlmesh/seeds/*.csv` and companion `*_metadata.txt` tracking files
+**Orchestrate**
+
+- `file_discovery.py` — scans source directories using UTC-aware timestamps; builds a processing manifest with per-file preprocessing rules
+- `excel_preprocessor.py` — strips `Synthese *` sheets from `ExSD-*.xlsx` files with retry logic on locked files; failed files move to `data/dead_letter/`
+- `archive_manager.py` — copies processed files to `data/archive/batch_<pipeline_batch_id>/` using the same `batch_id` as the seed metadata
+
+**Extract**
+
+Typed extractor classes parse each Excel file against expected schemas. All raw rows are preserved — null-key rows (missing `sale_date` or `sku`) are flagged with `has_null_key = True` rather than dropped silently. Filtering belongs in the staging layer where it is auditable.
+
+**Load**
+
+`seed_writer.py` writes cleaned data to `sqlmesh/seeds/*.csv` with companion `*_metadata.txt` tracking files.
 
 **Seeds produced:**
 
-| Seed File | Source |
-|---|---|
-| `sales_data.csv` | Sales Excel files |
-| `targets_data.csv` | Targets Excel files |
-| `clientSD_data.csv` | Client reference |
-| `products_data.csv` | Product reference |
-| `salesteam_data.csv` | Sales team reference |
+| Seed File | Source | Notes |
+|---|---|---|
+| `sales_data.csv` | `ExSD-Sales-*.xlsx` | Includes `has_null_key` column |
+| `targets_data.csv` | `Sales_Targets.xlsx` | |
+| `clientSD_data.csv` | `References.xlsx` → Ref_ClientsSD | |
+| `products_data.csv` | `References.xlsx` → Ref_Products | |
+| `salesteam_data.csv` | `References.xlsx` → Ref_Salesteam | |
+
+**Dead-letter handling**
+
+Files that fail preprocessing or are structurally corrupt are moved to `data/dead_letter/batch_<timestamp>/` instead of remaining in `data/input/`. A Dagster asset check alerts when the dead-letter directory is non-empty. Remove or fix dead-letter files before the next pipeline run.
+
+---
 
 ### 2. Transformation (`sqlmesh/`)
 
@@ -131,73 +164,134 @@ Medallion architecture running on DuckDB with DuckLake for Parquet-backed storag
 
 | Layer | Models | Purpose |
 |---|---|---|
-| **Bronze (Raw)** | `raw_sales`, `raw_targets`, `raw_clientsd`, `raw_products`, `raw_salesteam` | Load CSV seeds verbatim |
-| **Silver (Staging)** | `stg_sales`, `stg_targets`, `stg_clientsd_data`, `stg_products`, `stg_salesteam` | Type casting, nulls, deduplication, normalization |
-| **Gold (Marts)** | `dim_*`, `fact_sales`, `f_targets` | Star schema: dimensions + facts |
-| **Reports** | `rep_weekly_meeting`, `rep_top_products` | Pre-aggregated report views |
+| **Bronze (Raw)** | `raw_sales`, `raw_targets`, `raw_clientsd`, `raw_products`, `raw_salesteam` | Load CSV seeds verbatim — all columns as strings |
+| **Silver (Staging)** | `stg_sales_data`, `stg_targets_data`, `stg_clientsd_data`, `stg_products_data`, `stg_salesteam_data` | Type casting, null handling, SCD key generation, `has_null_key` filtering |
+| **Gold (Dimensions)** | `dim_clientsd`, `dim_date`, `dim_salesperson`, `dim_products` | Slowly Changing Dimensions Type 2 |
+| **Gold (Facts)** | `fact_sales`, `fact_targets` | Star schema facts with FK integrity audits |
+| **Reports** | `rep_weekly_meeting`, `rep_top_products`, `rep_target_attainment` | Pre-aggregated report views |
 
-Macros (`macros/clean_currency.sql`) handle currency formatting (XAF).
+Macros (`macros/clean_currency.sql`) handle currency formatting (XAF — integer amounts, no subunit).
 
-**Audits** (`audits/`) contain standalone custom audit definitions referenced by model `audits (...)` blocks. SQLMesh requires **exactly one `AUDIT` block per file** — each file holds one block and its `SELECT`, which returns failing rows (not a count), making root-cause tracing immediate. SQLMesh resolves audits by name at plan/run time.
+**SCD joins**
 
-| Audit file | Model | Checks |
+All SCD Type 2 joins use an explicit open-ended range guard:
+
+```sql
+-- Correct — handles current records where valid_to IS NULL
+ON s.sale_date >= d.valid_from
+AND (d.valid_to IS NULL OR s.sale_date < d.valid_to)
+
+-- Do NOT use BETWEEN — it evaluates to NULL when valid_to IS NULL,
+-- silently dropping every sale linked to the current dimension version.
+```
+
+**Audits**
+
+SQLMesh requires exactly one `AUDIT` block per file. Each audit returns failing rows (not a count), making root-cause tracing immediate. SQLMesh resolves audits by name at plan/run time.
+
+| Audit file | Model(s) | Checks |
 |---|---|---|
 | `assert_no_orphaned_salesperson.sql` | `fact_sales` | No NULL `salesperson_key` after SCD join |
 | `assert_no_orphaned_product.sql` | `fact_sales` | No NULL `product_key` after SCD join |
 | `assert_no_orphaned_client.sql` | `fact_sales` | No NULL `clientsd_key` after SCD join |
 | `assert_amount_matches_qty_x_price.sql` | `fact_sales` | `total_amount` within 1% of `qty × unit_price` |
+| `assert_no_overlapping_scd_windows.sql` | `dim_clientsd`, `dim_products`, `dim_salesperson` | No two active rows for the same key in the same date range |
+| `assert_amount_is_integer_xaf.sql` | `fact_sales` | `total_amount = FLOOR(total_amount)` — XAF has no subunit |
+| `assert_sales_data_is_fresh.sql` | `stg_sales_data` | `MAX(sale_date) >= CURRENT_DATE - INTERVAL 7 DAYS` |
+
+---
 
 ### 3. Serving (`serving/`)
 
-Copies Gold mart tables from the DuckLake warehouse into `data/warehouse/serving.db`, a standalone DuckDB file that BI tools connect to directly. This decouples the transformation layer from downstream consumers.
+Copies Gold mart tables from the DuckLake warehouse into a standalone DuckDB serving file that BI tools connect to directly. This decouples the transformation layer from downstream consumers.
 
-Two sync strategies are supported, chosen via `ServingConfig`:
+**Env-aware serving DB naming:**
+
+| Environment | Serving file |
+|---|---|
+| `dev` | `data/warehouse/serving_dev.db` |
+| `prod` | `data/warehouse/serving.db` |
+
+**BI views** (`serving/templates/bi_views.sql`)
+
+13 SQL views are applied to the serving DB after sync, providing a semantic layer for all BI tools:
+
+| View | Grain | Purpose |
+|---|---|---|
+| `v_sales_base` | sales line | Denormalized fact with all dimension attributes |
+| `v_monthly_kpi` | month × salesperson × category | Revenue vs. target FULL OUTER JOIN |
+| `v_ytd_kpi` | year × salesperson × category | Year-to-date rollup |
+| `v_weekly_kpi` | week × salesperson | Weekly activity |
+| `v_quarterly_kpi` | quarter × salesperson × category | Quarterly with dim_date quarter mapping |
+| `v_regional_kpi` | month × region | Regional breakdown |
+| `v_salesperson_kpi` | month × salesperson | Per-rep metrics |
+| `v_product_kpi` | month × product | Revenue by product |
+| `v_client_kpi` | month × client | Revenue by client |
+| `v_innovation_kpi` | month × category | Innovation vs. standard split |
+| `v_yoy_comparison` | month × salesperson | Year-over-year delta |
+| `v_executive_summary` | month | Single-row period summary |
+| `v_targets_base` | target line | Denormalized target with salesperson attributes |
+
+**Two sync strategies**, chosen via `ServingConfig`:
 
 #### File-Swap (default)
 
-The original strategy, improved. Tables are written into a temp DuckDB file using Arrow streaming (replacing the old Pandas round-trip and LIMIT/OFFSET batching), then atomically renamed to `serving.db`. Simple, zero extra dependencies, but BI clients see a brief offline window during the rename.
+Tables are written into a temp DuckDB file then atomically renamed. Simple, zero extra dependencies, suitable for production.
 
-#### Quack (opt-in, DuckDB ≥ v1.5.2 beta)
+#### Quack (opt-in, DuckDB ≥ v1.5.2 — beta)
 
-A persistent Quack server wraps `serving.db`. The sync process ATTACHes to the live server as a second catalog and rewrites each table with a single SQL statement:
+A persistent Quack server wraps the serving DB. The sync rewrites tables in-place via a single SQL statement — no temp file, no rename, no BI outage.
 
-```sql
-CREATE OR REPLACE TABLE _serving_remote.bi.fact_sales AS
-SELECT * FROM sales_lakehouse.marts__dev.fact_sales
-```
-
-No temp file, no rename, no BI outage. Streamlit, Power BI, and ad-hoc DuckDB clients all stay connected during the sync. See [Quack protocol](#quack-protocol) for setup.
+> ⚠️ **Quack is currently in beta.** Stable release planned for DuckDB v2.0 (September 2026). Use file-swap in production until then.
 
 #### Export Services (`serving/export/`)
 
-CSV and Parquet exports are fully decoupled from the sync as **independent, async, event-triggered services**. They are completely optional: registering no exporters disables all exports with no config changes.
+CSV and Parquet exports are decoupled from the sync as independent, async, event-triggered services. They are fully optional — no exporters registered means no exports, no config changes needed.
 
-After a successful sync, `ServingLayerSync` fires a `SyncCompletedEvent`. The `ExportEventBus` dispatches it concurrently to all registered exporters — CSV and Parquet run in parallel, not sequentially.
+| Class | Purpose |
+|---|---|
+| `CsvExporter` | UTF-8 CSV for Excel, Power Query, Pandas |
+| `ParquetExporter` | Columnar Parquet for analytics and data science |
+| `ExportEventBus` | `publish_and_wait` (blocking) or `publish_background` (fire-and-forget) |
 
-| Service | File | Purpose |
-|---|---|---|
-| `CsvExporter` | `export/csv_exporter.py` | UTF-8 CSV files for Excel, Power Query, Pandas |
-| `ParquetExporter` | `export/parquet_exporter.py` | Columnar Parquet for analytics, data science |
-| `ExportEventBus` | `export/event_bus.py` | Pub/sub wiring; `publish_and_wait` or `publish_background` |
-| `SyncCompletedEvent` | `export/events.py` | Immutable event payload |
-
-Two dispatch modes: `publish_and_wait` (Dagster asset waits for exports to finish) and `publish_background` (fire-and-forget daemon thread, pipeline continues immediately).
+---
 
 ### 4. Orchestration (`orchestration/`)
 
 Dagster manages the end-to-end pipeline as a DAG of software-defined assets:
 
 ```
-file_discovery → preprocessing → ingestion → transformation → serving
+current_batch_id
+  └── discovered_files → files_to_process → preprocessed_files
+        └── sales_seed, targets_seed, references_seeds → seeds_metadata
+              └── sqlmesh_models → marts_validation
+                    └── serving_database → pipeline_complete
 ```
 
-- **Daily schedule**: Runs at 6 AM
-- **File sensor**: Optional trigger on new files landing in `data/input/`
-- **Resources**: Shared DuckDB connection and SQLMesh context injected into all assets
+Asset check `data_quality_full_report` runs after `fact_sales` materialises. It queries each audit function directly against DuckDB, traces failing rows back to their source Excel file, and writes a structured JSON report to `data/exports/quality_reports/`. `blocking=False` — a failed audit shows a red badge in the Dagster UI but does not stop downstream assets.
+
+**Jobs:**
+
+| Job | Triggers |
+|---|---|
+| `daily_pipeline_job` | Daily schedule (6 AM) and file sensor |
+| `ingestion_only_job` | Manual — discovery through seed writing |
+| `transformation_only_job` | Manual — SQLMesh plan + run |
+| `serving_only_job` | Manual — sync + optional exports |
+
+**Sensors:**
+
+| Sensor | Purpose |
+|---|---|
+| `new_file_sensor` | Triggers pipeline when new files arrive in `data/source/` |
+| `sync_health_sensor` | Alerts when `failed_syncs > 0` or sync duration spikes |
+| `prod_promotion_sensor` | Only triggers prod pipeline after a successful dev run in the last 24 h |
+
+---
 
 ### 5. Reporting (`reporting/`)
 
-Streamlit multi-page app connecting to `serving.db` (or to the Quack server in Quack mode):
+Streamlit multi-page app connecting to the env-aware serving DB:
 
 | Page | Content |
 |---|---|
@@ -214,62 +308,196 @@ Streamlit multi-page app connecting to `serving.db` (or to the Quack server in Q
 ### Prerequisites
 
 - Python 3.10+
-- `pip install -r requirements.txt`
+- DuckDB ≥ v1.5.2 (for Quack mode; v1.1+ for everything else)
 
-### Configuration
+### Install
 
-- `ingestion/config/settings.py` — file paths, sheet names, column mappings
-- `ingestion/config/sources.yaml` — source definitions per data domain
-- `sqlmesh/config.yaml` — SQLMesh project config (DuckDB connection, DuckLake path, environments)
-- `serving/config.py` — `ServingConfig` with optional `QuackConfig`
-
-### Running the Pipeline
-
-**Full pipeline via Dagster:**
 ```bash
-cd orchestration
-dagster dev
-# Open http://localhost:3000 and trigger daily_pipeline
+pip install -e ".[dev]"
 ```
 
-**Individual stages:**
+The `[dev]` extras install `pytest`, `ruff`, and `mypy` for the test suite and CI.
+
+### Configure
+
+**1. Copy the environment template:**
+
 ```bash
-# Ingestion only
-python ingestion/main.py
+cp .env.example .env
+```
 
-# SQLMesh transformation
+Edit `.env` with your values. Every variable has a type, default, and description in `.env.example`. The minimum required set for local development:
+
+```bash
+SQLMESH_ENV=dev
+DUCKDB_PATH=data/warehouse/serving_dev.db
+ENABLE_QUACK=false
+ENABLE_CSV_EXPORT=false
+ENABLE_PARQUET_EXPORT=false
+```
+
+**2. Edit source paths** in `ingestion/config/sources.yaml` to point to your SharePoint sync folder or local directory.
+
+**3. Review model config** in `sqlmesh/config.yaml` — DuckDB connection, DuckLake path, and environments are set here.
+
+### Fresh clone (cold start)
+
+SQLMesh run state (`sqlmesh_state.db`) is not in `data/` (which is gitignored) — it lives at the project root and can be committed. On a fresh clone with no state file, initialise the pipeline from the beginning:
+
+```bash
 cd sqlmesh
-sqlmesh run
+sqlmesh plan dev --start 2025-01-01 --auto-apply
+```
 
-# Sync to serving DB (file-swap, no exports)
+See `COLD_START.md` for a full step-by-step procedure including data seeding.
+
+---
+
+## Running the Pipeline
+
+### Full pipeline via Dagster
+
+```bash
+dagster dev --working-directory orchestration
+# Open http://localhost:3000 → Assets → Materialize all
+```
+
+Or from the CLI:
+
+```bash
+dagster asset materialize --select '*'
+```
+
+### Individual stages
+
+```bash
+# Ingestion — dry run (no files written)
+python -m ingestion.main --dry-run
+
+# Ingestion — full run
+python -m ingestion.main
+
+# Ingestion — only files modified since a date
+python -m ingestion.main --since 2025-06-01
+
+# Transformation — validate SQL without writing data
+cd sqlmesh && sqlmesh plan dev --no-gaps --start 2025-01-01
+
+# Transformation — apply
+cd sqlmesh && sqlmesh plan dev --start 2025-01-01 --auto-apply
+
+# Transformation — run audits explicitly
+cd sqlmesh && sqlmesh audit --start 2025-01-01
+
+# Serving — sync to serving_dev.db
 python -m serving.cli sync --env dev
 
-# Sync + CSV export (for Excel users)
-python -m serving.cli sync --env dev --csv
-
-# Sync + both formats
+# Serving — sync with exports
 python -m serving.cli sync --env dev --csv --parquet
 
-# Reporting app
-cd reporting
-streamlit run app.py
+# Serving — validate freshness
+python -m serving.cli validate --env dev
+
+# Reporting
+cd reporting && streamlit run app.py
+```
+
+### Isolated Dagster jobs
+
+```bash
+dagster job execute -j ingestion_only_job
+dagster job execute -j transformation_only_job
+dagster job execute -j serving_only_job
+```
+
+---
+
+## Testing
+
+The full test suite runs with:
+
+```bash
+pytest tests/ -v --tb=short
+```
+
+### Layer-by-layer
+
+**Ingestion (pure Python, no data needed):**
+
+```bash
+pytest tests/ingestion/ -v
+```
+
+Covers: null-key flagging, workbook close on exception, retry sleep behaviour, UTC datetime comparisons, batch_id propagation to archive, seed write/read roundtrip.
+
+**Transformation (SQLMesh YAML unit tests):**
+
+```bash
+cd sqlmesh && sqlmesh test
+```
+
+Each test in `sqlmesh/tests/` injects fixture rows and asserts the SELECT output. Runs against in-memory DuckDB in under 1 second — no real files needed. Also validates model SQL:
+
+```bash
+cd sqlmesh && sqlmesh plan dev --no-gaps --start 2025-01-01
+# Press Ctrl-C at the apply prompt — syntax errors appear here
+```
+
+**Serving (integration test against fixture DuckLake):**
+
+```bash
+pytest tests/serving/ -v
+```
+
+Creates a minimal DuckLake catalog in `tests/fixtures/` with two mart tables, runs `ServingLayerSync.sync()`, and asserts that the serving DB exists, tables are present, and `validate_serving_db()` returns `True`. Runs in under 2 seconds.
+
+### Smoke test (full stack, copy-paste)
+
+```bash
+# 1. SQL validation — no data written
+cd sqlmesh && sqlmesh plan dev --no-gaps --start 2025-01-01 && cd ..
+
+# 2. YAML unit tests
+cd sqlmesh && sqlmesh test && cd ..
+
+# 3. Ingest
+python -m ingestion.main --dry-run   # preview
+python -m ingestion.main             # real run
+
+# 4. Transform and audit
+cd sqlmesh
+sqlmesh plan dev --start 2025-01-01 --auto-apply
+sqlmesh audit --start 2025-01-01
+cd ..
+
+# 5. Sync and validate
+python -m serving.cli sync --env dev
+python -m serving.cli validate --env dev
+
+# 6. Verify the SCD join fix (must return 0)
+duckdb data/warehouse/serving_dev.db \
+  -c "SELECT COUNT(*) FROM v_sales_base WHERE product_name IS NULL"
+
+# 7. Full pytest suite
+pytest tests/ -v --tb=short
+
+# 8. Full Dagster run
+dagster asset materialize --select '*'
 ```
 
 ---
 
 ## Serving Layer CLI
 
-All serving operations are available through `serving/cli.py`:
-
 ```bash
-# Sync marts → serving.db
+# Sync marts → serving DB
 python -m serving.cli sync --env dev
 python -m serving.cli sync --env prod --csv --parquet
 
 # Sync with Quack (requires a running Quack server)
 python -m serving.cli sync --env dev --quack --quack-token <token>
 
-# One-off export from existing serving.db (no re-sync)
+# One-off export from existing serving DB — no re-sync
 python -m serving.cli export --env dev --csv
 python -m serving.cli export --env dev --csv --csv-path /tmp/for-excel/
 python -m serving.cli export --env prod --parquet --parquet-compression zstd
@@ -277,14 +505,14 @@ python -m serving.cli export --env prod --parquet --parquet-compression zstd
 # Start a persistent Quack server
 python -m serving.cli serve --env dev --quack-token <token>
 
-# Check serving.db is fresh (exit 0 if synced within 24h)
+# Check serving DB is fresh (exit 0 if synced within 24 h)
 python -m serving.cli validate --env dev
 
 # Print last-sync statistics
 python -m serving.cli stats --env dev
 ```
 
-### Export flags
+**Export flags:**
 
 | Flag | Description |
 |---|---|
@@ -301,65 +529,51 @@ python -m serving.cli stats --env dev
 
 ## Quack Protocol
 
-Quack turns DuckDB into a client-server database, enabling multiple processes to hold simultaneous read-write connections to the same `serving.db`.
+Quack turns DuckDB into a client-server database, enabling multiple processes to hold simultaneous read-write connections to the same serving DB.
 
-> ⚠️ **Quack is currently in beta.** Stable release is planned for DuckDB v2.0 (September 2026). Use file-swap mode in production until then, or test Quack in your `dev` environment.
+> ⚠️ **Quack is currently in beta.** Stable release planned for DuckDB v2.0 (September 2026). Use file-swap in production until then.
 
 ### Why Quack improves the serving layer
 
 | Problem (file-swap) | Solution (Quack) |
 |---|---|
-| Pandas round-trip: `fetch_df → register → CTAS` | Direct DuckDB-to-DuckDB `CREATE OR REPLACE TABLE … AS SELECT` |
-| Manual `LIMIT`/`OFFSET` batching | DuckDB vectorised streaming — no Python loop |
 | Temp file + atomic rename dance | Sync writes directly to the live server; no temp file |
 | BI clients locked out during rename | Server stays live; clients see new data atomically per table |
 | Single-writer file lock | Multiple concurrent readers and writers |
 
 ### Setup
 
-**1. Install the Quack extension** (requires DuckDB ≥ v1.5.2):
+**1. Install the Quack extension** (DuckDB ≥ v1.5.2):
 ```sql
 INSTALL quack FROM core_nightly;
 LOAD quack;
 ```
 
-**2. Start the Quack server** (once, before Streamlit / Power BI):
+**2. Start the Quack server:**
 ```bash
 python -m serving.cli serve --env dev --quack-token your_secret_token
 ```
 
-**3. Configure the sync** to use Quack mode:
-```python
-from serving.config import ServingConfig, QuackConfig
-
-config = ServingConfig(
-    environment="dev",
-    quack=QuackConfig(host="localhost", port=9494, token="your_secret_token"),
-)
-config.normalize()
+**3. Run the sync against the live server:**
+```bash
+python -m serving.cli sync --env dev --quack --quack-token your_secret_token
 ```
 
-**4. Connect BI tools** to the Quack server:
+**4. Connect BI tools:**
 ```sql
--- In any DuckDB session (Streamlit, notebook, ad-hoc query):
 LOAD quack;
 CREATE SECRET (TYPE quack, TOKEN 'your_secret_token');
 ATTACH 'quack:localhost:9494' AS serving;
 SELECT * FROM serving.bi.fact_sales LIMIT 10;
 ```
 
-**5. Run the sync** against the live server:
-```bash
-python -m serving.cli sync --env dev --quack --quack-token your_secret_token
-```
-
 ---
 
 ## Export Services
 
-CSV and Parquet exports are implemented as independent async services under `serving/export/`. They are decoupled from the sync via an event bus — the sync fires a `SyncCompletedEvent` and each registered exporter handles it concurrently.
+CSV and Parquet exports are implemented as independent async services under `serving/export/`. Registering no exporters disables all exports with no config changes.
 
-### Using the export bus in code
+### Using the export bus
 
 ```python
 from serving.config import ServingConfig
@@ -369,7 +583,6 @@ from serving.export import ExportEventBus, CsvExporter, ParquetExporter
 config = ServingConfig(environment="dev")
 config.normalize()
 
-# Register only the formats you need — omitting one disables it entirely
 bus = (
     ExportEventBus()
     .subscribe(CsvExporter("data/exports/csv/dev"))
@@ -378,14 +591,14 @@ bus = (
 
 sync = ServingLayerSync(config, export_bus=bus)
 sync.sync()
-# → sync runs, then CSV and Parquet export concurrently
+# → tables synced, then CSV and Parquet export concurrently
 ```
 
 ### Standalone export (no re-sync)
 
 ```python
-import asyncio
-from serving.export import CsvExporter, SyncCompletedEvent
+from serving.export import CsvExporter
+from serving.export.events import SyncCompletedEvent
 
 exporter = CsvExporter("data/exports/csv/dev", delimiter=";")  # semicolon for French Excel
 event = SyncCompletedEvent(
@@ -394,17 +607,13 @@ event = SyncCompletedEvent(
     bi_schema="bi",
     tables=["fact_sales", "dim_products"],
 )
-result = asyncio.run(exporter.export(event))
-print(result)
+result = exporter.export(event)
 ```
 
 ### Adding a custom exporter
 
-Subclass `BaseExporter` and implement one method:
-
 ```python
 from serving.export.base_exporter import BaseExporter
-from pathlib import Path
 
 class JsonExporter(BaseExporter):
     format = "json"
@@ -416,20 +625,7 @@ class JsonExporter(BaseExporter):
             TO '{out}' (FORMAT JSON, ARRAY true)
         """)
 
-# Register it like any other exporter:
 bus.subscribe(JsonExporter("data/exports/json/dev"))
-```
-
-### Encoding note for CSV
-
-DuckDB's `COPY … TO` always writes **UTF-8**. The `ENCODING` option is accepted only on `COPY … FROM` (reading). If a downstream tool requires a different encoding (e.g. latin-1 for legacy Excel on Windows), re-encode the output file after export:
-
-```python
-import pathlib, codecs
-
-src = pathlib.Path("data/exports/csv/dev/fact_sales.csv")
-dst = pathlib.Path("data/exports/csv/dev/fact_sales_latin1.csv")
-dst.write_bytes(src.read_text("utf-8").encode("latin-1", errors="replace"))
 ```
 
 ---
@@ -440,15 +636,40 @@ All data lives under `data/` (gitignored):
 
 | Path | Contents |
 |---|---|
-| `data/input/` | Source Excel files |
-| `data/archive/` | Processed files, batched by timestamp |
+| `data/source/` | Synced from SharePoint / local share (read-only) |
+| `data/input/` | Preprocessed Excel files ready for extraction |
+| `data/archive/` | Processed source files, batched by `batch_YYYYMMDD_HHMMSS` |
+| `data/dead_letter/` | Corrupt or unprocessable files — investigate before next run |
 | `data/warehouse/catalog.ducklake` | DuckLake catalog |
-| `data/warehouse/serving.db` | Serving DuckDB — connect BI tools here |
-| `data/warehouse/serving_dev.db` | Dev environment serving DB |
-| `data/warehouse/parquet_storage/` | Parquet files per model layer |
+| `data/warehouse/serving_dev.db` | Dev serving DB — connect BI tools here during development |
+| `data/warehouse/serving.db` | Prod serving DB — stable path for production BI tools |
+| `data/warehouse/parquet_storage/` | Parquet files per model and environment |
 | `data/exports/csv/<env>/` | CSV exports per environment |
 | `data/exports/parquet/<env>/` | Parquet exports per environment |
-| `data/sqlmesh_state.db` | SQLMesh run state |
+| `data/exports/quality_reports/` | JSON quality reports from `data_quality_full_report` |
+
+`sqlmesh_state.db` lives at the **project root**, not inside `data/`. This means it is not gitignored and survives a fresh clone. See `COLD_START.md`.
+
+---
+
+## Environment Variables
+
+All runtime behaviour is controlled via environment variables. Copy `.env.example` to `.env` — every variable has a type annotation, default value, and one-line description.
+
+| Variable | Type | Default | Description |
+|---|---|---|---|
+| `SQLMESH_ENV` | `str` | `dev` | Active SQLMesh environment (`dev` or `prod`) |
+| `DUCKDB_PATH` | `str` | auto | Override serving DB path (default: resolved from `SQLMESH_ENV`) |
+| `ENABLE_QUACK` | `bool` | `false` | Enable Quack client-server sync mode |
+| `QUACK_HOST` | `str` | `localhost` | Quack server hostname |
+| `QUACK_PORT` | `int` | `9494` | Quack server port |
+| `QUACK_TOKEN` | `str` | — | Quack auth token (required when `ENABLE_QUACK=true`) |
+| `ENABLE_CSV_EXPORT` | `bool` | `false` | Enable CSV export after sync |
+| `CSV_DELIMITER` | `str` | `,` | CSV column separator |
+| `ENABLE_PARQUET_EXPORT` | `bool` | `false` | Enable Parquet export after sync |
+| `PARQUET_COMPRESSION` | `str` | `snappy` | Parquet codec (`snappy`, `zstd`, `gzip`, `brotli`, `lz4`) |
+| `EXPORT_BACKGROUND` | `bool` | `false` | Fire exports in background thread; pipeline returns immediately |
+| `EXPORT_TIMEOUT_SECONDS` | `int` | `300` | Max wait for blocking export completion |
 
 ---
 
@@ -456,11 +677,13 @@ All data lives under `data/` (gitignored):
 
 ### Environments
 
-SQLMesh supports `dev` and `prod` environments. Run `sqlmesh run --env dev` during development. Parquet storage is namespaced by environment (`raw__dev.sales/`, `staging__dev.stg_sales/`, etc.). The serving layer mirrors this: `serving_dev.db` for dev, `serving.db` for prod.
+SQLMesh supports `dev` and `prod` environments. Use `dev` during development — Parquet storage is namespaced by environment (`raw__dev/`, `staging__dev/`, etc.) so dev and prod data never mix. The serving layer mirrors this: `serving_dev.db` for dev, `serving.db` for prod.
+
+The `prod_promotion_sensor` enforces that a successful dev run exists in the last 24 hours before the prod pipeline job is allowed to trigger.
 
 ### Adding a New Data Source
 
-1. Add an extractor in `ingestion/extract/`
+1. Add an extractor in `ingestion/extract/` subclassing `BaseExcelExtractor`
 2. Register the source in `ingestion/config/sources.yaml`
 3. Add a seed entry in `sqlmesh/seeds/`
 4. Create `raw_`, `stg_`, and mart models under `sqlmesh/models/`
@@ -468,36 +691,43 @@ SQLMesh supports `dev` and `prod` environments. Run `sqlmesh run --env dev` duri
 
 ### Adding a Report Model
 
-1. Create `sqlmesh/models/reports/rep_<name>.sql`
+1. Create `sqlmesh/models/reports/rep_<name>.sql` with `kind FULL` and `start '2025-01-01'`
 2. Add the corresponding view to `serving/templates/bi_views.sql`
 3. Add a Streamlit page under `reporting/pages/`
 
 ### Adding a Custom Audit
 
-1. Create `sqlmesh/audits/<audit_name>.sql` with a single `AUDIT (name ...) ; SELECT ... FROM @this WHERE ...` block
+1. Create `sqlmesh/audits/<audit_name>.sql` with a single `AUDIT (name ...) ; SELECT ... FROM @this WHERE ...` block — the SELECT returns failing rows, not a count
 2. Reference the audit name inside the target model's `audits (...)` block
-3. Run `sqlmesh plan dev` to validate — SQLMesh resolves audits by name automatically
+3. Run `cd sqlmesh && sqlmesh plan dev` — SQLMesh resolves audits by name automatically
 
 ### Adding a Custom Export Format
 
 1. Create `serving/export/<format>_exporter.py`, subclass `BaseExporter`, implement `export_table()`
 2. Register an instance on `ExportEventBus` in your pipeline entry point or Dagster asset
-3. Optionally add a CLI flag for it in `serving/cli.py`'s `_add_export_args()`
+3. Optionally add a CLI flag in `serving/cli.py`'s `_add_export_args()`
 
 ---
 
 ## Dependencies
 
-See `requirements.txt` for the full list. Key packages:
+See `pyproject.toml` for the full list. Key packages:
 
 | Package | Role |
 |---|---|
-| `sqlmesh` | SQL transformation framework |
+| `sqlmesh[duckdb]` | SQL transformation framework |
 | `duckdb` | Embedded analytical database |
 | `ducklake` | Lightweight lakehouse |
-| `dagster` | Pipeline orchestration |
+| `dagster==1.12.12` | Pipeline orchestration |
+| `dagster-webserver==1.12.12` | Dagster UI (pin to same version as dagster) |
+| `dagster-duckdb` | DuckDB I/O manager for Dagster (pin to same version family) |
 | `streamlit` | Reporting dashboards |
-| `openpyxl` / `xlrd` | Excel file reading |
-| `pandas` | Data manipulation in ingestion |
+| `openpyxl` | Excel file reading (xlsx) |
+| `pydantic[dotenv]` | Typed env-var config via `BaseSettings` |
+| `pandas` | Data manipulation in ingestion layer |
+| `pytest` | Test suite |
+| `ruff` | Linting |
 
-> **Note:** The Quack extension is not a Python package. Install it inside DuckDB with `INSTALL quack FROM core_nightly` (requires DuckDB ≥ v1.5.2).
+> **Dagster packages must be pinned together.** `dagster`, `dagster-webserver`, and `dagster-duckdb` share internal APIs. Always update them as a group.
+
+> **The Quack extension is not a Python package.** Install it inside DuckDB: `INSTALL quack FROM core_nightly` (requires DuckDB ≥ v1.5.2).

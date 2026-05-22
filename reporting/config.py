@@ -37,7 +37,7 @@ CURRENCY_SYMBOL = "FCFA"
 # ---------------------------------------------------------------------------
 # Display
 # ---------------------------------------------------------------------------
-DEFAULT_YEAR = None
+
 DEFAULT_MEETING_TYPE = "Monthly"
 MEETING_TYPES = ["Weekly", "Monthly", "Quarterly", "Annual"]
 

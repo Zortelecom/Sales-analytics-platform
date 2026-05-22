@@ -2,16 +2,9 @@
 reporting/pages/3_Salesforce_Performance.py
 Salesforce Performance — Supervisor → Salesperson drill-down.
 
-Fixes applied:
-  - sys.path.insert restored before bootstrap import (both are required: insert
-    makes 'reporting' importable; _bootstrap provides idempotency for other entry points)
-  - Multi-region: full regions list is now passed to get_salesperson_ranking
-    instead of silently collapsing to None when >1 region is selected
 """
 import sys
 from pathlib import Path
-# Add project root to sys.path so the 'reporting' package is importable,
-# then import _bootstrap which keeps it idempotent for other entry points.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 import reporting._bootstrap  # noqa: F401
 
@@ -25,7 +18,7 @@ from reporting.utils.queries import (
     get_supervisor_summary,
     get_salesperson_monthly_trend,
 )
-from reporting.components.kpi_cards import render_kpi_row, render_section_header
+from reporting.components.kpi_cards import render_kpi_row, render_section_header, render_page_header
 from reporting.components.charts import (
     horizontal_bar_chart,
     revenue_vs_target_chart,
@@ -40,12 +33,10 @@ from reporting.config import COLORS
 f = render_sidebar_filters(show_region=True, show_channel=True)
 year     = f["year"]
 month    = f["month"]
-regions  = f["regions"]   # list[str] | None — full list now passed through
+regions  = f["regions"]
 channels = f["channels"]
 mt       = f["meeting_type"]
 
-# For supervisor / single-value lookups we still need a scalar — use first
-# only when exactly one is selected; otherwise pass None (all regions).
 region_scalar  = regions[0] if (regions and len(regions) == 1) else None
 channel_scalar = channels[0] if (channels and len(channels) == 1) else None
 
@@ -54,29 +45,13 @@ period_label = (
     f"Q{f['quarter']} {year}" if f["quarter"] else f"Full Year {year}"
 )
 
-# ---- Page Header -----------------------------------------------------------
-st.markdown(
-    f"""
-    <div style="display:flex; align-items:center; justify-content:space-between;
-                margin-bottom:1.2rem; border-bottom:1px solid {COLORS['border']};
-                padding-bottom:0.8rem;">
-        <div>
-            <h1 style="margin:0; font-size:1.6rem; font-weight:700;">Salesforce Performance</h1>
-            <p style="margin:0; color:{COLORS['text_secondary']}; font-size:0.85rem;">
-                {period_label} &nbsp;·&nbsp; {mt} Report
-            </p>
-        </div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+render_page_header("Salesforce Performance", period_label, mt)
 
 
 # ---- Data ------------------------------------------------------------------
-# regions (list) is passed directly — get_salesperson_ranking now accepts a list
-# and builds an IN (?,?,?) clause when multiple regions are selected.
-sp_df  = get_salesperson_ranking(year, month, regions, None, channel_scalar)
-sup_df = get_supervisor_summary(year, month, region_scalar)
+with st.spinner("Loading salesforce data…"):
+    sp_df  = get_salesperson_ranking(year, month, regions, None, channel_scalar)
+    sup_df = get_supervisor_summary(year, month, region_scalar, channels)
 
 if sp_df.empty:
     st.warning("No salesforce data for the selected period.")
@@ -206,7 +181,8 @@ with tab3:
     ])
 
     st.markdown('<div class="spacer-sm"></div>', unsafe_allow_html=True)
-    sp_trend = get_salesperson_monthly_trend(year, sp_id)
+    with st.spinner("Loading monthly trend…"):
+        sp_trend = get_salesperson_monthly_trend(year, sp_id)
     revenue_vs_target_chart(
         sp_trend,
         x_col="month",

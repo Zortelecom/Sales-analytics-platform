@@ -3,18 +3,6 @@ reporting/utils/queries.py
 All SQL query builders for the reporting pages.
 Returns pd.DataFrames via db.query().
 
-Fixes applied:
-  - _build_filters: year is now a bound parameter (was f-string interpolated)
-  - get_executive_kpis: accepts regions / channels scope filters
-  - get_ytd_vs_prior_year: uses explicit year-1 param (was ?-1)
-  - get_regional_summary / get_top_regions / get_category_performance /
-    get_salesperson_ranking: active_clients computed via COUNT(DISTINCT clientsd_id)
-    from v_sales_base to prevent double-counting across salespersons/categories
-  - get_category_performance: UPPER() removed (was breaking category filter in page 4)
-  - get_salesperson_ranking: region param is now a list (multi-region support)
-  - Inline page SQL extracted into named functions:
-      get_category_monthly_trend, get_region_weekly, get_region_yoy,
-      get_category_month_heatmap
 """
 from __future__ import annotations
 import pandas as pd
@@ -105,9 +93,13 @@ def get_ytd_vs_prior_year(year: int) -> pd.DataFrame:
     return query(sql, (year, year - 1))
 
 
-def get_top_regions(year: int, month: int | None = None, limit: int = 10) -> pd.DataFrame:
-    """Top regions by revenue. active_clients from v_sales_base to avoid double-count."""
-    kpi_filters, kpi_params = _build_filters(year=year, month=month, prefix="WHERE")
+def get_top_regions(year: int, month: int | None = None,
+                    channels: list[str] | None = None,
+                    limit: int = 10) -> pd.DataFrame:
+    """Top regions by revenue. active_clients from v_sales_base to avoid double-count.
+    Now propagates the channel filter (§2.4).
+    """
+    kpi_filters, kpi_params = _build_filters(year=year, month=month, channels=channels, prefix="WHERE")
     base_filters, base_params = _build_filters(year=year, month=month, prefix="WHERE",
                                                 year_col="sale_year", month_col="sale_month")
     sql = f"""
@@ -131,9 +123,9 @@ def get_top_regions(year: int, month: int | None = None, limit: int = 10) -> pd.
     FROM kpi k
     LEFT JOIN clients c USING (region)
     ORDER BY revenue DESC
-    LIMIT {limit}
+    LIMIT ?
     """
-    return query(sql, tuple(kpi_params + base_params))
+    return query(sql, tuple(kpi_params + base_params + [limit]))
 
 
 # =============================================================================
@@ -144,13 +136,13 @@ def get_regional_summary(year: int, month: int | None = None,
                           channels: list[str] | None = None) -> pd.DataFrame:
     """Revenue/target by region × subregion.
     active_clients from v_sales_base to avoid cross-salesperson double-count.
+    Clients CTE now uses _build_filters for consistency (§2.3).
     """
-    ch_clause = f"AND sales_channel IN ({','.join(['?']*len(channels))})" if channels else ""
     kpi_filters, kpi_params = _build_filters(year=year, month=month,
                                               channels=channels, prefix="WHERE")
-    base_m     = "AND sale_month=?" if month else ""
-    base_ch    = ch_clause
-    base_params = ([year] + ([month] if month else []) + (channels or []))
+    base_filters, base_params = _build_filters(year=year, month=month,
+                                                channels=channels, prefix="WHERE",
+                                                year_col="sale_year", month_col="sale_month")
 
     sql = f"""
     WITH kpi AS (
@@ -168,7 +160,7 @@ def get_regional_summary(year: int, month: int | None = None,
     clients AS (
         SELECT region, subregion, COUNT(DISTINCT clientsd_id) AS active_clients
         FROM v_sales_base
-        WHERE sale_year=? {base_m} {base_ch}
+        {base_filters}
         GROUP BY region, subregion
     )
     SELECT k.region, k.subregion, k.revenue, k.target, k.units_sold, k.weight_kg,
@@ -193,9 +185,11 @@ def get_region_monthly_trend(year: int, region: str) -> pd.DataFrame:
     return query(sql, (year, region))
 
 
-def get_region_category_breakdown(year: int, month: int | None,
-                                   region: str | None = None) -> pd.DataFrame:
-    filters, params = _build_filters(year=year, month=month, prefix="WHERE")
+def get_region_category_breakdown(year: int, month: int | None = None,
+                                   region: str | None = None,
+                                   channels: list[str] | None = None) -> pd.DataFrame:
+    """Category breakdown by region. Now accepts channels filter (§3.6)."""
+    filters, params = _build_filters(year=year, month=month, channels=channels, prefix="WHERE")
     r_clause = ""
     if region:
         r_clause = "AND region=?"
@@ -276,8 +270,10 @@ def get_salesperson_ranking(year: int, month: int | None = None,
 
 
 def get_supervisor_summary(year: int, month: int | None = None,
-                            region: str | None = None) -> pd.DataFrame:
-    filters, params = _build_filters(year=year, month=month, prefix="WHERE")
+                            region: str | None = None,
+                            channels: list[str] | None = None) -> pd.DataFrame:
+    """Supervisor summary. Now propagates channels filter (§2.4)."""
+    filters, params = _build_filters(year=year, month=month, channels=channels, prefix="WHERE")
     r_clause = ""
     if region:
         r_clause = "AND region=?"
@@ -310,19 +306,22 @@ def get_salesperson_monthly_trend(year: int, salesperson_id: str) -> pd.DataFram
 # =============================================================================
 
 def get_category_performance(year: int, month: int | None = None,
-                              region: str | None = None) -> pd.DataFrame:
+                              region: str | None = None,
+                              channels: list[str] | None = None) -> pd.DataFrame:
     """Category KPIs. UPPER() removed — category filter in page 4 relies on
     exact case-match; normalise at staging layer if needed, not here.
     active_clients from v_sales_base to avoid cross-salesperson double-count.
+    Clients CTE now uses _build_filters for param consistency (§2.5).
     """
-    kpi_filters, kpi_params = _build_filters(year=year, month=month, prefix="WHERE")
-    base_m = "AND sale_month=?" if month else ""
-    base_params = [year] + ([month] if month else [])
+    kpi_filters, kpi_params = _build_filters(year=year, month=month, channels=channels, prefix="WHERE")
+    base_filters, base_params = _build_filters(year=year, month=month, channels=channels,
+                                                prefix="WHERE",
+                                                year_col="sale_year", month_col="sale_month")
     r_clause = ""
     if region:
         r_clause = "AND region=?"
         kpi_params = list(kpi_params) + [region]
-        base_params = base_params + [region]
+        base_params = list(base_params) + [region]
 
     sql = f"""
     WITH kpi AS (
@@ -339,7 +338,7 @@ def get_category_performance(year: int, month: int | None = None,
     clients AS (
         SELECT product_category, COUNT(DISTINCT clientsd_id) AS active_clients
         FROM v_sales_base
-        WHERE sale_year=? {base_m} {r_clause}
+        {base_filters} {r_clause}
         GROUP BY product_category
     )
     SELECT k.product_category, k.revenue, k.target, k.units_sold, k.weight_kg,
@@ -377,9 +376,9 @@ def get_product_ranking(year: int, month: int | None = None,
     {where}
     GROUP BY product_category, product_subcategory, product_name, sku, is_innovation_product
     ORDER BY revenue DESC
-    LIMIT {limit}
+    LIMIT ?
     """
-    return query(sql, tuple(params))
+    return query(sql, tuple(params + [limit]))
 
 
 def get_innovation_performance(year: int, month: int | None = None) -> pd.DataFrame:
@@ -544,6 +543,7 @@ def get_category_month_heatmap(year: int) -> pd.DataFrame:
 
 
 def get_quarterly_summary(year: int, region: str | None = None) -> pd.DataFrame:
+    """Quarterly summary with graceful fallback to v_monthly_kpi (§3.8)."""
     r_filter = "AND region=?" if region else ""
     params = [year] + ([region] if region else [])
     sql = f"""
@@ -557,7 +557,24 @@ def get_quarterly_summary(year: int, region: str | None = None) -> pd.DataFrame:
     GROUP BY quarter, region
     ORDER BY quarter, region
     """
-    return query(sql, tuple(params))
+    try:
+        return query(sql, tuple(params))
+    except Exception:
+        # Fallback: derive from v_monthly_kpi if v_quarterly_kpi is missing
+        fallback_sql = f"""
+        SELECT
+            CEIL(month / 3.0)::INT AS quarter,
+            region,
+            SUM(revenue) AS revenue,
+            SUM(target)  AS target,
+            SUM(units_sold) AS units_sold,
+            CASE WHEN SUM(target)>0 THEN ROUND(SUM(revenue)/SUM(target)*100,2) ELSE NULL END AS achievement_pct
+        FROM v_monthly_kpi
+        WHERE year=? {r_filter}
+        GROUP BY CEIL(month / 3.0)::INT, region
+        ORDER BY quarter, region
+        """
+        return query(fallback_sql, tuple(params))
 
 
 # =============================================================================
@@ -573,6 +590,9 @@ def _build_filters(year: int,
                    month_col: str = "month") -> tuple[str, list]:
     """
     Build a parameterised WHERE clause.
+
+    Supported filter dimensions: year, month, regions (list), channels (list).
+    Not supported: subregion, salesperson_id, supervisor_name, sku.
 
     year_col / month_col allow switching between v_monthly_kpi (year / month)
     and v_sales_base (sale_year / sale_month) column names.

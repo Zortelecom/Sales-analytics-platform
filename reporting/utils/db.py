@@ -3,35 +3,38 @@ reporting/utils/db.py
 DuckDB connection pool and query executor.
 All table references use the configured DB_SCHEMA (default: "bi").
 """
-import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
+import threading
 import duckdb
 import pandas as pd
 import streamlit as st
 
 from reporting.config import DB_PATH, DB_SCHEMA
 
+_local = threading.local()
 
-@st.cache_resource(show_spinner=False)
 def get_connection() -> duckdb.DuckDBPyConnection:
     """Return a shared read-only connection to serving.db."""
-    db_path = Path(DB_PATH)
-    if not db_path.exists():
-        st.error(f"⚠️  Database not found at `{db_path}`. Run the pipeline first.")
-        st.stop()
-    return duckdb.connect(str(db_path), read_only=True)
+    if not hasattr(_local, "conn") or _local.conn is None:
+        db_path = Path(DB_PATH)
+        if not db_path.exists():
+            st.error(f"⚠️  Database not found at `{db_path}`. Run the pipeline first.")
+            st.stop()
+        _local.conn = duckdb.connect(str(db_path), read_only=True)
+    return _local.conn
 
 
 @st.cache_data(ttl=300, show_spinner=False)
 def query(sql: str, params: tuple = ()) -> pd.DataFrame:
+    """Execute a parameterised query and return a DataFrame.
+    Errors are caught and surfaced in the UI instead of raw tracebacks.
     """
-    Execute a SQL query and return a DataFrame.
-    Cached for 5 min.
-    """
-    conn = get_connection()
-    return conn.execute(sql, list(params)).df()
+    try:
+        conn = get_connection()
+        return conn.execute(sql, list(params)).df()
+    except duckdb.Error as e:
+        st.error(f"⚠️ Query failed: {e}")
+        return pd.DataFrame()
 
 
 def scalar(sql: str, params: tuple = (), default=None):
@@ -51,6 +54,18 @@ def _first_col(df: pd.DataFrame) -> list:
     if df.empty:
         return []
     return df.iloc[:, 0].dropna().tolist()
+
+# ---------------------------------------------------------------------------
+# Data freshness indicator (§4.1)
+# ---------------------------------------------------------------------------
+
+def data_freshness() -> str | None:
+    """Return the MAX(sale_date) from fact_sales as a staleness indicator."""
+    df = query(f"SELECT MAX(sale_date) FROM {DB_SCHEMA}.fact_sales")
+    if df.empty:
+        return None
+    val = df.iloc[0, 0]
+    return str(val) if val is not None else None
 
 
 # ---------------------------------------------------------------------------

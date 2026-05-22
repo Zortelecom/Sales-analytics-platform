@@ -2,21 +2,9 @@
 reporting/pages/5_Time_Intelligence.py
 Time Intelligence — WoW, Same Month Last Year, QoQ, Seasonality heatmap.
 
-Fixes applied:
-  - sys.path.insert restored before bootstrap import (both are required: insert
-    makes 'reporting' importable; _bootstrap provides idempotency for other entry points)
-  - st.stop() inside tabs replaced with conditional rendering — previously
-    StopException was aborting the entire page render, blanking all other tabs
-  - WoW achievement colour now uses formatters.wow_color() with growth-appropriate
-    thresholds instead of misusing achievement_color(pct + 100)
-  - All three inline f-string SQL queries replaced with named query functions:
-      get_region_weekly(), get_region_yoy(), get_category_month_heatmap()
-    (also eliminates the f-string SQL injection / cache bypass issues)
 """
 import sys
 from pathlib import Path
-# Add project root to sys.path so the 'reporting' package is importable,
-# then import _bootstrap which keeps it idempotent for other entry points.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 import reporting._bootstrap  # noqa: F401
 
@@ -39,7 +27,7 @@ from reporting.utils.queries import (
     get_region_yoy,
     get_category_month_heatmap,
 )
-from reporting.components.kpi_cards import render_kpi_row, render_section_header, kpi_card
+from reporting.components.kpi_cards import render_kpi_row, render_section_header, render_page_header
 from reporting.components.charts import (
     waterfall_chart,
     trend_line_chart,
@@ -64,22 +52,7 @@ period_label = (
     f"Q{f['quarter']} {year}" if f["quarter"] else f"Full Year {year}"
 )
 
-# ---- Page Header -----------------------------------------------------------
-st.markdown(
-    f"""
-    <div style="display:flex; align-items:center; justify-content:space-between;
-                margin-bottom:1.2rem; border-bottom:1px solid {COLORS['border']};
-                padding-bottom:0.8rem;">
-        <div>
-            <h1 style="margin:0; font-size:1.6rem; font-weight:700;">Time Intelligence</h1>
-            <p style="margin:0; color:{COLORS['text_secondary']}; font-size:0.85rem;">
-                {period_label} &nbsp;·&nbsp; {mt} Report
-            </p>
-        </div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+render_page_header("Time Intelligence", period_label, mt)
 
 
 # ============================================================================
@@ -96,8 +69,6 @@ tab_wow, tab_smly, tab_qtd, tab_annual, tab_heat = st.tabs([
 
 # ====== WEEK-OVER-WEEK ======================================================
 with tab_wow:
-    # st.stop() replaced with conditional rendering — st.stop() inside a tab
-    # aborts the entire page script, blanking all remaining tabs.
     if not month:
         st.info("👈 Select a month in the sidebar to see week-over-week analysis.")
     else:
@@ -106,8 +77,9 @@ with tab_wow:
             "Revenue progression within the selected month"
         )
 
-        wow_df  = get_week_over_week(year, month)
-        week_df = get_weekly_performance(year, month, region_arg)
+        with st.spinner("Loading weekly data…"):
+            wow_df  = get_week_over_week(year, month)
+            week_df = get_weekly_performance(year, month, region_arg)
 
         if wow_df.empty:
             st.info("No weekly data available.")
@@ -127,8 +99,6 @@ with tab_wow:
                     "title": "WoW Change",
                     "value": fmt_pct(prev_wow),
                     "subtitle": "vs previous week",
-                    # wow_color() uses growth thresholds (≥5%/≥0%/≥-5%/else)
-                    # instead of misusing achievement_color(pct + 100)
                     "accent_color": wow_color(prev_wow),
                     "icon": "📈" if (prev_wow or 0) >= 0 else "📉",
                     "delta_positive": (prev_wow or 0) >= 0,
@@ -180,12 +150,11 @@ with tab_wow:
                 </table>
                 """, unsafe_allow_html=True)
 
-            # By-region weekly breakdown
             if region_arg is None and not week_df.empty:
                 st.markdown('<div class="spacer-sm"></div>', unsafe_allow_html=True)
                 render_section_header("Weekly by Region")
-                # Inline SQL replaced with get_region_weekly()
-                region_weekly = get_region_weekly(year, month)
+                with st.spinner("Loading regional weekly data…"):
+                    region_weekly = get_region_weekly(year, month)
                 if not region_weekly.empty:
                     pivot_rw = region_weekly.pivot_table(
                         index="week_of_month", columns="region", values="revenue", aggfunc="sum"
@@ -205,7 +174,6 @@ with tab_wow:
 
 # ====== SAME MONTH LAST YEAR ================================================
 with tab_smly:
-    # st.stop() replaced with conditional rendering
     if not month:
         st.info("👈 Select a month to compare with the same month last year.")
     else:
@@ -214,7 +182,8 @@ with tab_smly:
             f"{MONTH_NAMES[month]} {year} vs {MONTH_NAMES[month]} {year-1}"
         )
 
-        smly_df = get_same_month_last_year(year, month, region_arg)
+        with st.spinner("Loading SMLY data…"):
+            smly_df = get_same_month_last_year(year, month, region_arg)
 
         if smly_df.empty:
             st.info("No comparison data.")
@@ -250,7 +219,8 @@ with tab_smly:
             st.markdown('<div class="spacer-sm"></div>', unsafe_allow_html=True)
 
             render_section_header("Month-by-Month: CY vs PY")
-            yoy_df = get_ytd_vs_prior_year(year)
+            with st.spinner("Loading YTD comparison…"):
+                yoy_df = get_ytd_vs_prior_year(year)
             trend_line_chart(
                 yoy_df,
                 x_col="month",
@@ -264,8 +234,8 @@ with tab_smly:
 
             st.markdown('<div class="spacer-sm"></div>', unsafe_allow_html=True)
             render_section_header(f"By Region — {MONTH_NAMES[month]} CY vs PY")
-            # Inline SQL replaced with get_region_yoy()
-            region_yoy = get_region_yoy(year, month)
+            with st.spinner("Loading regional YoY…"):
+                region_yoy = get_region_yoy(year, month)
             if not region_yoy.empty:
                 region_yoy["yoy_pct"] = region_yoy.apply(
                     lambda r: round((r.cy_revenue - r.py_revenue) / r.py_revenue * 100, 2)
@@ -285,7 +255,8 @@ with tab_smly:
 with tab_qtd:
     render_section_header("Quarterly Performance", "Revenue and achievement by quarter")
 
-    q_df = get_quarterly_summary(year, region_arg)
+    with st.spinner("Loading quarterly data…"):
+        q_df = get_quarterly_summary(year, region_arg)
 
     if q_df.empty:
         st.info("No quarterly data.")
@@ -390,7 +361,8 @@ with tab_qtd:
 with tab_annual:
     render_section_header(f"Annual View — {year}", "Full-year monthly trend and cumulative performance")
 
-    annual_df = get_monthly_trend(year)
+    with st.spinner("Loading annual data…"):
+        annual_df = get_monthly_trend(year)
     if annual_df.empty:
         st.info("No annual data.")
     else:
@@ -421,7 +393,8 @@ with tab_annual:
 
         st.markdown('<div class="spacer-sm"></div>', unsafe_allow_html=True)
 
-        yoy_df = get_ytd_vs_prior_year(year)
+        with st.spinner("Loading YoY data…"):
+            yoy_df = get_ytd_vs_prior_year(year)
         col_yoy, col_yoy_tbl = st.columns([3, 2])
         with col_yoy:
             trend_line_chart(
@@ -452,7 +425,8 @@ with tab_heat:
         "Revenue distribution by month × day of week"
     )
 
-    heat_df = get_seasonality_heatmap(year, region_arg)
+    with st.spinner("Loading seasonality data…"):
+        heat_df = get_seasonality_heatmap(year, region_arg)
 
     if heat_df.empty:
         st.info("No seasonality data.")
@@ -477,8 +451,8 @@ with tab_heat:
         st.markdown('<div class="spacer-sm"></div>', unsafe_allow_html=True)
 
         render_section_header("Category × Month Revenue Matrix")
-        # Inline SQL replaced with get_category_month_heatmap()
-        cat_month = get_category_month_heatmap(year)
+        with st.spinner("Loading category heatmap…"):
+            cat_month = get_category_month_heatmap(year)
         if not cat_month.empty:
             heatmap_chart(
                 cat_month,

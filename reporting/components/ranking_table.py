@@ -2,10 +2,6 @@
 reporting/components/ranking_table.py
 Styled ranking and comparison tables.
 
-Fix applied:
-  - render_comparison_table: local variable renamed from `html` to `table_html`
-    to stop it shadowing the stdlib `html` module (would cause AttributeError
-    if html.escape() were called later in the function).
 """
 from __future__ import annotations
 import html
@@ -24,6 +20,19 @@ def _achievement_badge(pct: float | None) -> str:
     return f'<span style="color:{color}; font-weight:600;">{emoji} {text}</span>'
 
 
+def _export_csv_button(df: pd.DataFrame, file_name: str) -> None:
+    """Inline CSV export button for tables (§4.2)."""
+    csv = df.to_csv(index=False).encode("utf-8")
+    st.download_button(
+        label="⬇ Export CSV",
+        data=csv,
+        file_name=file_name,
+        mime="text/csv",
+        key=f"dl_{file_name}",
+        on_click="ignore",
+    )
+
+
 def render_ranking_table(
     df: pd.DataFrame,
     name_col: str,
@@ -34,9 +43,11 @@ def render_ranking_table(
     title: str = "",
     rank_col: bool = True,
     max_rows: int = 20,
+    show_export: bool = True,
 ) -> None:
     """
     Render a styled ranking table with achievement color coding.
+    Optionally shows a CSV download button (§4.2).
     """
     if df.empty:
         st.info("No data available for this selection.")
@@ -104,6 +115,9 @@ def render_ranking_table(
     except AttributeError:
         st.markdown(html_content, unsafe_allow_html=True)
 
+    if show_export:
+        _export_csv_button(df, f"ranking_{name_col}.csv")
+
 
 def render_comparison_table(
     df: pd.DataFrame,
@@ -112,6 +126,7 @@ def render_comparison_table(
     compare_col: str | None = None,
     pct_change_col: str | None = None,
     title: str = "",
+    show_export: bool = True,
 ) -> None:
     """Simple side-by-side comparison table (CY vs PY, etc.)."""
     if df.empty:
@@ -162,3 +177,6 @@ def render_comparison_table(
     </div>
     """
     st.markdown(table_html, unsafe_allow_html=True)
+
+    if show_export:
+        _export_csv_button(df, f"comparison_{group_col}.csv")

@@ -2,14 +2,9 @@
 reporting/pages/2_Regional_Performance.py
 Regional Performance — Region → Subregion drill-down.
 
-Fix applied:
-  - sys.path.insert restored before bootstrap import (both are required: insert
-    makes 'reporting' importable; _bootstrap provides idempotency for other entry points)
 """
 import sys
 from pathlib import Path
-# Add project root to sys.path so the 'reporting' package is importable,
-# then import _bootstrap which keeps it idempotent for other entry points.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 import reporting._bootstrap  # noqa: F401
 
@@ -24,7 +19,7 @@ from reporting.utils.queries import (
     get_region_monthly_trend,
     get_region_category_breakdown,
 )
-from reporting.components.kpi_cards import render_kpi_row, render_section_header, kpi_card
+from reporting.components.kpi_cards import render_kpi_row, render_section_header, render_page_header
 from reporting.components.charts import (
     revenue_vs_target_chart,
     horizontal_bar_chart,
@@ -47,26 +42,12 @@ period_label = (
     f"Q{f['quarter']} {year}" if f["quarter"] else f"Full Year {year}"
 )
 
-# ---- Page Header -----------------------------------------------------------
-st.markdown(
-    f"""
-    <div style="display:flex; align-items:center; justify-content:space-between;
-                margin-bottom:1.2rem; border-bottom:1px solid {COLORS['border']};
-                padding-bottom:0.8rem;">
-        <div>
-            <h1 style="margin:0; font-size:1.6rem; font-weight:700;">Regional Performance</h1>
-            <p style="margin:0; color:{COLORS['text_secondary']}; font-size:0.85rem;">
-                {period_label} &nbsp;·&nbsp; {mt} Report
-            </p>
-        </div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+render_page_header("Regional Performance", period_label, mt)
 
 
 # ---- Data ------------------------------------------------------------------
-reg_df = get_regional_summary(year, month, channels)
+with st.spinner("Loading regional data…"):
+    reg_df = get_regional_summary(year, month, channels)
 
 if reg_df.empty:
     st.warning("No regional data for the selected period.")
@@ -212,7 +193,8 @@ with tab2:
 
         col_trend, col_sub = st.columns([3, 2])
         with col_trend:
-            trend_data = get_region_monthly_trend(year, selected_region)
+            with st.spinner("Loading trend…"):
+                trend_data = get_region_monthly_trend(year, selected_region)
             revenue_vs_target_chart(
                 trend_data,
                 x_col="month",
@@ -232,7 +214,8 @@ with tab2:
 
 # ========= TAB 3: Category ==================================================
 with tab3:
-    cat_reg_df = get_region_category_breakdown(year, month)
+    with st.spinner("Loading category breakdown…"):
+        cat_reg_df = get_region_category_breakdown(year, month, channels=channels)
 
     if not cat_reg_df.empty:
         regions_for_cat = ["All Regions"] + sorted(cat_reg_df["region"].dropna().unique().tolist())
