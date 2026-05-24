@@ -46,8 +46,8 @@ SELECT
   -- Product identifiers
   TRIM(UPPER(sku))            AS sku,
   TRIM(product_name)          AS product_name,
-  TRIM(product_cat)           AS product_category,
-  TRIM(product_subcat)        AS product_subcategory,
+  TRIM(UPPER(product_cat))           AS product_category,
+  TRIM(UPPER(product_subcat))        AS product_subcategory,
   
   -- Measures
   TRY_CAST(qty AS DECIMAL(10, 2))         AS quantity,

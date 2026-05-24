@@ -3,15 +3,13 @@ import logging
 import json
 from collections import deque
 from typing import Dict
-from typing import Union
-from pathlib import Path
 
 import duckdb
 from dagster import (
     sensor,
     RunRequest,
-    SkipReason,
-    SensorExecutionContext,
+    SensorResult,
+    SensorEvaluationContext,
     DefaultSensorStatus,
 )
 from orchestration.jobs.daily_pipeline import serving_only_job
@@ -40,7 +38,7 @@ def _get_latest_fingerprints(config: ServingConfig) -> Dict[str, str]:
     
     Returns dict: {table_name: column_fingerprint, ...}
     """
-    serving_path = Path(config.serving_path)
+    serving_path = config.serving_path
     if not serving_path.exists():
         return {}
     
@@ -85,7 +83,7 @@ def _get_latest_fingerprints(config: ServingConfig) -> Dict[str, str]:
     default_status=DefaultSensorStatus.RUNNING,
     description="Monitor sync health: alert on failed_syncs > 0 or duration degradation",
 )
-def sync_health_sensor(context: SensorExecutionContext) -> Union[RunRequest, SkipReason, None]:
+def sync_health_sensor(context: SensorEvaluationContext) -> SensorResult:
     """
     Monitor _sync_log after serving_only_job completes.
     
@@ -93,20 +91,20 @@ def sync_health_sensor(context: SensorExecutionContext) -> Union[RunRequest, Ski
     1. failed_syncs > 0 (sync failures detected)
     2. avg_duration_ms > rolling_avg * 2 (performance degradation)
     
-    Otherwise, yields SkipReason to skip the next run request.
+    Otherwise, returns a skip result.
     """
     
-    # Initialize cursor if needed
-    if context.cursor is None:
-        context.cursor = get_default_cursor_state()
+    # ── 1. Read or initialise cursor ───────────────────────────────────────
+    raw_cursor = context.cursor if context.cursor is not None else get_default_cursor_state()
     
     try:
-        cursor_data = json.loads(context.cursor)
+        cursor_data = json.loads(raw_cursor)
     except json.JSONDecodeError:
         logger.warning("Invalid cursor state, resetting")
         cursor_data = json.loads(get_default_cursor_state())
+        raw_cursor = get_default_cursor_state()
     
-    # Get serving config and sync stats
+    # ── 2. Gather sync stats ─────────────────────────────────────────────────
     try:
         config = ServingConfig()
         config.normalize()
@@ -114,14 +112,18 @@ def sync_health_sensor(context: SensorExecutionContext) -> Union[RunRequest, Ski
         stats = sync.get_sync_stats()
     except Exception as exc:
         logger.error("Failed to initialize sync stats: %s", exc)
-        return SkipReason(
-            f"Could not read sync stats: {exc}. Will retry on next sensor check."
+        return SensorResult(
+            skip_message=f"Could not read sync stats: {exc}. Will retry on next sensor check.",
+            cursor=raw_cursor,
         )
     
     # No stats available yet (first run)
     if not stats:
         logger.info("No sync stats available yet")
-        return SkipReason("Serving database not initialized yet")
+        return SensorResult(
+            skip_message="Serving database not initialized yet",
+            cursor=raw_cursor,
+        )
     
     last_sync = stats.get("last_sync")
     failed_syncs = stats.get("failed_syncs", 0)
@@ -131,11 +133,16 @@ def sync_health_sensor(context: SensorExecutionContext) -> Union[RunRequest, Ski
     # Skip if this is the same sync we already processed
     if last_sync and cursor_data.get("last_sync_timestamp") == str(last_sync):
         logger.debug("Cursor already processed this sync, skipping")
-        return SkipReason("Already processed this sync event")
+        return SensorResult(
+            skip_message="Already processed this sync event",
+            cursor=raw_cursor,
+        )
     
-    # ─────────────────────────────────────────────────────────────────────────
+    # ── 3. Health checks ─────────────────────────────────────────────────────
+    should_alert = False
+    fingerprint_changes = []
+    
     # Check 1: Failed syncs
-    # ─────────────────────────────────────────────────────────────────────────
     if failed_syncs > 0:
         message = (
             f"⚠️ SYNC ALERT: {failed_syncs} failed sync(s) detected. "
@@ -144,16 +151,10 @@ def sync_health_sensor(context: SensorExecutionContext) -> Union[RunRequest, Ski
         )
         context.log.warning(message)
         should_alert = True
-    else:
-        should_alert = False
     
-    # ─────────────────────────────────────────────────────────────────────────
     # Check 2: Column fingerprint changes (schema drift detection)
-    # ─────────────────────────────────────────────────────────────────────────
     current_fingerprints = _get_latest_fingerprints(config)
     previous_fingerprints = cursor_data.get("previous_fingerprints", {})
-    
-    fingerprint_changes = []
     
     if previous_fingerprints:  # Only check if we have a baseline
         for table, current_fp in current_fingerprints.items():
@@ -171,9 +172,7 @@ def sync_health_sensor(context: SensorExecutionContext) -> Union[RunRequest, Ski
                 context.log.warning(message)
             should_alert = True
     
-    # ─────────────────────────────────────────────────────────────────────────
     # Check 3: Duration degradation (vs rolling average)
-    # ─────────────────────────────────────────────────────────────────────────
     durations_ms = cursor_data.get("durations_ms", [])
     
     # Add current duration to rolling window
@@ -182,7 +181,6 @@ def sync_health_sensor(context: SensorExecutionContext) -> Union[RunRequest, Ski
         deque_durations.append(avg_duration_ms)
         durations_ms = list(deque_durations)
     
-    # Calculate rolling average (need at least 2 data points)
     rolling_avg_ms = None
     if len(durations_ms) >= 2:
         rolling_avg_ms = sum(durations_ms[:-1]) / len(durations_ms[:-1])  # Exclude current
@@ -197,19 +195,16 @@ def sync_health_sensor(context: SensorExecutionContext) -> Union[RunRequest, Ski
             context.log.warning(message)
             should_alert = True
     
-    # Update cursor with current state
+    # ── 4. Update cursor state ─────────────────────────────────────────────
     cursor_data["durations_ms"] = durations_ms
     cursor_data["last_sync_timestamp"] = str(last_sync) if last_sync else None
-    cursor_data["previous_fingerprints"] = current_fingerprints  # Store for next comparison
-    context.cursor = json.dumps(cursor_data)
+    cursor_data["previous_fingerprints"] = current_fingerprints
+    updated_cursor = json.dumps(cursor_data)
     
-    # ─────────────────────────────────────────────────────────────────────────
-    # Yield result
-    # ─────────────────────────────────────────────────────────────────────────
+    # ── 5. Return result ───────────────────────────────────────────────────
     if should_alert:
-        # Alert triggered: yield RunRequest to kick off a diagnostic/remediation job
         context.log.warning(
-            "Sync health alert triggered. Would dispatch remediation job here."
+            "Sync health alert triggered. Dispatching remediation job."
         )
         tags = {
             "alert_type": "sync_health",
@@ -219,14 +214,21 @@ def sync_health_sensor(context: SensorExecutionContext) -> Union[RunRequest, Ski
         }
         
         if fingerprint_changes:
-            tags["schema_changes"] = ",".join(f"{t}({o}->{n})" for t, o, n in fingerprint_changes)
+            tags["schema_changes"] = ",".join(
+                f"{t}({o}->{n})" for t, o, n in fingerprint_changes
+            )
         
-        return RunRequest(tags=tags)
+        return SensorResult(
+            run_requests=[RunRequest(tags=tags)],
+            cursor=updated_cursor,
+        )
     
-    # No alert: skip this run
     logger.info(
         "Sync health OK: %d failed, avg duration %.0f ms",
         failed_syncs,
         avg_duration_ms or 0,
     )
-    return SkipReason("Sync health nominal")
+    return SensorResult(
+        skip_message="Sync health nominal",
+        cursor=updated_cursor,
+    )

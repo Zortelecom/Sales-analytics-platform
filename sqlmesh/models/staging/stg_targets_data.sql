@@ -30,14 +30,14 @@ SELECT
   
   -- Parse month_year (format: YYYY-MM-01)
   COALESCE(TRY_CAST(month_year AS DATE), 
-    TRY_STRPTIME(month_year, '%m/%Y'), T
-    RY_STRPTIME(month_year, '%b-%Y')
+    TRY_STRPTIME(month_year, '%m/%Y'), 
+    TRY_STRPTIME(month_year, '%b-%Y')
   )::DATE AS target_month,
   
   TRIM(salesperson_id)                    AS salesperson_id,
-  TRIM(product_category)                  AS product_category,
+  TRIM(UPPER(product_category))                  AS product_category,
   TRY_CAST(target_amount AS DECIMAL(12,2)) AS target_amount
 
 FROM raw.targets_data
 WHERE TRIM(salesperson_id) IS NOT NULL
-  AND TRIM(product_category) IS NOT NULL;
+  AND TRIM(UPPER(product_category)) IS NOT NULL;

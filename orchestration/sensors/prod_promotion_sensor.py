@@ -6,7 +6,7 @@ from dagster import (
     AssetKey,
     DefaultSensorStatus,
     RunRequest,
-    SensorExecutionContext,
+    SensorEvaluationContext,
     SkipReason,
     sensor,
 )
@@ -75,7 +75,7 @@ def _extract_metadata_value(metadata_entries: Any, label: str) -> Any:
         "serving_database materialization exists."
     ),
 )
-def prod_promotion_sensor(context: SensorExecutionContext):
+def prod_promotion_sensor(context: SensorEvaluationContext):
     """Gate production pipeline execution on a dev serving_database materialization."""
     context.log.info("Evaluating prod promotion gate for serving_database asset")
 

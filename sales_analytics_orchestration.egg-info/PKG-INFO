@@ -1,0 +1,18 @@
+Metadata-Version: 2.4
+Name: sales_analytics_orchestration
+Version: 0.1.0
+Requires-Python: >=3.10
+Requires-Dist: dagster==1.13.6
+Requires-Dist: dagster-webserver==1.13.6
+Requires-Dist: dagster-duckdb==0.29.*
+Requires-Dist: sqlmesh[duckdb,lsp]==0.235.*
+Requires-Dist: openpyxl==3.1.2
+Requires-Dist: pandas>=2.0.0
+Requires-Dist: pyyaml>=6.0
+Requires-Dist: anthropic>=0.30
+Requires-Dist: pydantic[dotenv]>=2.0.0
+Requires-Dist: pydantic-settings>=2.0.0
+Requires-Dist: streamlit>=1.57.0
+Provides-Extra: dev
+Requires-Dist: pytest; extra == "dev"
+Requires-Dist: ruff; extra == "dev"

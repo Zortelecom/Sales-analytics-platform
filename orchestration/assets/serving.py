@@ -19,8 +19,6 @@ Changes vs. the previous version
 * All env-var reads centralised via PipelineConfig.
 """
 
-from __future__ import annotations
-
 import sys
 import time
 from datetime import datetime

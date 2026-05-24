@@ -11,7 +11,10 @@ MODEL (
     not_null(columns := (product_key, sku)),
 
     -- Custom: SCD window overlap check — see audits/*.
-    assert_no_overlapping_scd_windows
+     assert_no_overlapping_scd_windows(
+        key            := sku,
+        surrogate_key  := product_key
+    )
   )
 );
 

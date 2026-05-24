@@ -4,14 +4,17 @@ MODEL (
   cron '@daily',
   grain (clientsd_key),
   owner analytics_team,
-  storage_format 'parquet'
+  storage_format 'parquet',
   audits (
     -- Built-in: primary key integrity.
     unique_values(columns := (clientsd_key)),
     not_null(columns := (clientsd_key, sd_id)),
 
     -- Custom: SCD window overlap check — see audits/*.
-    assert_no_overlapping_scd_windows
+     assert_no_overlapping_scd_windows(
+        key            := sd_id,
+        surrogate_key  := clientsd_key
+    )
   )
 );
 

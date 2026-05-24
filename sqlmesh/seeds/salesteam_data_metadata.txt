@@ -2,8 +2,8 @@ Seed Metadata
 ==================================================
 
 Seed Name: salesteam_data
-Batch ID: 20260519_151526
-Timestamp: 2026-05-19T14:16:55.262046+00:00
+Batch ID: 20260524_181753
+Timestamp: 2026-05-24T17:19:51.323206+00:00
 Rows Written: 25
 Columns: 7
 
@@ -20,4 +20,4 @@ Source Files:
   - References.xlsx
 
 Ingestion Batch IDs:
-  - 20260519_151526
+  - 20260524_181753
