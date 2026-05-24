@@ -13,6 +13,7 @@ __pycache__/
 
 #sqlmesh
 sqlmesh/.cache/
+sqlmesh/.cache/optimized_query
 sqlmesh/logs/
 sqlmesh/seeds/
 # Dagster

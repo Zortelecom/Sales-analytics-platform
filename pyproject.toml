@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sales_analytics_orchestration"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = [
+    "dagster==1.13.6",
+    "dagster-webserver==1.13.6",
+    "dagster-duckdb==0.29.*",
+    "sqlmesh[duckdb]==0.235.*",
+    "openpyxl>=3.1.0",
+    "pandas>=2.0.0",
+    "pyyaml>=6.0",
+    "anthropic>=0.30",
+    "pydantic[dotenv]>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "streamlit>=1.57.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff"]  # black is redundant — ruff handles formatting too
+
+[tool.setuptools.packages.find]
+# Now that pyproject.toml is at the root, point directly here
+where = ["."]
+include = ["orchestration*", "shared*"]
+
+[tool.dagster]
+module = "orchestration.definitions"
+code_location_name = "sales_analytics"
