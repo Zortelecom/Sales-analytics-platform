@@ -611,7 +611,8 @@ class ServingLayerSync:
         """, [datetime.now(), f"{source_schema}.{table}", target_table,
               row_count, duration_ms, "success", column_fingerprint])
 
-        self.sync_metadata.append({"table": table, "row_count": row_count, "column_fingerprint": column_fingerprint, "status": "success"})
+        self.sync_metadata.append({"table": table, "row_count": row_count, \
+                                   "column_fingerprint": column_fingerprint, "status": "success"})
         logger.info("    %s rows in %d ms (fingerprint: %s)", f"{row_count:,}", duration_ms, column_fingerprint)
 
     def _log_sync_failure_file(self, target, schema, table, error):

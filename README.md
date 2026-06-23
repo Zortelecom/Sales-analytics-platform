@@ -21,7 +21,7 @@ The pipeline ingests Excel files using Python, transforms data with SQLMesh and 
 stores models in DuckLake parquet-backed storage, serves marts through DuckDB,
 and powers Streamlit and Power BI dashboards.
 
-![Sales Analytics Platform Architecture](docs/images/architecture.png)
+![Sales Analytics Platform Architecture](docs/images/architecture_superset.png)
 
 ---
 

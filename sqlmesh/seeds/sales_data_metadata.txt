@@ -2,10 +2,10 @@ Seed Metadata
 ==================================================
 
 Seed Name: sales_data
-Batch ID: 20260524_181753
-Timestamp: 2026-05-24T17:19:51.323206+00:00
-Rows Written: 22,871
-Columns: 21
+Batch ID: 20260616_132028
+Timestamp: 2026-06-16T12:21:57.278418+00:00
+Rows Written: 25,075
+Columns: 20
 
 Column Names:
   - salesperson_id
@@ -25,7 +25,6 @@ Column Names:
   - product_subcat
   - unit_weight
   - is_innovation
-  - colonne1
   - has_null_key
   - sales_line_id
   - filename_subregion
@@ -38,4 +37,4 @@ Source Files:
   - ExSD-Sales-Yde_Sud-Ouest.xlsx
 
 Ingestion Batch IDs:
-  - 20260524_181753
+  - 20260616_132028

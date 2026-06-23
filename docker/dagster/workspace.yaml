@@ -1,0 +1,13 @@
+# workspace.yaml — Tells Dagster where to find the pipeline code
+#
+# Loaded from $DAGSTER_HOME/workspace.yaml.
+# The orchestration package is at /app/orchestration/ inside the container,
+# and /app/ is the WORKDIR, so the package is importable as `orchestration`.
+#
+# If you split the codebase into multiple packages (e.g. separate ingestion agent),
+# add additional load_from entries below.
+
+load_from:
+  - python_package:
+      package_name: orchestration
+      working_directory: /app

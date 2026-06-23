@@ -19,3 +19,9 @@ sqlmesh/seeds/
 .tmp_dagster_home*/
 
 logs/
+
+docs/prod
+
+docker/nginx/certs/
+docker/nginx/.htpasswd
+.env.prod

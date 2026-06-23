@@ -1,0 +1,49 @@
+# dagster.yaml — Production instance configuration
+#
+# Loaded from $DAGSTER_HOME/dagster.yaml at daemon/webserver startup.
+# DAGSTER_HOME is set to /dagster-home in Dockerfile.app and docker-compose.prod.yml.
+#
+# Key decisions:
+#   - PostgreSQL backend replaces SQLite: run history survives container recreates
+#   - QueuedRunCoordinator: prevents parallel runs from clobbering DuckLake writes
+#   - max_concurrent_runs: 2 — one prod + one ad-hoc manual job
+#   - run_monitoring: auto-resumes runs that were interrupted mid-execution (e.g. OOM)
+#   - telemetry: disabled in production
+
+storage:
+  postgres:
+    postgres_url:
+      env: DAGSTER_POSTGRES_URL          # postgresql://user:pass@postgres:5432/dagster
+
+scheduler:
+  module: dagster.core.scheduler
+  class: DagsterDaemonScheduler         # Requires dagster-daemon to be running
+
+run_coordinator:
+  module: dagster.core.run_coordinator
+  class: QueuedRunCoordinator
+  config:
+    max_concurrent_runs: 2              # 1 scheduled + 1 manual; increase if CPU/RAM allow
+    tag_concurrency_limits:
+      - key: "pipeline_job"             # Custom tag applied to daily_pipeline_job
+        limit: 1                        # Never run two full pipelines in parallel
+
+run_launcher:
+  module: dagster.core.launcher
+  class: DefaultRunLauncher             # Runs in the daemon process (no K8s / ECS needed)
+
+run_monitoring:
+  enabled: true
+  start_timeout_seconds: 300            # Mark run as failed if it hasn't started in 5 min
+  max_resume_run_attempts: 3            # Re-queue interrupted runs up to 3 times
+
+telemetry:
+  enabled: false                        # No usage data sent to Dagster Cloud
+
+# Retention policy — prevent unbounded disk/DB growth
+# Adjust based on compliance requirements; 90 days is a safe default
+retention:
+  schedule:
+    purge_after_days: 90
+  backfill:
+    purge_after_days: 90
