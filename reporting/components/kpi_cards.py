@@ -25,14 +25,15 @@ def _card_html(
     delta_safe = html.escape(delta) if delta else ""
     title_safe = html.escape(title)
     value_safe = html.escape(value)
-    
     delta_color = COLORS["success"] if delta_positive else COLORS["danger"]
     delta_html = (
-        f'<div style="color:{delta_color}; font-size:0.78rem; margin-top:0.15rem;">{delta_safe}</div>'
+        f'''<div style="color:{delta_color}; font-size:0.78rem; 
+            margin-top:0.15rem;">{delta_safe}</div>'''
         if delta else ""
     )
     subtitle_html = (
-        f'<div style="color:{COLORS["text_secondary"]}; font-size:0.72rem; margin-top:0.2rem;">{subtitle_safe}</div>'
+        f'''<div style="color:{COLORS["text_secondary"]}; 
+            font-size:0.72rem; margin-top:0.2rem;">{subtitle_safe}</div>'''
         if subtitle else ""
     )
     return f"""
@@ -130,7 +131,7 @@ def render_section_header(title: str, subtitle: str = "") -> None:
                     padding-left: 0.75rem;">
             <h3 style="color:{COLORS['text_primary']}; font-size:1.05rem;
                        font-weight:600; margin:0; letter-spacing:0.01em;">{title}</h3>
-            {sub_html}
+            {sub_html}hbtt
         </div>
         """,
         unsafe_allow_html=True,

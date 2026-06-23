@@ -113,7 +113,8 @@ class BaseExcelExtractor:
                 # openpyxl exposes tables as a dict-like in recent versions
                 # and as a list in older ones — handle both.
                 try:
-                    table_names = list(ws.tables.keys()) if hasattr(ws.tables, "keys") else list(ws.tables)
+                    table_names = (list(ws.tables.keys()) if hasattr(ws.tables, "keys") 
+                                    else list(ws.tables))
                 except AttributeError:
                     table_names = list(ws.tables)
 

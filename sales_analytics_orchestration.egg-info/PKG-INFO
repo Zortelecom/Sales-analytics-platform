@@ -13,6 +13,7 @@ Requires-Dist: anthropic>=0.30
 Requires-Dist: pydantic[dotenv]>=2.0.0
 Requires-Dist: pydantic-settings>=2.0.0
 Requires-Dist: streamlit>=1.57.0
+Requires-Dist: plotly>=6.7.0
 Provides-Extra: dev
 Requires-Dist: pytest; extra == "dev"
 Requires-Dist: ruff; extra == "dev"

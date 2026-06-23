@@ -9,6 +9,7 @@ anthropic>=0.30
 pydantic[dotenv]>=2.0.0
 pydantic-settings>=2.0.0
 streamlit>=1.57.0
+plotly>=6.7.0
 
 [dev]
 pytest

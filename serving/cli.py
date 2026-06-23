@@ -237,7 +237,7 @@ def cmd_export(args: argparse.Namespace) -> int:
     # Discover which tables are in serving.db
     import duckdb
     conn = duckdb.connect(str(serving_path), read_only=True)
-    tables_raw = conn.execute(f"""
+    tables_raw = conn.execute("""
         SELECT table_name FROM information_schema.tables
         WHERE table_schema = ? AND table_name NOT LIKE '\_%' ESCAPE '\\'
         ORDER BY table_name

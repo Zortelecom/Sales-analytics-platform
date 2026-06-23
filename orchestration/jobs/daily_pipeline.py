@@ -6,7 +6,8 @@ from dagster import define_asset_job, AssetSelection
 daily_pipeline_job = define_asset_job(  # pylint: disable=assignment-from-no-return
     name="daily_sales_pipeline",
     selection=AssetSelection.all(),
-    description="Complete daily pipeline: Discovery → Preprocessing → Ingestion → SQLMesh → Serving",
+    description="""Complete daily pipeline:
+        Discovery → Preprocessing → Ingestion → SQLMesh → Serving""",
     tags={
         "team": "analytics",
         "domain": "sales",

@@ -385,7 +385,7 @@ def data_quality_full_report(duckdb: DuckDBResource) -> AssetCheckResult:
         # Write JSON report
         report_path = _write_report(report)
         report["report_path"] = str(report_path)
-           
+
         # Persist one row per audit to serving DB
         try:
             conn.execute("""

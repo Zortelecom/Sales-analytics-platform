@@ -72,7 +72,6 @@ def _compute_column_fingerprint(conn: duckdb.DuckDBPyConnection, full_table_name
             WHERE table_catalog || '.' || table_schema || '.' || table_name = ?
             ORDER BY ordinal_position
         """, [full_table_name]).fetchall()
-        
         if not columns:
             # Fallback: try without full qualification
             parts = full_table_name.split(".")
@@ -82,7 +81,6 @@ def _compute_column_fingerprint(conn: duckdb.DuckDBPyConnection, full_table_name
                     WHERE table_schema = ? AND table_name = ?
                     ORDER BY ordinal_position
                 """, [parts[1], parts[2]]).fetchall()
-        
         col_names = sorted([c[0] for c in columns])
         col_string = ",".join(col_names)
         fingerprint = hashlib.md5(col_string.encode()).hexdigest()

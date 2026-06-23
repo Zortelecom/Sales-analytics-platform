@@ -84,7 +84,8 @@ def prod_promotion_sensor(context: SensorEvaluationContext):
         context.log.info("Could not resolve latest serving_database materialization")
         return SkipReason("No serving_database materialization found or API unavailable.")
 
-    timestamp_value = getattr(materialization, "timestamp", None) or getattr(materialization, "event_time", None)
+    timestamp_value = (getattr(materialization, "timestamp", None)
+                        or getattr(materialization, "event_time", None))
     timestamp = _normalize_timestamp(timestamp_value)
     if timestamp is None:
         context.log.info("Unable to parse timestamp from latest serving_database materialization")
@@ -96,12 +97,15 @@ def prod_promotion_sensor(context: SensorEvaluationContext):
     now = datetime.now(timezone.utc)
     if now - timestamp > LOOKBACK_PERIOD:
         context.log.info(
-            "Latest serving_database materialization is too old (%s); need one within last 24 hours.",
+            """Latest serving_database materialization is too old (%s); 
+                    need one within last 24 hours.""",
             timestamp.isoformat(),
         )
-        return SkipReason("No recent dev serving_database materialization within the last 24 hours.")
+        return  SkipReason("""No recent dev serving_database materialization
+                           within the last 24 hours.""")
 
-    metadata_entries = getattr(materialization, "metadata_entries", None) or getattr(materialization, "metadata", None) or []
+    metadata_entries = (getattr(materialization, "metadata_entries", None) 
+                        or getattr(materialization, "metadata", None) or [])
     environment = _extract_metadata_value(metadata_entries, "environment")
     if environment != EXPECTED_ENVIRONMENT:
         context.log.info(
@@ -115,7 +119,8 @@ def prod_promotion_sensor(context: SensorEvaluationContext):
     run_key = f"prod_promotion_{run_id or timestamp.isoformat()}"
 
     context.log.info(
-        "Prod promotion gate passed; yielding RunRequest for daily pipeline (dev materialization at %s).",
+        """Prod promotion gate passed; 
+            yielding RunRequest for daily pipeline (dev materialization at %s).""",
         timestamp.isoformat(),
     )
     return RunRequest(

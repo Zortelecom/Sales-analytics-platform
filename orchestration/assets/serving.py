@@ -195,7 +195,7 @@ def serving_database(
         t0 = time.perf_counter()
         summary = sync.sync(dry_run=False)
         duration = time.perf_counter() - t0
-         
+
         # ── partial success handling ────────────────────────────────────────
         failed_tables: list[str] = []
         if summary.get("status") == "partial_success":

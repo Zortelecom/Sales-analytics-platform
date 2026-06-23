@@ -41,11 +41,12 @@ class SQLMeshResource(ConfigurableResource):
         )
 
         if result.returncode != 0:
-           error_msg = f"SQLMesh command failed with exit code {result.returncode}\nSTDOUT: {result.stdout}\nSTDERR: {result.stderr}"
-           if context:
+            error_msg = f"""SQLMesh command failed with exit code
+                {result.returncode}\nSTDOUT: {result.stdout}\nSTDERR: {result.stderr}"""
+            if context:
                 context.log.error(error_msg)
-           raise Failure(f"SQLMesh error: {result.stderr or result.stdout}")
-       
+            raise Failure(f"SQLMesh error: {result.stderr or result.stdout}")
+
         if context and result.stdout:
             warning_lines = [
                 line.strip()
@@ -64,7 +65,8 @@ class SQLMeshResource(ConfigurableResource):
 
         return result
 
-    def plan(self, context: AssetExecutionContext, auto_apply: bool = True, start_date: Optional[str] = None):
+    def plan(self, context: AssetExecutionContext, 
+            auto_apply: bool = True, start_date: Optional[str] = None):
         """Run SQLMesh plan
         
         Args:

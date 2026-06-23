@@ -41,7 +41,7 @@ def _get_latest_fingerprints(config: ServingConfig) -> Dict[str, str]:
     serving_path = config.serving_path
     if not serving_path.exists():
         return {}
-    
+
     try:
         conn = duckdb.connect(str(serving_path), read_only=True)
         # Get the latest fingerprint for each table (most recent sync_timestamp)
@@ -60,16 +60,16 @@ def _get_latest_fingerprints(config: ServingConfig) -> Dict[str, str]:
             WHERE rn = 1
             ORDER BY target_table
         """).fetchall()
-        
+
         conn.close()
-        
+
         # Build dict: extract table name from full path (schema.table -> table)
         fingerprints = {}
         for full_table, fp in result:
             # Extract just the table name (last component after '.')
             table_name = full_table.split(".")[-1] if "." in full_table else full_table
             fingerprints[table_name] = fp
-        
+
         logger.debug("Latest fingerprints: %s", fingerprints)
         return fingerprints
     except duckdb.Error as exc:
@@ -93,17 +93,17 @@ def sync_health_sensor(context: SensorEvaluationContext) -> SensorResult:
     
     Otherwise, returns a skip result.
     """
-    
+
     # ── 1. Read or initialise cursor ───────────────────────────────────────
     raw_cursor = context.cursor if context.cursor is not None else get_default_cursor_state()
-    
+
     try:
         cursor_data = json.loads(raw_cursor)
     except json.JSONDecodeError:
         logger.warning("Invalid cursor state, resetting")
         cursor_data = json.loads(get_default_cursor_state())
         raw_cursor = get_default_cursor_state()
-    
+
     # ── 2. Gather sync stats ─────────────────────────────────────────────────
     try:
         config = ServingConfig()
@@ -116,7 +116,7 @@ def sync_health_sensor(context: SensorEvaluationContext) -> SensorResult:
             skip_message=f"Could not read sync stats: {exc}. Will retry on next sensor check.",
             cursor=raw_cursor,
         )
-    
+
     # No stats available yet (first run)
     if not stats:
         logger.info("No sync stats available yet")
@@ -124,12 +124,12 @@ def sync_health_sensor(context: SensorEvaluationContext) -> SensorResult:
             skip_message="Serving database not initialized yet",
             cursor=raw_cursor,
         )
-    
+
     last_sync = stats.get("last_sync")
     failed_syncs = stats.get("failed_syncs", 0)
     avg_duration_ms = stats.get("avg_duration_ms", 0)
     successful_syncs = stats.get("successful_syncs", 0)
-    
+
     # Skip if this is the same sync we already processed
     if last_sync and cursor_data.get("last_sync_timestamp") == str(last_sync):
         logger.debug("Cursor already processed this sync, skipping")
@@ -137,11 +137,11 @@ def sync_health_sensor(context: SensorEvaluationContext) -> SensorResult:
             skip_message="Already processed this sync event",
             cursor=raw_cursor,
         )
-    
+
     # ── 3. Health checks ─────────────────────────────────────────────────────
     should_alert = False
     fingerprint_changes = []
-    
+
     # Check 1: Failed syncs
     if failed_syncs > 0:
         message = (
@@ -151,17 +151,17 @@ def sync_health_sensor(context: SensorEvaluationContext) -> SensorResult:
         )
         context.log.warning(message)
         should_alert = True
-    
+
     # Check 2: Column fingerprint changes (schema drift detection)
     current_fingerprints = _get_latest_fingerprints(config)
     previous_fingerprints = cursor_data.get("previous_fingerprints", {})
-    
+
     if previous_fingerprints:  # Only check if we have a baseline
         for table, current_fp in current_fingerprints.items():
             previous_fp = previous_fingerprints.get(table)
             if previous_fp and current_fp != previous_fp:
                 fingerprint_changes.append((table, previous_fp, current_fp))
-        
+
         if fingerprint_changes:
             for table, old_fp, new_fp in fingerprint_changes:
                 message = (
@@ -171,20 +171,20 @@ def sync_health_sensor(context: SensorEvaluationContext) -> SensorResult:
                 )
                 context.log.warning(message)
             should_alert = True
-    
+
     # Check 3: Duration degradation (vs rolling average)
     durations_ms = cursor_data.get("durations_ms", [])
-    
+
     # Add current duration to rolling window
     if avg_duration_ms and avg_duration_ms > 0:
         deque_durations = deque(durations_ms, maxlen=ROLLING_WINDOW_SIZE)
         deque_durations.append(avg_duration_ms)
         durations_ms = list(deque_durations)
-    
+
     rolling_avg_ms = None
     if len(durations_ms) >= 2:
         rolling_avg_ms = sum(durations_ms[:-1]) / len(durations_ms[:-1])  # Exclude current
-        
+
         if avg_duration_ms > rolling_avg_ms * DURATION_DEGRADATION_THRESHOLD:
             message = (
                 f"⚠️ PERFORMANCE ALERT: Sync duration degradation detected. "
@@ -194,13 +194,13 @@ def sync_health_sensor(context: SensorEvaluationContext) -> SensorResult:
             )
             context.log.warning(message)
             should_alert = True
-    
+
     # ── 4. Update cursor state ─────────────────────────────────────────────
     cursor_data["durations_ms"] = durations_ms
     cursor_data["last_sync_timestamp"] = str(last_sync) if last_sync else None
     cursor_data["previous_fingerprints"] = current_fingerprints
     updated_cursor = json.dumps(cursor_data)
-    
+
     # ── 5. Return result ───────────────────────────────────────────────────
     if should_alert:
         context.log.warning(
@@ -212,17 +212,14 @@ def sync_health_sensor(context: SensorEvaluationContext) -> SensorResult:
             "avg_duration_ms": f"{avg_duration_ms:.0f}",
             "rolling_avg_ms": f"{rolling_avg_ms:.0f}" if rolling_avg_ms else "N/A",
         }
-        
         if fingerprint_changes:
             tags["schema_changes"] = ",".join(
                 f"{t}({o}->{n})" for t, o, n in fingerprint_changes
-            )
-        
+        )
         return SensorResult(
             run_requests=[RunRequest(tags=tags)],
             cursor=updated_cursor,
         )
-    
     logger.info(
         "Sync health OK: %d failed, avg duration %.0f ms",
         failed_syncs,

@@ -12,6 +12,7 @@ from reporting.config import APP_TITLE, APP_ICON, COLORS
 # ---------------------------------------------------------------------------
 # Page config — must be first Streamlit call
 # ---------------------------------------------------------------------------
+ 
 st.set_page_config(
     page_title=APP_TITLE,
     page_icon=APP_ICON,
@@ -136,6 +137,11 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+try:
+    st.switch_page("pages/1_Executive_Overview.py")
+except AttributeError:
+    # Streamlit < 1.31 — display a manual navigation prompt instead
+    st.info("👈 Use the sidebar to navigate to a report page.")
 
 # ---------------------------------------------------------------------------
 # Navigation definition

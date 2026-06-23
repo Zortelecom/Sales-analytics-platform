@@ -75,16 +75,16 @@ def run_ingestion_pipeline(dry_run: bool = False,
     # Handle failures: move to dead_letter, but continue if some files succeeded
     if results["failed"]:
         logger.warning("⚠️  Failed to process %d file(s)", len(results["failed"]))
-        
+
         # Setup dead letter directory
         dead_letter_dir = Path(ARCHIVE_DIR).parent / "dead_letter"
         dead_letter_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Create failure manifest
         logs_dir = Path(ARCHIVE_DIR).parent / "logs"
         logs_dir.mkdir(parents=True, exist_ok=True)
         failure_manifest_path = logs_dir / f"failures_{batch_id}.txt"
-        
+
         with open(failure_manifest_path, 'w') as f:
             f.write(f"Preprocessing Failure Manifest - Batch {batch_id}\n")
             f.write(f"Failed Files: {len(results['failed'])}\n")
@@ -93,9 +93,9 @@ def run_ingestion_pipeline(dry_run: bool = False,
                 f.write(f"File: {item['source_path']}\n")
                 f.write(f"Error: {item.get('error', 'Unknown error')}\n")
                 f.write("-" * 80 + "\n")
-        
+
         logger.info("Failure manifest written to: %s", failure_manifest_path)
-        
+
         # Move failed files to dead letter for inspection
         for item in results["failed"]:
             failed_path = Path(item['source_path'])
@@ -108,12 +108,12 @@ def run_ingestion_pipeline(dry_run: bool = False,
                     logger.warning("  → Could not move %s: %s", failed_path.name, e)
             else:
                 logger.warning("  → File not found: %s", failed_path)
-        
+
         # Abort only if nothing succeeded
         if not results["successful"]:
             logger.error("No files succeeded preprocessing. Pipeline aborted.")
             return False
-        
+
         logger.warning("Continuing with %d successfully preprocessed file(s)", 
                       len(results["successful"]))
 

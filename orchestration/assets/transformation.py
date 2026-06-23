@@ -73,7 +73,7 @@ def sqlmesh_models(context: AssetExecutionContext, seeds_metadata: dict) -> dict
             context.log.warning("Could not retrieve model info")
             model_info = {}
             models_list = []
-            
+
         duration = time.perf_counter() - t0
 
         # Verify DuckLake catalog was created

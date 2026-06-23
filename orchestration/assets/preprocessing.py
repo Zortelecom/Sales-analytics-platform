@@ -20,7 +20,8 @@ sys.path.append(str(Path(__file__).parent.parent.parent / "ingestion"))
     compute_kind="python",
     ins={"files_to_process": AssetIn()}
 )
-def preprocessed_files(context: AssetExecutionContext, files_to_process: pd.DataFrame) -> pd.DataFrame:
+def preprocessed_files(context: AssetExecutionContext,
+                       files_to_process: pd.DataFrame) -> pd.DataFrame:
     """
     Clean and move files to input directory.
     

@@ -17,3 +17,5 @@ sqlmesh/logs/
 sqlmesh/seeds/
 # Dagster
 .tmp_dagster_home*/
+
+logs/
