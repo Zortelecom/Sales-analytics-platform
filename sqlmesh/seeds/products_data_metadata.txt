@@ -2,10 +2,10 @@ Seed Metadata
 ==================================================
 
 Seed Name: products_data
-Batch ID: 20260616_132028
-Timestamp: 2026-06-16T12:21:57.278418+00:00
+Batch ID: 20260703_095024
+Timestamp: 2026-07-03T08:50:43.198445+00:00
 Rows Written: 68
-Columns: 8
+Columns: 9
 
 Column Names:
   - sku
@@ -15,10 +15,11 @@ Column Names:
   - unit_price
   - unit_weight
   - is_innovation
+  - effective_from
   - product_ref_id
 
 Source Files:
   - References.xlsx
 
 Ingestion Batch IDs:
-  - 20260616_132028
+  - 20260703_095024

@@ -2,10 +2,10 @@ Seed Metadata
 ==================================================
 
 Seed Name: salesteam_data
-Batch ID: 20260616_132028
-Timestamp: 2026-06-16T12:21:57.278418+00:00
-Rows Written: 25
-Columns: 7
+Batch ID: 20260703_095024
+Timestamp: 2026-07-03T08:50:43.198445+00:00
+Rows Written: 39
+Columns: 8
 
 Column Names:
   - fullname
@@ -14,10 +14,11 @@ Column Names:
   - subregion
   - channel
   - supervisor
+  - effective_from
   - salesteam_ref_id
 
 Source Files:
   - References.xlsx
 
 Ingestion Batch IDs:
-  - 20260616_132028
+  - 20260703_095024

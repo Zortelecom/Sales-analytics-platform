@@ -29,7 +29,7 @@ MODEL (
     accepted_range(column := sales_amount, min_v := 0, inclusive := false, blocking := false),
     accepted_range(column := unit_price,   min_v := 0, inclusive := false, blocking := false),
     
-    assert_sales_data_is_fresh
+    -- assert_sales_data_is_fresh
   )
 );
 

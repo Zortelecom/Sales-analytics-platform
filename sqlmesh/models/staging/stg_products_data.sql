@@ -1,23 +1,19 @@
 MODEL (
   name staging.stg_products_data,
-  kind SCD_TYPE_2_BY_COLUMN(
-    unique_key (sku),
-    columns [unit_price, unit_weight_kg, is_innovation_product]
-  ),
+  kind FULL,
   cron '@daily',
-  grain (product_key),
+  grain (sku, effective_from),
   owner analytics_team,
   storage_format 'parquet',
   audits (
-    -- Surrogate key must be unique across all rows (including history).
-    unique_values(columns := (product_key)),
-    -- Core fields required for every row.
+    unique_combination_of_columns(columns := (sku, effective_from)),
+    -- These fields are required for every row downstream.
     not_null(columns := (
-      product_key,
       sku,
       product_name,
       product_category,
-      unit_price
+      unit_price,
+      effective_from
     )),
 
     -- Prices must be strictly positive.
@@ -30,29 +26,23 @@ MODEL (
 );
 
 SELECT
-
-  @GENERATE_SURROGATE_KEY (
-    TRIM(product_name),
-    TRIM(product_category),
-    TRIM(product_subcategory),
-    TRY_CAST(unit_price AS STRING),
-    TRY_CAST(unit_weight AS STRING),
-    LOWER(TRIM(is_innovation)),
-    hash_function := 'MD5_NUMBER_LOWER'
-  ) AS product_key,
-
   product_ref_id,
-  TRIM(UPPER(sku))                        AS sku,
-  TRIM(product_name)                      AS product_name,
-  TRIM(UPPER(product_category))                  AS product_category,
-  TRIM(UPPER(product_subcategory))               AS product_subcategory,
-  FLOOR(TRY_CAST(unit_price AS DECIMAL(12,2)))::INTEGER        AS unit_price,
-  TRY_CAST(unit_weight AS DECIMAL(10,2))  AS unit_weight_kg,
-  CASE 
+  TRIM(UPPER(sku))                                            AS sku,
+  TRIM(product_name)                                          AS product_name,
+  TRIM(UPPER(product_category))                               AS product_category,
+  TRIM(UPPER(product_subcategory))                            AS product_subcategory,
+  FLOOR(TRY_CAST(unit_price AS DECIMAL(12,2)))::INTEGER       AS unit_price,
+  TRY_CAST(unit_weight AS DECIMAL(10,2))                      AS unit_weight_kg,
+  CASE
     WHEN LOWER(TRIM(is_innovation)) IN ('true', 'yes', '1', 'oui') THEN TRUE
     ELSE FALSE
-  END AS is_innovation_product
+  END                                                         AS is_innovation_product,
+  TRY_CAST(effective_from AS TIMESTAMP)                       AS effective_from
 
 FROM raw.products_data
-WHERE TRIM(sku) IS NOT NULL 
-  AND TRIM(sku) != '';
+WHERE TRIM(sku) IS NOT NULL
+  AND TRIM(sku) != ''
+  -- A row that can't be placed in time can't be historized correctly
+  -- downstream, so it's filtered here where it's auditable (not_null above
+  -- will still flag it if this ever fires).
+  AND TRY_CAST(effective_from AS TIMESTAMP) IS NOT NULL;

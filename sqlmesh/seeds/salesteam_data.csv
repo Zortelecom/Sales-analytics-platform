@@ -1,26 +1,40 @@
-fullname,salesperson_id,region,subregion,channel,supervisor,salesteam_ref_id
-Akamse Rose,AR001,Centre,Yde Sud-Ouest,DETAILLANT,Tokam Albert,72734464-b822-491c-aeea-a9eef94af526
-Akomba Elodie,AE001,Centre,Yde Centre,TABLE-TOP,Maguy Lobe,97b15d46-9b1f-4542-bfe8-808ff45de36f
-Alaka Kos Elodie,AK001,Centre,Yde Sud-Ouest,DETAILLANT,Tokam Albert,93a521d8-0074-4b08-b9a2-80c79c9c59c9
-Bangobet Anthony,BA001,Centre,Est,DETAILLANT,Kemtchoum Romeo,f7397969-712e-4dab-90a7-ee5668c95417
-Banok Serge,BS001,Centre,Est,DETAILLANT,Kemtchoum Romeo,5f39e5ab-1e61-4d0d-9b91-0a57569e6636
-Bayiha Robert,BR001,Centre,Yde Centre,DEMI-GROS,Maguy Lobe,40047e56-c017-4c90-b010-1197bbfdb393
-Dikoume Daniel,DD001,Centre,Yde Centre,DETAILLANT,Maguy Lobe,8338c0b9-2b8c-4c19-aebb-a0e625fbc72e
-Endenele Simplice,ES001,Centre,Yde Centre,DEMI-GROS,Maguy Lobe,bf28b968-84c4-4ec1-9164-8e6b732bb655
-Endougou Emile,EE001,Centre,Yde Nord,DEMI-GROS,Ndo Eko-man,63cc7b36-2c0f-48cb-8728-63de8094c110
-Kegne Marthe,KM001,Centre,Yde Sud-Ouest,TABLE-TOP,Tokam Albert,8ebfec50-4bb0-42c3-81bd-76233f00d2ee
-Kouomou Basile,KB001,Centre,Yde Peripherie,DEMI-GROS,Maguy Lobe,3bbb29f1-48bb-4392-bf02-2ef5eba661b9
-Balla Eric,BE001,Centre,Yde Centre,DETAILLANT,Maguy Lobe,d5751412-7902-460e-9b87-d9d6d80080f3
-Momo Charlene,MC001,Centre,Yde Nord,TABLE-TOP,Ndo Eko-man,d9378100-daa4-483d-93c7-60154704e756
-Ngando Simon,NS001,Centre,Yde Sud-Ouest,DEMI-GROS,Tokam Albert,4d084733-026c-4ce1-8876-f1fa6e370b9c
-Ngo-Lissock Alice,NA001,Centre,Sud Ebolowa,DETAILLANT,Yamadeu Sidoine,f4e0c832-cee6-43b5-8a0f-c42fbe3ced6f
-Ngono Marie,NM001,Centre,Yde Nord,TABLE-TOP,Ndo Eko-man,8d158876-e345-42d2-af56-ff70538f2015
-Nzongue Charmita,NC001,Centre,Yde Centre,TABLE-TOP,Maguy Lobe,338ef680-577a-42e0-b5bd-a4a6079456e0
-Peck Samuel,PS001,Centre,Est,DETAILLANT,Kemtchoum Romeo,ff8e960b-d358-4ce6-b38c-2b8c3030076e
-Tcheutchoua Armelle,TA001,Centre,Yde Nord,DETAILLANT,Ndo Eko-man,1f37bb0c-e7b3-4cac-b919-ed77b380c5e2
-Tchidjio Claire,TC001,Centre,Yde,GMS,Nidakong Aloys,3c06244c-c282-4546-ba92-3289b1487f8e
-Tonga Martin,TM001,Centre,Yde Sud-Ouest,DEMI-GROS,Tokam Albert,4eaf5ed1-c2a9-4774-9d6c-70f721383854
-Tsasse Gilbert,TG001,Centre,Yde Centre,DEMI-GROS,Ndo Eko-man,15353d29-d655-4416-b8a1-611a5f616c4c
-Waindo Conscience,WC001,Centre,Yde Sud-Ouest,DETAILLANT,Tokam Albert,f63747cc-04da-41f0-8b2b-1b2096d2aa9d
-Dzonnet Jeomalliel,DJ001,Centre,Yde Nord,DETAILLANT,Ndo Eko-man,d41a091f-3357-4fcb-9f8c-10c858f15605
-Momo Charlene,MC001,Centre,Yde Nord,DETAILLANT,Ndo Eko-man,95212cc8-d244-4342-8e23-4163c6411f45
+fullname,salesperson_id,region,subregion,channel,supervisor,effective_from,salesteam_ref_id
+Akamse Rose,AR001,Centre,Yde Sud-Ouest,DETAILLANT,Tokam Albert,2025-03-01,4c1178bd-4a5a-45a0-b9aa-17bff868b38d
+Akomba Elodie,AE001,Centre,Yde Centre,TABLE-TOP,Maguy Lobe,2025-12-01,edadd563-5c0b-4775-9f37-32f8b774d18d
+Alaka Kos Elodie,AK001,Centre,Yde Sud-Ouest,TABLE-TOP,Tokam Albert,2025-03-01,b778ff74-62be-4f12-a6f9-8dfad625a618
+Alaka Kos Elodie,AK001,Centre,Yde Sud-Ouest,DETAILLANT,Tokam Albert,2026-01-01,57456251-efd0-430f-91fe-4f7b6411f3df
+Bangobet Anthony,BA001,Centre,Est,DETAILLANT,Kemtchoum Romeo,2025-02-01,04f80a9f-840b-46fd-9cc9-cbefeafd1fb8
+Banok Serge,BS001,Centre,Est,DETAILLANT,Kemtchoum Romeo,2025-02-01,76f2d703-7ebb-4ca6-adf3-39beade84453
+Bayiha Robert,BR001,Centre,Yde Centre,DETAILLANT,Tokam Albert,2025-03-01,f88ad80a-14a0-496e-af2e-d5d8706b276b
+Bayiha Robert,BR001,Centre,Yde Centre,DEMI-GROS,Edimo Jean-Michel,2025-10-01,84119f64-285e-4a03-a6e0-a593653d5569
+Bayiha Robert,BR001,Centre,Yde Centre,DEMI-GROS,Maguy Lobe,2025-12-01,a38e9c01-e90c-4fd6-b2c3-95500ba4376a
+Dikoume Daniel,DD001,Centre,Yde Centre,DETAILLANT,Maguy Lobe,2025-12-01,6d2e1eda-df8a-48cf-a40b-b573dd20c89a
+Endenele Simplice,ES001,Centre,Yde Centre,DEMI-GROS,Edimo Jean-Michel,2025-04-01,2c152f14-7519-4bee-9cc7-f360d162e130
+Endenele Simplice,ES001,Centre,Yde Centre,DEMI-GROS,Maguy Lobe,2025-12-01,2bb97356-2f08-4d1c-bb7c-80faf06b9d2d
+Endougou Emile,EE001,Centre,Yde Nord,DEMI-GROS,Edimo Jean-Michel,2025-01-01,98411807-bc01-4090-ae5c-3b94d935422f
+Endougou Emile,EE001,Centre,Yde Nord,DEMI-GROS,Ndo Eko-man,2025-12-01,9efb1d5b-2a6e-41c8-bdce-bacea04368d4
+Kegne Marthe,KM001,Centre,Yde Sud-Ouest,TABLE-TOP,Tokam Albert,2025-11-01,829f9983-f511-4040-803d-970c85572ee4
+Kouomou Basile,KB001,Centre,Yde Centre,DETAILLANT,Maguy Lobe,2026-04-01,0fcef5be-aab9-46d4-ae4d-c759bd4d146c
+Balla Eric,BE001,Centre,Yde Centre,DETAILLANT,Maguy Lobe,2026-01-01,69ab16d8-f31e-40af-8086-c1d4faaf5302
+Momo Charlene,MC001,Centre,Yde Nord,TABLE-TOP,Tokam Albert,2025-03-01,607b19f0-3b70-4a97-b916-c48f8d4eb987
+Momo Charlene,MC001,Centre,Yde Nord,DETAILLANT,Ndo Eko-man,2026-01-01,071293a9-a7cd-4f1d-9c78-4c8624f24852
+Ngando Simon,NS001,Centre,Yde Sud-Ouest,DEMI-GROS,Edimo Jean-Michel,2025-01-01,cc51c92b-458a-4248-8b13-1a2cd1eebf27
+Ngando Simon,NS001,Centre,Yde Sud-Ouest,DEMI-GROS,Tokam Albert,2025-12-01,924b53b3-4102-4066-ada1-9ea559d7ea1a
+Ngo-Lissock Alice,NA001,Centre,Sud Ebolowa,DETAILLANT,Yamadeu Sidoine,2025-02-01,15010882-e246-4b36-b323-362412f73145
+Ngono Marie,NM001,Centre,Yde Nord,TABLE-TOP,Tokam Albert,2025-03-01,63df55fe-6b1e-4631-9a93-c6e137e4b189
+Ngono Marie,NM001,Centre,Yde Nord,TABLE-TOP,Ndo Eko-man,2025-12-01,c8a78fd2-a698-4165-9d24-4b8179e4ba34
+Ngono Marie,NM001,Centre,Yaounde,GMS,Nidakong Aloys,2026-07-01,dbe211c6-61a1-4d4a-a11e-9097bb0ff393
+Nzongue Charmita,NC001,Centre,Yde Centre,TABLE-TOP,Tokam Albert,2025-03-01,75a5e9d4-b669-4d12-bd3f-c055bab7bf8c
+Nzongue Charmita,NC001,Centre,Yde Centre,TABLE-TOP,Maguy Lobe,2025-12-01,ca2448dc-d626-4207-868d-5a28d54c6d48
+Nzongue Charmita,NC001,Centre,Yaounde,GMS,Nidakong Aloys,2026-05-01,64b0c960-678b-46ef-982d-371a6eac1a51
+Peck Samuel,PS001,Centre,Est,DETAILLANT,Kemtchoum Romeo,2025-02-01,5ec3a43e-c75d-4766-9951-86f4d8b0a025
+Tcheutchoua Armelle,TA001,Centre,Yde Nord,DETAILLANT,Tokam Albert,2025-03-01,be07c93a-42d2-466b-90bf-d0336c74762d
+Tcheutchoua Armelle,TA001,Centre,Yde Nord,DETAILLANT,Ndo Eko-man,2025-12-01,173475eb-650a-4201-8ba6-81691422c636
+Tchidjio Claire,TC001,Centre,Yde,GMS,Nidakong Aloys,2025-03-01,85438914-8336-442e-bedd-4dacbdd24057
+Tonga Martin,TM001,Centre,Yde Sud-Ouest,DEMI-GROS,Edimo Jean-Michel,2025-04-01,bb750d61-1f78-406b-9d53-8ebe8fa7c73d
+Tonga Martin,TM001,Centre,Yde Sud-Ouest,DEMI-GROS,Tokam Albert,2025-12-01,f14df01c-3982-49e8-b9a3-03a83be35b10
+Tsasse Gilbert,TG001,Centre,Yde Nord,DEMI-GROS,Edimo Jean-Michel,2025-01-01,23615d63-7726-467c-b330-2824de3a4f61
+Tsasse Gilbert,TG001,Centre,Yde Nord,DEMI-GROS,Ndo Eko-man,2025-12-01,ce9e836b-d220-4471-ac57-5bbc650808d0
+Waindo Conscience,WC001,Centre,Yde Sud-Ouest,DETAILLANT,Tokam Albert,2025-03-01,4ceb9c8d-340b-4d50-bcc5-a703862247ff
+Dzonnet Jeomalliel,DJ001,Centre,Yde Nord,TABLE-TOP,Tokam Albert,2025-03-01,e007ac87-7775-4631-ac69-8fb7330f7082
+Dzonnet Jeomalliel,DJ001,Centre,Yde Nord,TABLE-TOP,Ndo Eko-man,2025-12-01,10a4f120-1d68-4342-87dc-54d8a0ab1c84
