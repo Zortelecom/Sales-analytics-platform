@@ -27,7 +27,7 @@ default_gateway: local_gateway
 # Model defaults
 model_defaults:
   dialect: duckdb
-  start: 2025-01-01
+  start: 2024-10-01
   cron: "@daily"
   
 # Plan behavior

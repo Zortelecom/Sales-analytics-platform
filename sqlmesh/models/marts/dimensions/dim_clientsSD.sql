@@ -1,26 +1,44 @@
 MODEL (
   name marts.dim_clientsd,
-  kind FULL,
-  cron '@daily',
+  kind SCD_TYPE_2_BY_COLUMN (
+    unique_key (sd_id),
+    columns [
+      sd_name,
+      region,
+      subregion,
+      key_player,
+      is_destocked
+    ],
+    updated_at_name effective_from,
+    batch_size 1
+  ),
+  start '2024-10-01',
+  cron '@monthly',
   grain (clientsd_key),
   owner analytics_team,
   storage_format 'parquet',
   audits (
-    -- Built-in: primary key integrity.
     unique_values(columns := (clientsd_key)),
     not_null(columns := (clientsd_key, sd_id)),
-
-    -- Custom: SCD window overlap check — see audits/*.
-     assert_no_overlapping_scd_windows(
+    assert_no_overlapping_scd_windows(
         key            := sd_id,
         surrogate_key  := clientsd_key
     )
   )
 );
 
-
 SELECT
-  sd_key AS clientsd_key,
+  @GENERATE_SURROGATE_KEY(
+    TRIM(sd_id),
+    sd_name,
+    region,
+    subregion,
+    key_player,
+    is_destocked,
+    CAST(effective_from AS TEXT),
+    hash_function := 'MD5_NUMBER_LOWER'
+  ) AS clientsd_key,
+
   sd_id,
   sd_name,
   region,
@@ -29,6 +47,8 @@ SELECT
   key_player,
   phone_number,
   is_destocked,
-  valid_from,
-  valid_to
+  effective_from
+
 FROM staging.stg_clientsd_data
+
+WHERE CAST(effective_from AS DATE) BETWEEN @start_ds AND @end_ds;

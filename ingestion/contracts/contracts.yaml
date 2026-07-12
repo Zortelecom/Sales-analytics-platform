@@ -1,0 +1,134 @@
+# Declared source schemas — single source of truth for extraction schema.
+#
+# required_columns: extraction fails (returns empty DataFrame, logs an
+#   error) if any of these are missing after column normalization.
+# expected_columns: full known superset. Anything present but outside
+#   this set logs a warning (possible schema drift / unannounced new
+#   column upstream) but does not fail the run.
+#
+# Extractors call ingestion.contracts.loader.load_contracts() and look up
+# their entry by name below, rather than declaring column sets inline.
+# If a source isn't listed here, its extractor hasn't been migrated to
+# the contract mechanism yet — check the extractor file directly.
+
+sources:
+  ref_salesteam:
+    required_columns:
+      - fullname
+      - salesperson_id
+      - region
+      - subregion
+      - channel
+      - supervisor
+    expected_columns:
+      - fullname
+      - salesperson_id
+      - region
+      - subregion
+      - channel
+      - supervisor
+
+  ref_products:
+    required_columns:
+      - sku
+      - product_name
+      - product_category
+      - product_subcategory
+      - unit_price
+      - unit_weight
+      - is_innovation
+    expected_columns:
+      - sku
+      - product_name
+      - product_category
+      - product_subcategory
+      - unit_price
+      - unit_weight
+      - is_innovation
+
+  # NOTE: 'phone' and 'effective_from' are required here because
+  # reference_extractor.py's _extract_clients_sd() requires them.
+  # ingestion/config/sources.yaml's legacy Ref_ClientsSD block previously
+  # disagreed with this (said 'is_stockout', omitted both) — that block
+  # was unused dead config, but fixed anyway per the review on 2026-07-05.
+  ref_clients_sd:
+    required_columns:
+      - sd_id
+      - sd_name
+      - region
+      - kp
+      - subregion
+      - phone
+      - city
+      - is_destocked
+      - effective_from
+    expected_columns:
+      - sd_id
+      - sd_name
+      - region
+      - kp
+      - subregion
+      - phone
+      - city
+      - is_destocked
+      - effective_from
+
+  # TODO(VERIFY): confirm these match the actual Ref_sku_mapping headers
+  # in References.xlsx — carried over from reference_extractor.py's own
+  # TODO comment, not yet independently confirmed.
+  ref_kp_sku_mapping:
+    required_columns:
+      - kp_sku
+      - internal_sku
+    expected_columns:
+      - kp_sku
+      - internal_sku
+
+  kp_sd_destocke:
+    required_columns:
+      - kp_destocke
+      - sd_id
+      - sale_date
+      - sku
+      - qty
+      - amount
+    expected_columns:
+      - kp_destocke
+      - sd_id
+      - sale_date
+      - sku
+      - product_name
+      - unit_price
+      - qty
+      - amount
+      - subregion
+      - sales_supervisor
+      - channel
+      - city
+      - product_cat
+      - product_sub_cat
+      - weight
+      - is_innovation
+
+  kp_sd_non_destocke:
+    required_columns:
+      - sd_id
+      - sale_date
+      - sku
+      - qty
+      - amount
+    expected_columns:
+      - sd_id
+      - sale_date
+      - sku
+      - product_name
+      - unit_price
+      - qty
+      - amount
+      - subregion
+      - channel
+      - city
+      - product_cat
+      - product_sub_cat
+      - weight
+      - is_innovation

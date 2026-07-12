@@ -1,9 +1,29 @@
+"""
+Reference extractor — References.xlsx.
+
+2026-07-05 review
+───────────────────────────────────────────────────
+1. Schema now comes from ingestion/contracts/contracts.yaml via
+   load_contracts(), not from inline `expected` sets per method — one
+   declared schema, not two. (This also fixed a real drift bug: the old
+   sources.yaml had 'is_stockout' for Ref_ClientsSD and was missing both
+   'phone' and 'effective_from' — unused dead config, since nothing read
+   it, but wrong regardless.)
+2. Column normalization strips internal spaces too, matching the same
+   fix applied to kp_sd_extractor.py.
+3. Added a duplicate (sd_id, effective_from) check in
+   _extract_clients_sd — two rows for the same SD with an identical
+   effective_from give stg_clientsd_data.sql's LEAD()-based valid_to
+   computation an ambiguous ordering to resolve. Flagging it here catches
+   the mistake at the point closest to the actual data entry.
+"""
 import uuid
 import pandas as pd
 import logging
 from pathlib import Path
 from typing import Dict
 from .base_extractor import BaseExcelExtractor
+from ..contracts.loader import load_contracts
 
 logger = logging.getLogger(__name__)
 
@@ -13,18 +33,24 @@ class ReferenceExtractor(BaseExcelExtractor):
     Extract Reference data from References.xlsx.
 
     Tables:
-    - Ref_Salesteam: Salesperson_id, FullName, Region, SubRegion, Channel, 
+    - Ref_Salesteam: Salesperson_id, FullName, Region, SubRegion, Channel,
                      Supervisor
-    - Ref_Product: SKU, Product_name, product_category, product_subcategory, 
+    - Ref_Product: SKU, Product_name, product_category, product_subcategory,
                    unit_price, unit_weight, is_innovation
-    - Ref_ClientsSD: SD_id, SD_NAME, Region, KP, SubRegion, phone, 
-                     City, Is_destocked
+    - Ref_ClientsSD: SD_id, SD_NAME, Region, KP, SubRegion, phone,
+                     City, Is_destocked, effective_from
+    - Ref_sku_mapping: kp_sku, internal_sku
     """
+
+    def __init__(self, batch_id: str) -> None:
+        super().__init__(batch_id)
+        self._contracts = load_contracts()
 
     def read(self, directory_path: Path) -> Dict[str, pd.DataFrame]:
         """
         Extract all reference tables.
-        Returns dict with keys: 'salesteam', 'product', 'clients_sd'
+        Returns dict with keys: 'ref_salesteam', 'ref_products',
+        'ref_clients_sd', 'ref_kp_sku_mapping'
         """
         reference_file = directory_path / "References.xlsx"
 
@@ -36,20 +62,21 @@ class ReferenceExtractor(BaseExcelExtractor):
 
         results = {}
 
-        # Extract Salesteam reference
         df_salesteam = self._extract_salesteam(reference_file)
         if not df_salesteam.empty:
             results['ref_salesteam'] = df_salesteam
 
-        # Extract Product reference
         df_products = self._extract_product(reference_file)
         if not df_products.empty:
             results['ref_products'] = df_products
 
-        # Extract Clients/SD reference
         df_clients = self._extract_clients_sd(reference_file)
         if not df_clients.empty:
             results['ref_clients_sd'] = df_clients
+
+        df_kp_sku = self._extract_kp_sku_mapping(reference_file)
+        if not df_kp_sku.empty:
+            results['ref_kp_sku_mapping'] = df_kp_sku
 
         return results
 
@@ -65,21 +92,16 @@ class ReferenceExtractor(BaseExcelExtractor):
             logger.warning("No salesteam reference data found")
             return pd.DataFrame()
 
-        # Normalize columns
-        df.columns = [col.lower().strip() for col in df.columns]
+        df.columns = [col.lower().strip().replace(" ", "_") for col in df.columns]
 
-        # Expected columns
-        expected = {
-            'salesperson_id', 'fullname', 'region', 'subregion',
-            'channel', 'supervisor'
-        }
-
-        missing = expected - set(df.columns)
-        if missing:
+        contract = self._contracts["ref_salesteam"]
+        is_valid, missing, unexpected = contract.validate(set(df.columns))
+        if not is_valid:
             logger.error("Salesteam reference missing columns: %s", missing)
             return pd.DataFrame()
+        if unexpected:
+            logger.warning("Unexpected columns in salesteam reference: %s", unexpected)
 
-        # Add record ID
         df['salesteam_ref_id'] = [str(uuid.uuid4()) for _ in range(len(df))]
 
         logger.info("Extracted %d salesteam reference rows (%d unique salespersons)",
@@ -99,25 +121,18 @@ class ReferenceExtractor(BaseExcelExtractor):
             logger.warning("No product reference data found")
             return pd.DataFrame()
 
-        # Normalize columns
-        df.columns = [col.lower().strip() for col in df.columns]
+        df.columns = [col.lower().strip().replace(" ", "_") for col in df.columns]
 
-        # Expected columns
-        expected = {
-            'sku', 'product_name', 'product_category',
-            'product_subcategory', 'unit_price', 'unit_weight',
-            'is_innovation'
-        }
-
-        missing = expected - set(df.columns)
-        if missing:
+        contract = self._contracts["ref_products"]
+        is_valid, missing, unexpected = contract.validate(set(df.columns))
+        if not is_valid:
             logger.error("Product reference missing columns: %s", missing)
             return pd.DataFrame()
+        if unexpected:
+            logger.warning("Unexpected columns in product reference: %s", unexpected)
 
-        # Add record ID
         df['product_ref_id'] = [str(uuid.uuid4()) for _ in range(len(df))]
 
-        # Data quality checks
         duplicate_skus = df[df.duplicated('sku', keep=False)]
         if not duplicate_skus.empty:
             logger.warning("Found %d duplicate SKUs in product reference",
@@ -139,23 +154,65 @@ class ReferenceExtractor(BaseExcelExtractor):
             logger.warning("No clients/SD reference data found")
             return pd.DataFrame()
 
-        # Normalize columns
-        df.columns = [col.lower().strip() for col in df.columns]
+        df.columns = [col.lower().strip().replace(" ", "_") for col in df.columns]
 
-        # Expected columns
-        expected = {
-            'sd_id', 'sd_name', 'region', 'kp', 'subregion',
-            'phone', 'city', 'is_destocked'
-        }
-
-        missing = expected - set(df.columns)
-        if missing:
+        contract = self._contracts["ref_clients_sd"]
+        is_valid, missing, unexpected = contract.validate(set(df.columns))
+        if not is_valid:
             logger.error("Clients SD reference missing columns: %s", missing)
             return pd.DataFrame()
+        if unexpected:
+            logger.warning("Unexpected columns in clients/SD reference: %s", unexpected)
 
-        # Add record ID
+        # Duplicate (sd_id, effective_from) check — see module docstring #3.
+        # An ambiguous LEAD() ordering downstream is a silent SCD2 bug;
+        # catch it here, closest to the actual data-entry mistake.
+        dup_effective = df[df.duplicated(['sd_id', 'effective_from'], keep=False)]
+        if not dup_effective.empty:
+            logger.warning(
+                "Found %d rows with duplicate (sd_id, effective_from) pairs "
+                "in clients/SD reference — this will produce an ambiguous "
+                "valid_to ordering in stg_clientsd_data.sql's SCD2 logic.",
+                len(dup_effective)
+            )
+
         df['client_sd_ref_id'] = [str(uuid.uuid4()) for _ in range(len(df))]
 
         logger.info("Extracted %d client/SD reference rows", len(df))
+
+        return df
+
+    def _extract_kp_sku_mapping(self, file_path: Path) -> pd.DataFrame:
+        """Extract Ref_sku_mapping table from References.xlsx."""
+        df = self.extract_single_file(
+            file_path,
+            table_prefix="Ref_sku_mapping",
+            exclude_sheets=[]
+        )
+
+        if df.empty:
+            logger.warning("No KP-SKU mapping reference data found")
+            return pd.DataFrame()
+
+        df.columns = [col.lower().strip().replace(" ", "_") for col in df.columns]
+
+        contract = self._contracts["ref_kp_sku_mapping"]
+        is_valid, missing, unexpected = contract.validate(set(df.columns))
+        if not is_valid:
+            logger.error("KP-SKU mapping reference missing columns: %s", missing)
+            return pd.DataFrame()
+        if unexpected:
+            logger.warning("Unexpected columns in KP-SKU mapping reference: %s", unexpected)
+
+        duplicate_kp_skus = df[df.duplicated('kp_sku', keep=False)]
+        if not duplicate_kp_skus.empty:
+            logger.warning(
+                "Found %d duplicate kp_sku values in mapping reference",
+                len(duplicate_kp_skus)
+            )
+
+        df['kp_sku_mapping_ref_id'] = [str(uuid.uuid4()) for _ in range(len(df))]
+
+        logger.info("Extracted %d KP-SKU mapping rows", len(df))
 
         return df

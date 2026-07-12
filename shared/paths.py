@@ -11,11 +11,13 @@ ARCHIVE_DIR = DATA_DIR / "archive"
 INPUT_SALES_DIR = DATA_DIR / "input" / "sales"
 INPUT_TARGETS_DIR = DATA_DIR / "input" / "targets"
 INPUT_REFERENCES_DIR = DATA_DIR / "input" / "references"
+INPUT_KP_SD_DIR = DATA_DIR / "input" / "kp_sd"
 
 INPUT_PATHS = {
     "sales":      INPUT_SALES_DIR,
     "targets":    INPUT_TARGETS_DIR,
     "references": INPUT_REFERENCES_DIR,
+    "kp_sd":   INPUT_KP_SD_DIR,
 }
 
 DATA_ROOT = DATA_DIR

@@ -16,12 +16,13 @@ class FileDiscovery:
         self.discovered_files = {
             "sales": [],
             "targets": [],
-            "references": []
+            "references": [],
+            "kp_sd": [],
         }
 
     def discover_all(self) -> Dict[str, List[Path]]:
         """Scan all source directories for valid Excel files"""
-        for source_type in ["sales", "targets", "references"]:
+        for source_type in ["sales", "targets", "references", "kp_sd"]:
             source_path = getattr(self.config, f"{source_type}_path")
             rules = self.config.processing_rules[source_type]
 

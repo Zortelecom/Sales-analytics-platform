@@ -14,6 +14,7 @@ from datetime import datetime
 from ingestion.config.settings import ARCHIVE_DIR, load_sources_config, INPUT_PATHS, SQLMESH_SEEDS_DIR
 from ingestion.orchestrate import FileDiscovery, ExcelPreprocessor, ArchiveManager
 from ingestion.extract.sales_extractor import SalesExtractor
+from ingestion.extract.kp_sd_extractor import KPDestockeExtractor, KPNonDestockeExtractor
 from ingestion.extract.target_extractor import TargetExtractor
 from ingestion.extract.reference_extractor import ReferenceExtractor
 from ingestion.load.seed_writer import SeedWriter
@@ -124,7 +125,7 @@ def run_ingestion_pipeline(dry_run: bool = False,
     # ─────────────────────────────────────────────────────────────
     # PHASE 2: Data Extraction (FIXED)
     # ─────────────────────────────────────────────────────────────
-    logger.info("\n📊 Phase 3: Data Extraction to Seeds")
+    logger.info("\n📊 Phase 2: Data Extraction to Seeds")
 
     if dry_run:
         logger.info("[DRY RUN] Would extract data to seeds")
@@ -157,6 +158,39 @@ def run_ingestion_pipeline(dry_run: bool = False,
             logger.info("✓ Extracted %d sales records", len(df_sales))
     except (FileNotFoundError, ValueError, KeyError) as e:
         logger.error("Sales extraction failed: %s", e)
+        return False
+    
+    # ──────────────────────────────────────────────────────────────
+    # ── KP-SD Destocké Extraction
+    # ──────────────────────────────────────────────────────────────
+    
+    try:
+        kp_sd_dest_extractor = KPDestockeExtractor(batch_id=batch_id)
+        df_kp_sd_dest = kp_sd_dest_extractor.read(INPUT_PATHS["kp_sd"])
+
+        if df_kp_sd_dest.empty:
+            logger.warning("No KP-SD destocké data extracted")
+        else:
+            extracted_data["kp_sd_destocke_data"] = df_kp_sd_dest
+            logger.info("✓ Extracted %d KP-SD destocké records", len(df_kp_sd_dest))
+    except (FileNotFoundError, ValueError, KeyError) as e:
+        logger.error("KP-SD destocké extraction failed: %s", e)
+        return False
+    
+    # ─────────────────────────────────────────────────────────────
+    # ── KP-SD Non-Destocké Extraction
+    # ──────────────────────────────────────────────────────────────
+    try:
+        kp_sd_non_dest_extractor = KPNonDestockeExtractor(batch_id=batch_id)
+        df_kp_sd_non_dest = kp_sd_non_dest_extractor.read(INPUT_PATHS["kp_sd"])
+
+        if df_kp_sd_non_dest.empty:
+            logger.warning("No KP-SD non-destocké data extracted")
+        else:
+            extracted_data["kp_sd_non_destocke_data"] = df_kp_sd_non_dest
+            logger.info("✓ Extracted %d KP-SD non-destocké records", len(df_kp_sd_non_dest))
+    except (FileNotFoundError, ValueError, KeyError) as e:
+        logger.error("KP-SD non-destocké extraction failed: %s", e)
         return False
 
     # ─────────────────────────────────────────────────────────────
@@ -196,7 +230,8 @@ def run_ingestion_pipeline(dry_run: bool = False,
         ref_mapping = {
             'ref_salesteam': 'salesteam_data',
             'ref_products': 'products_data',
-            'ref_clients_sd': 'clientSD_data'
+            'ref_clients_sd': 'clientSD_data',
+            'ref_kp_sku_mapping': 'kp_sku_mapping_data'
         }
 
         for ref_key, seed_name in ref_mapping.items():

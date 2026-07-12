@@ -1,5 +1,5 @@
 sales:
-  directory: "sales"
+  directory: "ExSD_Sales"
   file_pattern: "ExSD*.xlsx"
   table_prefix: "Sales"
   exclude_sheets: "synthese*"
@@ -27,6 +27,15 @@ references:
       required_columns: 
         ["sd_name", "sd_id", "region", "kp", "subregion",
          "city", "is_stockout"]
+    - name: "Ref_kp_sku_mapping"
+      required_columns: ["kp_sku", "internal_sku"]
+
+kp_sd:
+  directory: "ExKP_Sales"
+  file_pattern: "ExKP*.xlsx"
+  table_prefix: "SalesIn"
+  exclude_sheets: "synthese*"
+  required_columns: ['kp_destocke', 'sd_id', 'sale_date', 'sku', 'qty', 'amount']
 
 # Data source configuration
 sources:
@@ -35,9 +44,10 @@ sources:
     enabled: true
     base_path: "D:/Users/Desktop/sales_analytics_data"
     folders:
-      sales: "Sales"
+      sales: "ExSD_Sales"
       targets: "Targets"
       references: "References"
+      kp_sd: "ExKP_Sales"
   
   # Option 2: Direct SharePoint (if using Microsoft Graph API)
   sharepoint:
@@ -47,6 +57,7 @@ sources:
       sales: "Shared Documents/Data/Sales"
       targets: "Shared Documents/Data/Targets"
       references: "Shared Documents/Data/References"
+      kp_sd: "Shared Documents/Data/KP_Sales"
     auth:
       client_id: "${SP_CLIENT_ID}"
       client_secret: "${SP_CLIENT_SECRET}"
@@ -56,7 +67,7 @@ sources:
 processing:
   sales:
     delete_sheets_pattern: "Synthese*"  # Regex pattern for sheets to remove
-    required_sheets: ["Sales*"]         # Must have at least one matching sheet
+    required_sheets: null         # Must have at least one matching sheet
     file_pattern: "*.xlsx"
     
   targets:
@@ -66,8 +77,13 @@ processing:
     
   references:
     delete_sheets_pattern: null
-    required_sheets: ["Salespersons_List", "Products_List", "SD_List"]
+    required_sheets: ["Salespersons_List", "Products_List", "SD_List", "SKU_Mapping"]
     file_pattern: "*.xlsx"
+  
+  kp_sd:
+    delete_sheets_pattern: "Synthese*"
+    required_sheets: null
+    file_pattern: "ExKP*.xlsx"
 
 # Validation
 validation:

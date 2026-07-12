@@ -5,7 +5,7 @@ MODEL (
     updated_at_name effective_from,
     updated_at_as_valid_from true
   ),
-  start '2025-01-01',
+  start '2024-10-01',
   cron '@monthly',
   grain (product_key),
   owner analytics_team,

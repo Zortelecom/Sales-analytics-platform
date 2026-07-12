@@ -18,7 +18,7 @@ MODEL (
 WITH date_spine AS (
   SELECT UNNEST(
     generate_series(
-      DATE '2025-01-01',
+      DATE '2024-10-01',
       DATE '2035-12-31',
       INTERVAL '1 day'
     )
