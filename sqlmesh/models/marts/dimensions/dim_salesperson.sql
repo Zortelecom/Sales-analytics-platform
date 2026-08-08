@@ -11,7 +11,7 @@ MODEL (
     updated_at_name effective_from,
     batch_size 1
   ),
-  start '2025-01-01',
+  start '2024-10-01',
   cron '@monthly',
   grain (salesperson_key),
   owner analytics_team,
@@ -41,14 +41,15 @@ SELECT
   -- original collision bug: if a salesperson's attributes ever revert to a
   -- prior combination (e.g. region A -> B -> A), the two A-windows now get
   -- different keys instead of colliding on the same hash.
-  @GENERATE_SURROGATE_KEY(
-    TRIM(salesperson_id),
-    region,
-    subregion,
-    sales_channel,
-    supervisor_name,
-    CAST(effective_from AS TEXT),
-    hash_function := 'MD5_NUMBER_LOWER'
+  MOD(
+    @GENERATE_SURROGATE_KEY(
+      TRIM(salesperson_id),
+      subregion,
+      sales_channel,
+      CAST(effective_from AS TEXT),
+    hash_function := 'MD5_NUMBER_LOWER'-- ← default value for NULL effective_from
+    ),
+    9007199254740992
   ) AS salesperson_key,
 
   salesperson_id,

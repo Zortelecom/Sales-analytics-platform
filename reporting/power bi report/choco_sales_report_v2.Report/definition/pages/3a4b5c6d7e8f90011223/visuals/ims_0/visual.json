@@ -1,0 +1,59 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.11.0/schema.json",
+  "name": "ims_0",
+  "position": {
+    "x": 968.02867383512546,
+    "y": 159.65591397849462,
+    "z": 8000,
+    "height": 100.01433691756273,
+    "width": 288.11469534050178,
+    "tabOrder": 8000
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "IMS"
+                }
+              },
+              "queryRef": "_Measures.IMS",
+              "nativeQueryRef": "IMS"
+            }
+          ]
+        }
+      }
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'IMS'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

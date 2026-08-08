@@ -111,6 +111,8 @@ def preprocessed_files(context: AssetExecutionContext,
             required_sheets = ["Sales*"]
         elif source_type == "targets":
             required_sheets = ["Target*"]
+        elif source_type == "kp_sd":
+            delete_pattern = "Synthese*"
         # references files have no special processing
 
         try:

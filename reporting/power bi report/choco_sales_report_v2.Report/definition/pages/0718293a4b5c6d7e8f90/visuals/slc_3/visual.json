@@ -1,0 +1,54 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.11.0/schema.json",
+  "name": "slc_3",
+  "position": {
+    "x": 959.77060931899643,
+    "y": 64.229390681003579,
+    "z": 4000,
+    "height": 69.73476702508961,
+    "width": 296.37275985663081,
+    "tabOrder": 5000
+  },
+  "visual": {
+    "visualType": "slicer",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "dim_clientsd"
+                    }
+                  },
+                  "Property": "is_destocked"
+                }
+              },
+              "queryRef": "dim_clientsd.is_destocked",
+              "nativeQueryRef": "is_destocked",
+              "active": true
+            }
+          ]
+        }
+      }
+    },
+    "objects": {
+      "data": [
+        {
+          "properties": {
+            "mode": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Dropdown'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.11.0/schema.json",
+  "name": "v04slicerKeyPlayer0",
+  "position": {
+    "x": 648.17955112219454,
+    "y": 56.558603491271818,
+    "z": 3000,
+    "height": 76.309226932668324,
+    "width": 296.2593516209476,
+    "tabOrder": 3000
+  },
+  "visual": {
+    "visualType": "slicer",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "dim_clientsd"
+                    }
+                  },
+                  "Property": "key_player"
+                }
+              },
+              "queryRef": "dim_clientsd.key_player",
+              "nativeQueryRef": "key_player",
+              "active": true
+            }
+          ]
+        }
+      }
+    },
+    "objects": {
+      "data": [
+        {
+          "properties": {
+            "mode": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Dropdown'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

@@ -6,6 +6,7 @@ MODEL (
       sd_name,
       region,
       subregion,
+      supervisor_name,
       key_player,
       is_destocked
     ],
@@ -28,21 +29,25 @@ MODEL (
 );
 
 SELECT
-  @GENERATE_SURROGATE_KEY(
-    TRIM(sd_id),
-    sd_name,
-    region,
-    subregion,
-    key_player,
-    is_destocked,
-    CAST(effective_from AS TEXT),
+
+  MOD(
+    @GENERATE_SURROGATE_KEY(
+      TRIM(sd_id),
+      sd_name,
+      subregion,
+      key_player,
+      is_destocked,
+      CAST(effective_from AS TEXT),
     hash_function := 'MD5_NUMBER_LOWER'
+    ),
+    9007199254740992
   ) AS clientsd_key,
 
   sd_id,
   sd_name,
   region,
   subregion,
+  supervisor_name,
   city,
   key_player,
   phone_number,

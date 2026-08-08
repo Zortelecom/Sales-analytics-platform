@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Report",
+    "displayName": "choco_sales_report_v2"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "83cba2d1-d2bf-44df-900d-3c5772ee0538"
+  }
+}

@@ -34,14 +34,17 @@ SELECT
   -- identifies each version. This also avoids the attribute-collision bug:
   -- if a product's price or weight ever reverts to a prior value, the two
   -- windows get different keys instead of colliding on the same hash.
-  @GENERATE_SURROGATE_KEY(
-    TRIM(sku),
-    unit_price,
-    unit_weight_kg,
-    is_innovation_product,
-    CAST(effective_from AS TEXT),
-    hash_function := 'MD5_NUMBER_LOWER'
-  ) AS product_key,
+  MOD(
+    @GENERATE_SURROGATE_KEY(
+      TRIM(sku),
+      unit_price,
+      unit_weight_kg,
+      is_innovation_product,
+      CAST(effective_from AS TEXT),
+      hash_function := 'MD5_NUMBER_LOWER'
+    ), 
+    9007199254740992)
+   AS product_key,
 
   sku,
   product_name,

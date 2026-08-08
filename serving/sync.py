@@ -62,25 +62,47 @@ logger = logging.getLogger(__name__)
 def _compute_column_fingerprint(conn: duckdb.DuckDBPyConnection, full_table_name: str) -> str:
     """
     Compute a fingerprint (MD5 hash of sorted column names) for a table.
-    
+
     Returns the hex digest of the sorted, comma-joined column names.
     Example: columns [b, a, c] -> MD5(hash of "a,b,c")
+
+    FIX: accepts "catalog.schema.table", "schema.table" or bare "table".
+    The previous version only matched the 3-part concatenated form and only
+    fell back for 3-part inputs, so file-swap mode (which passes the 2-part
+    "bi.<table>") silently stored the MD5 of an empty string for every table.
     """
+    parts = full_table_name.split(".")
     try:
-        columns = conn.execute("""
-            SELECT column_name FROM information_schema.columns
-            WHERE table_catalog || '.' || table_schema || '.' || table_name = ?
-            ORDER BY ordinal_position
-        """, [full_table_name]).fetchall()
-        if not columns:
-            # Fallback: try without full qualification
-            parts = full_table_name.split(".")
-            if len(parts) == 3:
+        columns: list = []
+        if len(parts) == 3:
+            columns = conn.execute("""
+                SELECT column_name FROM information_schema.columns
+                WHERE table_catalog = ? AND table_schema = ? AND table_name = ?
+                ORDER BY ordinal_position
+            """, parts).fetchall()
+            if not columns:
+                # Fallback: match on schema + table (catalog naming differs
+                # between attached DuckLake catalogs and file-backed DBs)
                 columns = conn.execute("""
                     SELECT column_name FROM information_schema.columns
                     WHERE table_schema = ? AND table_name = ?
                     ORDER BY ordinal_position
-                """, [parts[1], parts[2]]).fetchall()
+                """, parts[1:]).fetchall()
+        elif len(parts) == 2:
+            columns = conn.execute("""
+                SELECT column_name FROM information_schema.columns
+                WHERE table_schema = ? AND table_name = ?
+                ORDER BY ordinal_position
+            """, parts).fetchall()
+        else:
+            columns = conn.execute("""
+                SELECT column_name FROM information_schema.columns
+                WHERE table_name = ?
+                ORDER BY ordinal_position
+            """, [parts[0]]).fetchall()
+
+        if not columns:
+            logger.warning("No columns found for %s -- fingerprint will be empty.", full_table_name)
         col_names = sorted([c[0] for c in columns])
         col_string = ",".join(col_names)
         fingerprint = hashlib.md5(col_string.encode()).hexdigest()
@@ -89,6 +111,89 @@ def _compute_column_fingerprint(conn: duckdb.DuckDBPyConnection, full_table_name
     except duckdb.Error as exc:
         logger.error("Failed to compute fingerprint for %s: %s", full_table_name, exc)
         return ""
+
+
+# ---------------------------------------------------------------------------
+# Helper: SQL script splitting
+# ---------------------------------------------------------------------------
+
+def _strip_sql_comments(sql_content: str) -> str:
+    """
+    Remove "--" comments (full-line AND trailing) from a SQL script while
+    preserving "--" sequences inside single-quoted string literals
+    ('' escape handled).
+    """
+    out_lines: List[str] = []
+    for line in sql_content.splitlines():
+        buf: List[str] = []
+        i = 0
+        in_quote = False
+        while i < len(line):
+            ch = line[i]
+            if in_quote:
+                buf.append(ch)
+                if ch == "'":
+                    if i + 1 < len(line) and line[i + 1] == "'":
+                        buf.append(line[i + 1])
+                        i += 2
+                        continue
+                    in_quote = False
+                i += 1
+            elif ch == "'":
+                in_quote = True
+                buf.append(ch)
+                i += 1
+            elif ch == "-" and i + 1 < len(line) and line[i + 1] == "-":
+                break  # rest of the line is a comment
+            else:
+                buf.append(ch)
+                i += 1
+        out_lines.append("".join(buf))
+    return "\n".join(out_lines)
+
+
+def _split_sql_statements(sql_content: str) -> List[str]:
+    """
+    Split a SQL script into executable statements.
+
+    FIX: the previous naive `sql_content.split(";")` cut statements in two
+    whenever a "--" comment contained a semicolon — silently breaking BI view
+    application. Comments are now stripped first, and the split itself is
+    quote-aware so semicolons inside single-quoted string literals
+    ('' escape handled) don't break statements either.
+    """
+    stripped = _strip_sql_comments(sql_content)
+    statements: List[str] = []
+    buf: List[str] = []
+    in_quote = False
+    i = 0
+    while i < len(stripped):
+        ch = stripped[i]
+        if in_quote:
+            buf.append(ch)
+            if ch == "'":
+                if i + 1 < len(stripped) and stripped[i + 1] == "'":
+                    buf.append(stripped[i + 1])
+                    i += 2
+                    continue
+                in_quote = False
+            i += 1
+            continue
+        if ch == "'":
+            in_quote = True
+            buf.append(ch)
+        elif ch == ";":
+            stmt = "".join(buf).strip()
+            if stmt:
+                statements.append(stmt)
+            buf = []
+        else:
+            buf.append(ch)
+        i += 1
+    tail = "".join(buf).strip()
+    if tail:
+        statements.append(tail)
+    return statements
 
 
 # ---------------------------------------------------------------------------
@@ -125,7 +230,7 @@ class QuackServer:
         return self.quack.uri
 
     def start(self) -> None:
-        logger.warning('''Quack is in beta (DuckDB ≥ v1.5.2). Stable release: 
+        logger.warning('''Quack is in beta (DuckDB ≥ v1.5.2). Stable release:
             DuckDB v2.0 Sep 2026. Use file-swap in production.''')
         logger.info("Starting Quack server on %s backed by %s ...",
                     self.quack.uri, self.serving_path)
@@ -164,7 +269,11 @@ class QuackServer:
 def _ensure_ducklake_extension(conn: duckdb.DuckDBPyConnection) -> None:
     try:
         conn.execute("LOAD ducklake;")
-    except duckdb.CatalogException:
+    except duckdb.Error:
+        # FIX: LOAD of a missing extension raises duckdb.IOException, NOT
+        # duckdb.CatalogException — the old `except CatalogException` never
+        # fired, so the auto-install fallback below was dead code and the
+        # first run on a fresh machine crashed instead of installing.
         logger.warning("DuckLake extension not found -- installing ...")
         try:
             conn.execute("INSTALL ducklake; LOAD ducklake;")
@@ -175,7 +284,9 @@ def _ensure_ducklake_extension(conn: duckdb.DuckDBPyConnection) -> None:
 def _ensure_quack_extension(conn: duckdb.DuckDBPyConnection) -> None:
     try:
         conn.execute("LOAD quack;")
-    except duckdb.CatalogException:
+    except duckdb.Error:
+        # FIX: same as above — catch the base duckdb.Error so the install
+        # fallback actually triggers (LOAD raises IOException when missing).
         logger.warning(
             "Quack extension not found -- installing from core_nightly ...\n"
             "  Quack is in beta (DuckDB >= v1.5.2). Stable: DuckDB v2.0 (Sept 2026)."
@@ -238,6 +349,13 @@ class ServingLayerSync:
         Returns:
             Summary dict with status, timing, per-table results, and export results.
         """
+        # FIX: reset per-run state. Both lists are instance attributes and
+        # previously accumulated across sync() calls, so reusing one instance
+        # produced wrong success/failure counts, wrong failure-rate abort
+        # decisions, and wrong export table lists on the second run.
+        self.sync_metadata = []
+        self.failed_tables = []
+
         mode = "quack" if self.config.quack_enabled else "file-swap"
         logger.info("=" * 70)
         logger.info(
@@ -273,15 +391,12 @@ class ServingLayerSync:
         Uses publish_and_wait so the Dagster asset doesn't complete before
         exports finish.  Switch to publish_background for fire-and-forget.
         """
-        succeeded_tables = [
-            t for t in summary.get("tables_succeeded_names", [])
-        ]
-        # Fallback: use table count if per-name list isn't populated
+        succeeded_tables = list(summary.get("tables_succeeded_names") or [])
+        # Fallback: rebuild from per-table sync metadata.
+        # FIX: the previous fallback first seeded this list with the FAILED
+        # table names (comment: "failed ones") before overwriting it — dead,
+        # misleading code. It now goes straight to the metadata rebuild.
         if not succeeded_tables:
-            succeeded_tables = [
-                name for name, _ in self.failed_tables  # failed ones
-            ]
-            # Rebuild from sync_metadata if available
             succeeded_tables = [
                 m["table"] for m in self.sync_metadata
                 if m.get("status") == "success"
@@ -363,9 +478,10 @@ class ServingLayerSync:
             sync_start = datetime.now()
             self._sync_all_tables_quack(conn, tables)
 
-            if self.config.apply_views:
-                self._apply_bi_views_quack(conn)
-
+            # FIX: abort on excessive failures BEFORE applying BI views.
+            # Previously views were built first, so a half-synced schema made
+            # view creation fail with a binding error that masked the real
+            # problem (the table sync failures).
             success_count = len(tables) - len(self.failed_tables)
             failure_rate = len(self.failed_tables) / len(tables) if tables else 0
 
@@ -374,6 +490,9 @@ class ServingLayerSync:
                     f"Sync aborted: {len(self.failed_tables)}/{len(tables)} tables failed.\n"
                     + "\n".join(f"  - {t}: {e}" for t, e in self.failed_tables)
                 )
+
+            if self.config.apply_views:
+                self._apply_bi_views_quack(conn)
 
             duration = (datetime.now() - sync_start).total_seconds()
 
@@ -384,6 +503,12 @@ class ServingLayerSync:
                 "tables_total": len(tables),
                 "tables_succeeded": success_count,
                 "tables_failed": len(self.failed_tables),
+                # FIX: populate the per-name list so _trigger_exports doesn't
+                # always fall through to its metadata-rebuild fallback.
+                "tables_succeeded_names": [
+                    m["table"] for m in self.sync_metadata
+                    if m.get("status") == "success"
+                ],
                 "failed_tables": [t for t, _ in self.failed_tables],
                 "serving_path": self.config.serving_path,
                 "quack_uri": self.config.quack.uri,
@@ -470,7 +595,7 @@ class ServingLayerSync:
         logger.info("Applying BI views on Quack server ...")
         alias = self.config.quack.catalog_alias
         sql_content = sql_path.read_text(encoding="utf-8")
-        statements = [s.strip() for s in sql_content.split(";") if s.strip()]
+        statements = _split_sql_statements(sql_content)
         conn.execute(f"USE {alias}.main")
         try:
             for stmt in statements:
@@ -523,16 +648,20 @@ class ServingLayerSync:
                 sync_start = datetime.now()
                 self._sync_all_tables_file(source, target, tables)
 
-                if self.config.apply_views:
-                    self._apply_bi_views(target)
-
                 success_count = len(tables) - len(self.failed_tables)
                 failure_rate = len(self.failed_tables) / len(tables) if tables else 0
 
+                # FIX: abort BEFORE applying BI views (previously views ran
+                # first and could mask the real failures with binding errors),
+                # and include the per-table detail like the Quack path does.
                 if failure_rate >= 0.5:
                     raise RuntimeError(
-                        f"Sync aborted: {len(self.failed_tables)}/{len(tables)} failed."
+                        f"Sync aborted: {len(self.failed_tables)}/{len(tables)} failed.\n"
+                        + "\n".join(f"  - {t}: {e}" for t, e in self.failed_tables)
                     )
+
+                if self.config.apply_views:
+                    self._apply_bi_views(target)
 
                 target.close()
                 self._atomic_swap()
@@ -545,6 +674,11 @@ class ServingLayerSync:
                     "tables_total": len(tables),
                     "tables_succeeded": success_count,
                     "tables_failed": len(self.failed_tables),
+                    # FIX: populate the per-name list for _trigger_exports.
+                    "tables_succeeded_names": [
+                        m["table"] for m in self.sync_metadata
+                        if m.get("status") == "success"
+                    ],
                     "failed_tables": [t for t, _ in self.failed_tables],
                     "serving_path": self.config.serving_path,
                 }
@@ -597,8 +731,12 @@ class ServingLayerSync:
 
         arrow_tbl = source.execute(f"SELECT * FROM {source_full}").arrow()
         target.register("_arrow_tmp", arrow_tbl)
-        target.execute(f"CREATE TABLE {target_table} AS SELECT * FROM _arrow_tmp")
-        target.unregister("_arrow_tmp")
+        try:
+            target.execute(f"CREATE TABLE {target_table} AS SELECT * FROM _arrow_tmp")
+        finally:
+            # FIX: unregister even when the CTAS fails, so a stale registered
+            # view can't leak into the next table's sync attempt.
+            target.unregister("_arrow_tmp")
 
         row_count = target.execute(f"SELECT COUNT(*) FROM {target_table}").fetchone()[0]
         column_fingerprint = _compute_column_fingerprint(target, target_table)
@@ -611,7 +749,7 @@ class ServingLayerSync:
         """, [datetime.now(), f"{source_schema}.{table}", target_table,
               row_count, duration_ms, "success", column_fingerprint])
 
-        self.sync_metadata.append({"table": table, "row_count": row_count, \
+        self.sync_metadata.append({"table": table, "row_count": row_count,
                                    "column_fingerprint": column_fingerprint, "status": "success"})
         logger.info("    %s rows in %d ms (fingerprint: %s)", f"{row_count:,}", duration_ms, column_fingerprint)
 
@@ -633,7 +771,7 @@ class ServingLayerSync:
             raise FileNotFoundError(f"BI views template not found: {sql_path}")
         logger.info("Applying BI views ...")
         sql_content = sql_path.read_text(encoding="utf-8")
-        statements = [s.strip() for s in sql_content.split(";") if s.strip()]
+        statements = _split_sql_statements(sql_content)
         for stmt in statements:
             try:
                 target.execute(stmt)
@@ -644,24 +782,36 @@ class ServingLayerSync:
     def _atomic_swap(self):
         serving = Path(self.config.serving_path)
         temp = Path(self.config.temp_path)
-        backup = Path(self.config.serving_path.replace(".db", "_backup.db"))
+        # FIX: derive the backup path from the Path object instead of
+        # str.replace(".db", ...). The old code silently produced
+        # backup == serving when the path didn't contain ".db", and the
+        # final backup.unlink() would then have deleted the live database.
+        backup = serving.with_name(f"{serving.stem}_backup{serving.suffix}")
+
+        if not temp.exists():
+            raise FileNotFoundError(f"Temp serving DB missing, nothing to swap: {temp}")
 
         if serving.exists():
             if backup.exists():
                 backup.unlink()
             shutil.move(str(serving), str(backup))
 
+        last_exc: Optional[Exception] = None
         for attempt in range(3):
             try:
                 shutil.move(str(temp), str(serving))
                 break
-            except PermissionError as exc:
+            except OSError as exc:
+                # FIX: retry any transient OS error (not just PermissionError)
+                # and restore the backup if every attempt fails, so the live
+                # database is never left missing after a failed swap.
+                last_exc = exc
                 if attempt < 2:
-                    sleep(0.5)
-                else:
-                    if backup.exists():
-                        shutil.move(str(backup), str(serving))
-                    raise RuntimeError(f"Swap failed after 3 attempts: {exc}") from exc
+                    sleep(0.5 * (attempt + 1))
+        else:
+            if backup.exists():
+                shutil.move(str(backup), str(serving))
+            raise RuntimeError(f"Swap failed after 3 attempts: {last_exc}") from last_exc
 
         if backup.exists():
             backup.unlink()

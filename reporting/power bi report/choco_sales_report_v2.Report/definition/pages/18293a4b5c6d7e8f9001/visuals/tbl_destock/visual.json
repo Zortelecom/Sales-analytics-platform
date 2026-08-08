@@ -1,0 +1,102 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.11.0/schema.json",
+  "name": "tbl_destock",
+  "position": {
+    "x": 22.021505376344088,
+    "y": 225.72043010752688,
+    "z": 7000,
+    "height": 280.77419354838707,
+    "width": 608.3440860215054,
+    "tabOrder": 8000
+  },
+  "visual": {
+    "visualType": "tableEx",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "fact_kp_sd"
+                    }
+                  },
+                  "Property": "sale_date"
+                }
+              },
+              "queryRef": "fact_kp_sd.sale_date",
+              "nativeQueryRef": "sale_date"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "fact_kp_sd"
+                    }
+                  },
+                  "Property": "sku"
+                }
+              },
+              "queryRef": "fact_kp_sd.sku",
+              "nativeQueryRef": "sku"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "fact_kp_sd"
+                    }
+                  },
+                  "Property": "is_destocked_sd"
+                }
+              },
+              "queryRef": "fact_kp_sd.is_destocked_sd",
+              "nativeQueryRef": "is_destocked_sd"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "fact_kp_sd"
+                    }
+                  },
+                  "Property": "source_asserted_destocked"
+                }
+              },
+              "queryRef": "fact_kp_sd.source_asserted_destocked",
+              "nativeQueryRef": "source_asserted_destocked"
+            }
+          ]
+        }
+      }
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Destocke flag mismatches'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

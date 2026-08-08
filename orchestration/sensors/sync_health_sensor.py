@@ -3,6 +3,7 @@ import logging
 import json
 from collections import deque
 from typing import Dict
+from pathlib import Path
 
 import duckdb
 from dagster import (
@@ -38,7 +39,7 @@ def _get_latest_fingerprints(config: ServingConfig) -> Dict[str, str]:
     
     Returns dict: {table_name: column_fingerprint, ...}
     """
-    serving_path = config.serving_path
+    serving_path = Path(config.serving_path)
     if not serving_path.exists():
         return {}
 

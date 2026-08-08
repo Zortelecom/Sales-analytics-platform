@@ -1,20 +1,21 @@
 """Sensor gate for promoting prod pipeline only after a recent successful dev materialization."""
 from datetime import datetime, timedelta, timezone
 from typing import Any
-
 from dagster import (
     AssetKey,
     DefaultSensorStatus,
     RunRequest,
     SensorEvaluationContext,
     SkipReason,
-    sensor,
+    asset_sensor,
+    EventLogEntry
 )
 from orchestration.jobs.daily_pipeline import daily_pipeline_job
 
 LOOKBACK_PERIOD = timedelta(hours=24)
 ASSET_KEY = AssetKey("serving_database")
 EXPECTED_ENVIRONMENT = "dev"
+
 
 
 def _get_latest_materialization(instance: Any, asset_key: AssetKey) -> Any:
@@ -66,64 +67,33 @@ def _extract_metadata_value(metadata_entries: Any, label: str) -> Any:
     return None
 
 
-@sensor(
+@asset_sensor(
+    asset_key=AssetKey("serving_database"),
     job=daily_pipeline_job,
     name="prod_promotion_sensor",
     default_status=DefaultSensorStatus.RUNNING,
     description=(
-        "Only trigger the prod daily pipeline when a recent successful dev "
-        "serving_database materialization exists."
+        "Only trigger the prod daily pipeline after a recent dev serving_database materialization.."
     ),
 )
-def prod_promotion_sensor(context: SensorEvaluationContext):
+def prod_promotion_sensor(context: SensorEvaluationContext, asset_event: EventLogEntry):
     """Gate production pipeline execution on a dev serving_database materialization."""
     context.log.info("Evaluating prod promotion gate for serving_database asset")
 
-    materialization = _get_latest_materialization(context.instance, ASSET_KEY)
-    if materialization is None:
-        context.log.info("Could not resolve latest serving_database materialization")
-        return SkipReason("No serving_database materialization found or API unavailable.")
-
-    timestamp_value = (getattr(materialization, "timestamp", None)
-                        or getattr(materialization, "event_time", None))
-    timestamp = _normalize_timestamp(timestamp_value)
-    if timestamp is None:
-        context.log.info("Unable to parse timestamp from latest serving_database materialization")
-        return SkipReason("Invalid serving_database materialization timestamp.")
-
-    if timestamp.tzinfo is None:
-        timestamp = timestamp.replace(tzinfo=timezone.utc)
-
-    now = datetime.now(timezone.utc)
-    if now - timestamp > LOOKBACK_PERIOD:
-        context.log.info(
-            """Latest serving_database materialization is too old (%s); 
-                    need one within last 24 hours.""",
-            timestamp.isoformat(),
-        )
-        return  SkipReason("""No recent dev serving_database materialization
-                           within the last 24 hours.""")
-
-    metadata_entries = (getattr(materialization, "metadata_entries", None) 
-                        or getattr(materialization, "metadata", None) or [])
-    environment = _extract_metadata_value(metadata_entries, "environment")
+    materialization = asset_event.dagster_event.event_specific_data.materialization
+    
+    ts = datetime.fromtimestamp(asset_event.timestamp, tz=timezone.utc)
+    if datetime.now(timezone.utc) - ts > LOOKBACK_PERIOD:
+        context.log.info("Latest serving_database materialization is older than 24h.")
+        return
+    
+    env_value = materialization.metadata.get("environment")
+    environment = env_value.value if env_value is not None else None
     if environment != EXPECTED_ENVIRONMENT:
-        context.log.info(
-            "Latest serving_database materialization environment %r does not match expected %r.",
-            environment,
-            EXPECTED_ENVIRONMENT,
-        )
-        return SkipReason("Latest serving_database materialization is not from dev.")
+        context.log.info("Materialization environment %r != %r.", environment, EXPECTED_ENVIRONMENT)
+        return
 
-    run_id = getattr(materialization, "run_id", None)
-    run_key = f"prod_promotion_{run_id or timestamp.isoformat()}"
-
-    context.log.info(
-        """Prod promotion gate passed; 
-            yielding RunRequest for daily pipeline (dev materialization at %s).""",
-        timestamp.isoformat(),
-    )
-    return RunRequest(
-        run_key=run_key,
+    yield RunRequest(
+        run_key=f"prod_promotion_{asset_event.run_id}",
         tags={"trigger": "sensor", "gate": "prod_promotion", "environment": "prod"},
     )

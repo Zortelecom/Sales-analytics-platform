@@ -55,6 +55,11 @@ def _table(model: str) -> str:
     return model  # passed as fully-qualified view alias; real resolution below
 
 
+def _schema(layer: str, env: str) -> str:
+    """Return SQLMesh's physical schema name, including the prod exception."""
+    return layer if env == "prod" else f"{layer}__{env}"
+
+
 def _run(conn: duckdb.DuckDBPyConnection, sql: str) -> list[dict]:
     """Execute a query and return rows as a list of dicts."""
     try:
@@ -111,8 +116,8 @@ def _source_file_summary(rows: list[dict], file_col: str = "filename_subregion")
 
 def _audit_not_null_fact_sales(conn: duckdb.DuckDBPyConnection, env: str) -> tuple[list, list]:
     """Mirrors the not_null audit on fact_sales."""
-    _FACT = f"marts__{env}.fact_sales"
-    _STG_SALES = f"staging__{env}.stg_sales_data"
+    _FACT = f"{_schema('marts', env)}.fact_sales"
+    _STG_SALES = f"{_schema('staging', env)}.stg_sales_data"
 
     failing = _run(conn, f"""
         SELECT
@@ -173,8 +178,8 @@ def _audit_not_null_fact_sales(conn: duckdb.DuckDBPyConnection, env: str) -> tup
 
 def _audit_negative_amount(conn: duckdb.DuckDBPyConnection, env: str) -> tuple[list, list]:
     """Mirrors accepted_range(column := total_amount, min_v := 0, inclusive := false)."""
-    _FACT = f"marts__{env}.fact_sales"
-    _STG_SALES = f"staging__{env}.stg_sales_data"
+    _FACT = f"{_schema('marts', env)}.fact_sales"
+    _STG_SALES = f"{_schema('staging', env)}.stg_sales_data"
 
     failing = _run(conn, f"""
         SELECT sales_line_id, sale_date, sku, salesperson_id, total_amount
@@ -202,8 +207,8 @@ def _audit_negative_amount(conn: duckdb.DuckDBPyConnection, env: str) -> tuple[l
 
 def _audit_orphaned_products(conn: duckdb.DuckDBPyConnection, env: str) -> tuple[list, list]:
     """Mirrors assert_no_orphaned_product."""
-    _FACT = f"marts__{env}.fact_sales"
-    _STG_SALES = f"staging__{env}.stg_sales_data"
+    _FACT = f"{_schema('marts', env)}.fact_sales"
+    _STG_SALES = f"{_schema('staging', env)}.stg_sales_data"
 
     failing = _run(conn, f"""
         SELECT sales_line_id, sale_date, sku, product_key
@@ -231,8 +236,8 @@ def _audit_orphaned_products(conn: duckdb.DuckDBPyConnection, env: str) -> tuple
 
 def _audit_amount_vs_qty_price(conn: duckdb.DuckDBPyConnection, env: str) -> tuple[list, list]:
     """Mirrors assert_amount_matches_qty_x_price (>>1 % deviation)."""
-    _FACT = f"marts__{env}.fact_sales"
-    _STG_SALES = f"staging__{env}.stg_sales_data"
+    _FACT = f"{_schema('marts', env)}.fact_sales"
+    _STG_SALES = f"{_schema('staging', env)}.stg_sales_data"
 
     failing = _run(conn, f"""
         SELECT
@@ -275,7 +280,7 @@ def _audit_amount_vs_qty_price(conn: duckdb.DuckDBPyConnection, env: str) -> tup
 
 def _audit_product_price(conn: duckdb.DuckDBPyConnection, env: str) -> tuple[list, list]:
     """Mirrors accepted_range on unit_price in stg_products_data."""
-    _STG_PRODUCTS = f"staging__{env}.stg_products_data"
+    _STG_PRODUCTS = f"{_schema('staging', env)}.stg_products_data"
 
     failing = _run(conn, f"""
         SELECT product_key, sku, product_name, unit_price
@@ -428,4 +433,51 @@ def data_quality_full_report(duckdb: DuckDBResource) -> AssetCheckResult:
             "run_at":        MetadataValue.text(run_ts),
             "environment":   MetadataValue.text(_ENV),
         },
+    )
+
+
+@asset_check(
+    asset="fact_kp_sd",
+    name="data_quality_full_report_kp_sd",
+    description="Runs KP sell-in completeness, reconciliation, and mapping audits.",
+    blocking=False,
+)
+def data_quality_full_report_kp_sd(duckdb: DuckDBResource) -> AssetCheckResult:
+    """Persist KP-SD audit trends using the same table as the sales check."""
+    env = SQLMESH_ENV
+    fact = f"{_schema('marts', env)}.fact_kp_sd"
+    staging = f"{_schema('staging', env)}.stg_kp_sd_data"
+    checks = {
+        "not_null": f"kp_sd_line_id IS NULL OR sale_date IS NULL OR sku IS NULL OR clientsd_id IS NULL",
+        "negative_amount": "total_amount <= 0 OR quantity <= 0",
+        "orphaned_product": "sku IS NOT NULL AND product_key IS NULL",
+        "orphaned_client": "clientsd_id IS NOT NULL AND clientsd_key IS NULL",
+        "amount_vs_qty_price": "quantity > 0 AND unit_price > 0 AND ABS(total_amount - quantity * unit_price) / NULLIF(quantity * unit_price, 0) > 0.01",
+        "integer_xaf": "total_amount <> ROUND(total_amount, 0)",
+    }
+    all_passed = True
+    summary: dict[str, str] = {}
+    run_dt = datetime.now(timezone.utc)
+    with duckdb.get_connection() as conn:
+        # This audit is evaluated at staging grain so it can distinguish a mapped
+        # KP code from an internal SKU that legitimately needs no mapping row.
+        checks["unmapped_sku"] = (
+            f"kp_sd_line_id IN (SELECT s.kp_sd_line_id FROM {staging} s "
+            f"LEFT JOIN {_schema('staging', env)}.stg_kp_sku_mapping m ON s.source_sku = m.kp_sku "
+            f"LEFT JOIN {_schema('marts', env)}.dim_products p ON s.source_sku = p.sku "
+            f"AND s.sale_date >= p.valid_from AND (s.sale_date < p.valid_to OR p.valid_to IS NULL) "
+            f"WHERE s.source_sku IS NOT NULL AND m.kp_sku IS NULL AND p.sku IS NULL)"
+        )
+        conn.execute("CREATE TABLE IF NOT EXISTS bi.quality_trend (run_at TIMESTAMPTZ, audit TEXT, status TEXT, failing_rows INT)")
+        for name, predicate in checks.items():
+            count = conn.execute(f"SELECT COUNT(*) FROM {fact} WHERE {predicate}").fetchone()[0]
+            status = "PASSED" if count == 0 else "FAILED"
+            all_passed = all_passed and count == 0
+            audit_name = f"kp_sd_{name}"
+            summary[audit_name] = "✔ passed" if count == 0 else f"❌ {count} rows failed"
+            conn.execute("INSERT INTO bi.quality_trend VALUES (?, ?, ?, ?)", (run_dt, audit_name, status, count))
+    return AssetCheckResult(
+        passed=all_passed,
+        severity=AssetCheckSeverity.WARN,
+        metadata={"audit_results": MetadataValue.json(summary), "environment": MetadataValue.text(env)},
     )

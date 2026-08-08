@@ -3,7 +3,11 @@ AUDIT (
 );
 
 SELECT
-  s.*
-FROM @this_model s
-LEFT JOIN marts.dim_products p ON s.sku = p.sku
-WHERE p.sku IS NULL;
+  kp_sd_line_id,
+  sale_date,
+  source_sku,
+  sku
+FROM @this_model
+WHERE source_sku IS NOT NULL
+  AND NOT has_sku_mapping
+  AND product_key IS NULL;

@@ -1,0 +1,59 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.11.0/schema.json",
+  "name": "ims_2",
+  "position": {
+    "x": 968.02867383512546,
+    "y": 378.0358422939068,
+    "z": 10000,
+    "height": 104.60215053763442,
+    "width": 288.11469534050178,
+    "tabOrder": 10000
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "IMS Coverage (Months)"
+                }
+              },
+              "queryRef": "_Measures.IMS Coverage (Months)",
+              "nativeQueryRef": "IMS Coverage (Months)"
+            }
+          ]
+        }
+      }
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'IMS Coverage (Months)'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

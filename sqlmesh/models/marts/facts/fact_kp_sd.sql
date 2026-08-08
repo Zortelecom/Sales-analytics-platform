@@ -3,7 +3,7 @@ MODEL (
   kind INCREMENTAL_BY_TIME_RANGE (
     time_column sale_date
   ),
-  start '2025-01-01',
+  start '2024-10-01',
   cron '@monthly',
   grain (kp_sd_line_id),
   owner analytics_team,
@@ -15,10 +15,10 @@ MODEL (
     accepted_range(column := total_amount, min_v := 0, inclusive := false),
     accepted_range(column := quantity,     min_v := 0, inclusive := false),
     assert_no_orphaned_product_kp,
+    assert_no_orphaned_client_kp,
     assert_amount_is_integer_xaf_kp,
-    assert_amount_matches_qty_x_price_kp
-
-    -- , assert_no_orphaned_client_kp
+    assert_amount_matches_qty_x_price_kp,
+    assert_no_unmapped_kp_sku
     -- , assert_destocked_flag_consistency
   )
 );
@@ -32,16 +32,18 @@ SELECT
 
   p.product_key,
   s.sku,
+  s.source_sku,
   p.product_category,
 
   c.clientsd_key,
   s.clientsd_id,
-  c.is_destocked        AS dim_is_destocked,
+  c.is_destocked        AS is_destocked_sd,
   s.source_asserted_destocked,
 
   s.quantity,
   s.unit_price,
-  s.total_amount
+  s.total_amount,
+  s.has_sku_mapping
 
 FROM staging.stg_kp_sd_data s
 

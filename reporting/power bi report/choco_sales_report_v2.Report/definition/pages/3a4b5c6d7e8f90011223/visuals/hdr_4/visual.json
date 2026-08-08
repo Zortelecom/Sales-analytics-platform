@@ -1,0 +1,59 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.11.0/schema.json",
+  "name": "hdr_4",
+  "position": {
+    "x": 1020.3297491039426,
+    "y": 71.569892473118273,
+    "z": 6000,
+    "height": 80,
+    "width": 236,
+    "tabOrder": 6000
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "dim_clientsd"
+                    }
+                  },
+                  "Property": "subregion"
+                }
+              },
+              "queryRef": "dim_clientsd.subregion",
+              "nativeQueryRef": "subregion"
+            }
+          ]
+        }
+      }
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'subregion'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

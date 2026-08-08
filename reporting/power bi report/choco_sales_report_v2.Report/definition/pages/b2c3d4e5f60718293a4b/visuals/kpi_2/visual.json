@@ -1,0 +1,59 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.11.0/schema.json",
+  "name": "kpi_2",
+  "position": {
+    "x": 514.01574803149606,
+    "y": 169.3228346456693,
+    "z": 6000,
+    "height": 104,
+    "width": 236,
+    "tabOrder": 7000
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "% Achievement"
+                }
+              },
+              "queryRef": "_Measures.% Achievement",
+              "nativeQueryRef": "% Achievement"
+            }
+          ]
+        }
+      }
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'% Achievement'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

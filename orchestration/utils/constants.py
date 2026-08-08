@@ -47,6 +47,7 @@ SOURCE_PATHS = {
     "sales":      DATA_ROOT / "source" / "sales",
     "targets":    DATA_ROOT / "source" / "targets",
     "references": DATA_ROOT / "source" / "references",
+    "kp_sd":      DATA_ROOT / "source" / "kp_sd",
 }
 
 # Shared input paths derived from the canonical project layout.

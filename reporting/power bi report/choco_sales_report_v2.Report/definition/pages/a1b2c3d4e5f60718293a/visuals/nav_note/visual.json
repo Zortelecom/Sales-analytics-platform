@@ -1,0 +1,36 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.11.0/schema.json",
+  "name": "nav_note",
+  "position": {
+    "x": 24,
+    "y": 452,
+    "z": 8000,
+    "height": 60,
+    "width": 1232,
+    "tabOrder": 9000
+  },
+  "visual": {
+    "visualType": "textbox",
+    "objects": {
+      "general": [
+        {
+          "properties": {
+            "paragraphs": [
+              {
+                "textRuns": [
+                  {
+                    "value": "Rep Target Attainment and Data Quality are reached from the Executive Overview alert strip, not tiled here. Rep Detail and SD Detail are drillthrough targets.",
+                    "textStyle": {
+                      "fontSize": "10pt",
+                      "color": "#5c534d"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

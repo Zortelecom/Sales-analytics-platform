@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "SemanticModel",
+    "displayName": "choco_sales_report_v2"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "6e47b0b8-9b3a-42ba-9de3-0535ae6efdc7"
+  }
+}

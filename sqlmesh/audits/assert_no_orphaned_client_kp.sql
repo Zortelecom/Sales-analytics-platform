@@ -3,7 +3,7 @@ AUDIT (
   dialect duckdb
 );
 SELECT
-  sales_line_id,
+  kp_sd_line_id,
   sale_date,
   clientsd_id,
   clientsd_key

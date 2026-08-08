@@ -1,0 +1,59 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.11.0/schema.json",
+  "name": "hdr_0",
+  "position": {
+    "x": 24,
+    "y": 72,
+    "z": 2000,
+    "height": 80,
+    "width": 236,
+    "tabOrder": 2000
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "dim_salespersons"
+                    }
+                  },
+                  "Property": "salesperson_name"
+                }
+              },
+              "queryRef": "dim_salespersons.salesperson_name",
+              "nativeQueryRef": "salesperson_name"
+            }
+          ]
+        }
+      }
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'salesperson_name'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

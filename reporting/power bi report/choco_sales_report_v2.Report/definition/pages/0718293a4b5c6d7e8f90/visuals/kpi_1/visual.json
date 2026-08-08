@@ -1,0 +1,59 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.11.0/schema.json",
+  "name": "kpi_1",
+  "position": {
+    "x": 335.8279569892473,
+    "y": 144.05734767025089,
+    "z": 6000,
+    "height": 104,
+    "width": 299,
+    "tabOrder": 7000
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Sell-In Amount"
+                }
+              },
+              "queryRef": "_Measures.Sell-In Amount",
+              "nativeQueryRef": "Sell-In Amount"
+            }
+          ]
+        }
+      }
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Sell-In Amount'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

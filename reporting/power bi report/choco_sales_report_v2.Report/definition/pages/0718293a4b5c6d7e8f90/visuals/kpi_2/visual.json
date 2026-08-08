@@ -1,0 +1,59 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.11.0/schema.json",
+  "name": "kpi_2",
+  "position": {
+    "x": 645.04659498207889,
+    "y": 144.05734767025089,
+    "z": 7000,
+    "height": 104,
+    "width": 299,
+    "tabOrder": 8000
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Sell-Through Ratio"
+                }
+              },
+              "queryRef": "_Measures.Sell-Through Ratio",
+              "nativeQueryRef": "Sell-Through Ratio"
+            }
+          ]
+        }
+      }
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Sell-Through Ratio'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

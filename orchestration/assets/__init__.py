@@ -9,6 +9,7 @@ from .ingestion import (
     current_batch_id,
     sales_seed,
     targets_seed,
+    kp_sd_seed,
     references_seeds,
     seeds_metadata
 )
@@ -27,6 +28,7 @@ __all__ = [
     "current_batch_id",
     "sales_seed",
     "targets_seed",
+    "kp_sd_seed",
     "references_seeds",
     "seeds_metadata",
 

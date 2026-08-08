@@ -1,0 +1,36 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.11.0/schema.json",
+  "name": "geo_note",
+  "position": {
+    "x": 800,
+    "y": 492,
+    "z": 10000,
+    "height": 204,
+    "width": 456,
+    "tabOrder": 11000
+  },
+  "visual": {
+    "visualType": "textbox",
+    "objects": {
+      "general": [
+        {
+          "properties": {
+            "paragraphs": [
+              {
+                "textRuns": [
+                  {
+                    "value": "No map visual on this page by design. region and subregion are internal sales territories used for target-setting and routing, not geocodable places -- a map would mislead. Region filtering flows through dim_salespersons only; dim_clientsd's link to dim_geography is inactive.",
+                    "textStyle": {
+                      "fontSize": "10pt",
+                      "color": "#5c534d"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

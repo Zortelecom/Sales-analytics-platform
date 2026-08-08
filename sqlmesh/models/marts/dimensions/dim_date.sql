@@ -10,18 +10,26 @@ MODEL (
 
 -- ============================================================
 -- FISCAL YEAR CONFIG
--- Adjust @fiscal_year_start_month to match your fiscal calendar.
+-- The fiscal calendar below is configured with start month = 10 (October):
+-- FY2025 = Oct 2024–Sep 2025. This matches the spine start (2024-10-01).
+-- To change it, replace the three occurrences of `10` below with your
+-- fiscal start month.
 -- Example: 7 → fiscal year starts in July (FY2025 = Jul 2024–Jun 2025)
---          1 → fiscal year mirrors calendar year (default below)
+--          1 → fiscal year mirrors the calendar year
 -- ============================================================
 
 WITH date_spine AS (
-  SELECT UNNEST(
-    generate_series(
-      DATE '2024-10-01',
-      DATE '2035-12-31',
-      INTERVAL '1 day'
-    )
+  -- FIX: generate_series(DATE, DATE, INTERVAL) returns TIMESTAMP in DuckDB.
+  -- Cast to DATE so date_actual is a true DATE (matches the grain and the
+  -- v_quarterly_kpi join on sale_date).
+  SELECT CAST(
+    UNNEST(
+      generate_series(
+        DATE '2024-10-01',
+        LAST_DAY(CURRENT_DATE),
+        INTERVAL '1 day'
+      )
+    ) AS DATE
   ) AS date_value
 ),
 
@@ -55,7 +63,7 @@ SELECT
   -- Week within the month (1–5)
   -- Logic: which occurrence of that weekday in this month?
   -- Simple approach: CEIL(day_of_month / 7.0)
-  CEIL(_day_of_month / 7.0)::INTEGER               AS week_of_month,  -- ← added (WoW analysis)
+  CEIL(_day_of_month / 7.0)::INTEGER                AS week_of_month,  -- ← added (WoW analysis)
 
   -- Day of week: 1=Mon … 7=Sun  (ISO-style, avoids 0-based confusion)
   CASE _dow
@@ -64,17 +72,20 @@ SELECT
   END                                               AS day_of_week,
 
   -- ── Fiscal calendar ─────────────────────────────────────────
-  -- DEFAULT: fiscal year = calendar year (start month = 1 = January).
-  -- To shift: change the two occurrences of `1` below to your start month.
+  -- CONFIGURED: fiscal year starts in October (start month = 10).
+  -- fiscal_year is labelled by the calendar year the fiscal year ENDS in:
+  -- Oct 2024–Sep 2025 → FY2025 (Oct–Dec 2024 → 2025, Jan–Sep 2025 → 2025).
+  -- To shift the start month: change the three occurrences of `10` below
+  -- (fiscal_year, fiscal_month, fiscal_quarter) to your start month.
   -- Example for July start (month 7):
-  --   fiscal_year  = CASE WHEN _month >= 7 THEN _year ELSE _year - 1 END
+  --   fiscal_year  = CASE WHEN _month >= 7 THEN _year + 1 ELSE _year END
   --   fiscal_month = (((_month - 7 + 12) % 12) + 1)
   CASE
-    WHEN _month >= 10 THEN _year          -- calendar-aligned fiscal year
-    ELSE _year - 1
-  END                                               AS fiscal_year,    -- ← added
+    WHEN _month >= 10 THEN _year + 1    -- October-start fiscal year (ends in next calendar year)
+    ELSE _year
+  END                                               AS fiscal_year,
 
-  ((_month - 10 + 12) % 12 + 1)::INTEGER            AS fiscal_month,   -- ← added (=calendar month when start=Jan)
+  ((_month - 10 + 12) % 12 + 1)::INTEGER            AS fiscal_month,   -- (1 = October with start month 10)
 
   -- Fiscal quarter (derives from fiscal_month)
   CEIL(

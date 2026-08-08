@@ -204,23 +204,27 @@ class ServingConfig:
             parquet_folder = f"data/exports/parquet/{self.environment}"
 
         self.serving_path = str(self.serving_path.resolve())
-        # temp_path only used in file-swap mode, but always set for safety
-        self.temp_path = self.serving_path.replace(".db", "_temp.db")
+        # temp_path only used in file-swap mode, but always set for safety.
+        # FIX: derive from the Path object instead of str.replace(".db", ...),
+        # which silently no-ops when the path doesn't contain ".db".
+        _serving = Path(self.serving_path)
+        self.temp_path = str(_serving.with_name(f"{_serving.stem}_temp{_serving.suffix}"))
 
         # =========================================================================
         # Export Paths
         # =========================================================================
-        if self.csv_export_path and not self.csv_export.path:
-            self.csv_export.path = self.csv_export_path
+        # FIX: removed the self-referential conditions. The csv_export_path /
+        # parquet_export_path properties proxy ExportConfig.path, so
+        # `if self.csv_export_path and not self.csv_export.path` was always
+        # False (dead code), and `self.csv_export.enabled = self.enable_csv_export`
+        # was a no-op self-assignment (the property reads the same attribute).
+        # What remains is the real intent: default the export folders when no
+        # explicit path was configured.
         if not self.csv_export.path:
             self.csv_export.path = str((root / csv_folder).resolve())
-        self.csv_export.enabled = self.enable_csv_export
 
-        if self.parquet_export_path and not self.parquet_export.path:
-            self.parquet_export.path = self.parquet_export_path
         if not self.parquet_export.path:
             self.parquet_export.path = str((root / parquet_folder).resolve())
-        self.parquet_export.enabled = self.enable_parquet_export
 
         valid_compressions = [None, "snappy", "gzip", "brotli", "zstd", "lz4", "none"]
         if self.parquet_export.compression not in valid_compressions:

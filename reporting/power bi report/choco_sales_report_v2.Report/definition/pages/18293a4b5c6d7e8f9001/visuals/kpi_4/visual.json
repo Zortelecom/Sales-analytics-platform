@@ -1,0 +1,59 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.11.0/schema.json",
+  "name": "kpi_4",
+  "position": {
+    "x": 851.49820788530462,
+    "y": 71.569892473118273,
+    "z": 5000,
+    "height": 135.79928315412187,
+    "width": 195.44086021505376,
+    "tabOrder": 6000
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "# Subregions With Region Conflict"
+                }
+              },
+              "queryRef": "_Measures.# Subregions With Region Conflict",
+              "nativeQueryRef": "# Subregions With Region Conflict"
+            }
+          ]
+        }
+      }
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'# Subregions With Region Conflict'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

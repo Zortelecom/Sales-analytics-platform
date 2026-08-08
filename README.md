@@ -12,6 +12,18 @@
 
 ---
 
+## 🆕 Recent changes — KP-SD (sell-in) ingestion
+
+A second ingestion source, **KP-SD**, was added: it captures what each Key Player invoices/ships to each Sub-Distributor (sell-in), complementing the existing SD → market **sales** source (sell-out). Highlights:
+
+- New extractors: `KPDestockeExtractor` (`ExKP-Destocke_*.xlsx`, one file per SD) and `KPNonDestockeExtractor` (`ExKP-NonDestocke.xlsx`, single file)
+- New gold fact: `fact_kp_sd` (`INCREMENTAL_BY_TIME_RANGE`, partitioned by `sale_year`/`sale_month`)
+- `dim_clientsd`'s SCD Type 2 logic moved from the staging layer up into the gold model itself (`kind SCD_TYPE_2_BY_COLUMN`, keyed on `effective_from`); `stg_clientsd_data` is now a plain `FULL` model over the raw dated history
+- A new `ingestion/contracts/` mechanism (`contracts.yaml` + `loader.py`) centralizes declared source schemas, replacing inline column sets scattered across extractors
+- The reporting (Streamlit) and orchestration (Dagster) layers have **not** been updated for this new source yet — that work, plus two data-quality gaps found while reviewing the branch, are tracked in `IMPROVEMENT_PLAN.md`
+
+---
+
 ## 🏛️ Architecture Overview
 
 **The Problem:** Sales teams generate fragmented Excel reports (sales, targets, references) with no consistent schema, making BI integration painful and error-prone.
@@ -22,6 +34,17 @@ stores models in DuckLake parquet-backed storage, serves marts through DuckDB,
 and powers Streamlit and Power BI dashboards.
 
 ![Sales Analytics Platform Architecture](docs/images/architecture_superset.png)
+
+### Distribution chain modeled
+
+The platform models two tiers of the distribution chain, each backed by its own fact table:
+
+| Tier | Direction | Fact table | Source files | Business meaning |
+|---|---|---|---|---|
+| **Sell-in** | Key Player (KP) → Sub-Distributor (SD) | `fact_kp_sd` | `ExKP-Destocke_*.xlsx`, `ExKP-NonDestocke.xlsx` | What each KP invoiced/shipped to each SD |
+| **Sell-out** | SD → market, via salesperson or *demi-gros* (DG) vendeur | `fact_sales` | `ExSD-Sales-*.xlsx` | What actually moved out of the SD to end retail |
+
+Having both tiers side by side is what enables sell-in vs. sell-out reconciliation, SD ordering/overstock signals, and promo-attainment measurement (an SD's promo target is checked against what it bought from the KP, not what it later resold). See `IMPROVEMENT_PLAN.md` for the views/pages that expose this.
 
 ---
 
@@ -48,18 +71,25 @@ and powers Streamlit and Power BI dashboards.
 sales-analytics-platform/
 ├── ingestion/              # Data extraction layer
 │   ├── config/             # settings.py (absolute paths), sources.yaml
-│   ├── extract/            # BaseExcelExtractor, SalesExtractor, TargetExtractor, ReferenceExtractor
+│   ├── contracts/          # contracts.yaml + loader.py — declared column schemas
+│   │                       # per source (required vs. expected columns), consumed
+│   │                       # by extractors instead of inline column sets.
+│   ├── extract/            # BaseExcelExtractor, SalesExtractor, TargetExtractor,
+│   │                       # ReferenceExtractor, KPDestockeExtractor,
+│   │                       # KPNonDestockeExtractor, PromoBouclageExtractor
 │   ├── load/               # SeedWriter — writes CSV seeds + metadata
 │   └── orchestrate/        # FileDiscovery, ExcelPreprocessor, ArchiveManager
 │
 ├── sqlmesh/                # Transformation layer
 │   ├── seeds/              # CSV files written by ingestion (gitignored)
 │   ├── models/
-│   │   ├── raw/            # Bronze: seed-loading models
+│   │   ├── raw/            # Bronze: seed-loading models (sales, targets, references,
+│   │   │                   # kp_sd_destocke, kp_sd_non_destocke, kp_sku_mapping)
 │   │   ├── staging/        # Silver: type casting, null handling, deduplication
+│   │   │                   # (stg_kp_sd_data unions destocké + non-destocké)
 │   │   └── marts/
-│   │       ├── dimensions/ # dim_clientsd, dim_date, dim_salesperson, dim_products
-│   │       ├── facts/      # fact_sales, fact_targets
+│   │       ├── dimensions/ # dim_clientsd (SCD2), dim_date, dim_salesperson, dim_products
+│   │       ├── facts/      # fact_sales (sell-out), fact_kp_sd (sell-in), fact_targets
 │   │       └── reports/    # rep_weekly_meeting, rep_top_products, rep_target_attainment
 │   ├── audits/             # One AUDIT block per file — each returns failing rows
 │   │   ├── assert_no_orphaned_salesperson.sql
@@ -68,7 +98,12 @@ sales-analytics-platform/
 │   │   ├── assert_amount_matches_qty_x_price.sql
 │   │   ├── assert_no_overlapping_scd_windows.sql
 │   │   ├── assert_amount_is_integer_xaf.sql
-│   │   └── assert_sales_data_is_fresh.sql
+│   │   ├── assert_sales_data_is_fresh.sql
+│   │   ├── assert_no_orphaned_product_kp.sql
+│   │   ├── assert_no_orphaned_client_kp.sql        # ⚠ not yet wired into fact_kp_sd — see IMPROVEMENT_PLAN.md
+│   │   ├── assert_amount_matches_qty_x_price_kp.sql
+│   │   ├── assert_amount_is_integer_xaf_kp.sql
+│   │   └── assert_no_unmapped_kp_sku.sql           # ⚠ defined but not referenced by any model yet
 │   ├── macros/             # clean_currency.sql (XAF formatting)
 │   └── tests/              # SQLMesh YAML unit tests
 │
@@ -146,11 +181,14 @@ Typed extractor classes parse each Excel file against expected schemas. All raw 
 
 | Seed File | Source | Notes |
 |---|---|---|
-| `sales_data.csv` | `ExSD-Sales-*.xlsx` | Includes `has_null_key` column |
+| `sales_data.csv` | `ExSD-Sales-*.xlsx` | Includes `has_null_key` column. Sell-out. |
 | `targets_data.csv` | `Sales_Targets.xlsx` | |
-| `clientSD_data.csv` | `References.xlsx` → Ref_ClientsSD | |
+| `clientSD_data.csv` | `References.xlsx` → Ref_ClientsSD | Now includes `effective_from`; drives dim_clientsd SCD2 |
 | `products_data.csv` | `References.xlsx` → Ref_Products | |
 | `salesteam_data.csv` | `References.xlsx` → Ref_Salesteam | |
+| `kp_sku_mapping_data.csv` | `References.xlsx` → Ref_sku_mapping | KP-native SKU → internal SKU. ⚠ Not yet joined in by any staging/mart model — see `IMPROVEMENT_PLAN.md` |
+| `kp_sd_destocke_data.csv` | `ExKP-Destocke_*.xlsx` | One file per SD; sell-in, destocké channel |
+| `kp_sd_non_destocke_data.csv` | `ExKP-NonDestocke.xlsx` | Single file; sell-in, non-destocké channel |
 
 **Dead-letter handling**
 
@@ -164,10 +202,10 @@ Medallion architecture running on DuckDB with DuckLake for Parquet-backed storag
 
 | Layer | Models | Purpose |
 |---|---|---|
-| **Bronze (Raw)** | `raw_sales`, `raw_targets`, `raw_clientsd`, `raw_products`, `raw_salesteam` | Load CSV seeds verbatim — all columns as strings |
-| **Silver (Staging)** | `stg_sales_data`, `stg_targets_data`, `stg_clientsd_data`, `stg_products_data`, `stg_salesteam_data` | Type casting, null handling, SCD key generation, `has_null_key` filtering |
-| **Gold (Dimensions)** | `dim_clientsd`, `dim_date`, `dim_salesperson`, `dim_products` | Slowly Changing Dimensions Type 2 |
-| **Gold (Facts)** | `fact_sales`, `fact_targets` | Star schema facts with FK integrity audits |
+| **Bronze (Raw)** | `raw_sales`, `raw_targets`, `raw_clientsd`, `raw_products`, `raw_salesteam`, `raw_kp_sd_destocke_data`, `raw_kp_sd_non_destocke_data`, `raw_kp_sku_mapping_data` | Load CSV seeds verbatim — all columns as strings |
+| **Silver (Staging)** | `stg_sales_data`, `stg_targets_data`, `stg_clientsd_data`, `stg_products_data`, `stg_salesteam_data`, `stg_kp_sd_data`, `stg_kp_sku_mapping` | Type casting, null handling, `has_null_key` filtering. `stg_kp_sd_data` is a `UNION ALL` of the destocké and non-destocké sources, tagging each row with `is_destocked` / `source_asserted_destocked`. `stg_clientsd_data` is now `FULL` (raw dated history, one row per `(sd_id, effective_from)`) — the SCD2 collapse itself now happens one layer up, in `dim_clientsd` |
+| **Gold (Dimensions)** | `dim_clientsd` (`SCD_TYPE_2_BY_COLUMN`, `updated_at_name effective_from`), `dim_date`, `dim_salesperson`, `dim_products` | Slowly Changing Dimensions Type 2 |
+| **Gold (Facts)** | `fact_sales` (sell-out, `INCREMENTAL_BY_TIME_RANGE`), `fact_kp_sd` (sell-in, `INCREMENTAL_BY_TIME_RANGE`, partitioned by `sale_year`/`sale_month`), `fact_targets` | Star schema facts with FK integrity audits |
 | **Reports** | `rep_weekly_meeting`, `rep_top_products`, `rep_target_attainment` | Pre-aggregated report views |
 
 Macros (`macros/clean_currency.sql`) handle currency formatting (XAF — integer amounts, no subunit).
@@ -198,6 +236,13 @@ SQLMesh requires exactly one `AUDIT` block per file. Each audit returns failing 
 | `assert_no_overlapping_scd_windows.sql` | `dim_clientsd`, `dim_products`, `dim_salesperson` | No two active rows for the same key in the same date range |
 | `assert_amount_is_integer_xaf.sql` | `fact_sales` | `total_amount = FLOOR(total_amount)` — XAF has no subunit |
 | `assert_sales_data_is_fresh.sql` | `stg_sales_data` | `MAX(sale_date) >= CURRENT_DATE - INTERVAL 7 DAYS` |
+| `assert_no_orphaned_product_kp.sql` | `fact_kp_sd` | No NULL `product_key` after SCD join (active) |
+| `assert_amount_matches_qty_x_price_kp.sql` | `fact_kp_sd` | `total_amount` within 1% of `quantity × unit_price` (active) |
+| `assert_amount_is_integer_xaf_kp.sql` | `fact_kp_sd` | `total_amount = FLOOR(total_amount)` (active) |
+| `assert_no_orphaned_client_kp.sql` | `fact_kp_sd` | No NULL `clientsd_key` after SCD join — **file exists but is commented out in `fact_kp_sd`'s `audits()` block, so it never runs. See `IMPROVEMENT_PLAN.md`.** |
+| `assert_no_unmapped_kp_sku.sql` | *(none)* | Would check every `sku` resolves in `dim_products` — **not referenced by any model's `audits()` block, so it never runs.** |
+
+> ⚠️ Two data-quality gaps carried over from the current branch: an orphaned-client check for KP-SD data exists on disk but isn't wired in, and a SKU-mapping check exists but isn't attached to any model. Both are flagged as high-priority fixes in `IMPROVEMENT_PLAN.md` — they're the kind of silent-drop risk this project has otherwise been careful to avoid.
 
 ---
 
@@ -231,6 +276,12 @@ Copies Gold mart tables from the DuckLake warehouse into a standalone DuckDB ser
 | `v_yoy_comparison` | month × salesperson | Year-over-year delta |
 | `v_executive_summary` | month | Single-row period summary |
 | `v_targets_base` | target line | Denormalized target with salesperson attributes |
+| `v_kp_sd_base` | KP-SD line | Denormalized `fact_kp_sd` with product + client attributes (sell-in) |
+| `v_kp_sd_monthly_kpi` | month × SD × KP × category | Sell-in revenue/qty rollup |
+| `v_kp_performance_kpi` | month × KP | Revenue per Key Player across all its SDs |
+| `v_sellin_sellout_kpi` | month × SD | Sell-in (`fact_kp_sd`) vs. sell-out (`fact_sales`/`v_client_kpi`) side by side, with a sell-through ratio |
+
+*(the four KP-SD views above are new — see `IMPROVEMENT_PLAN.md` for the SQL and the reporting page that consumes them)*
 
 **Two sync strategies**, chosen via `ServingConfig`:
 
@@ -300,6 +351,9 @@ Streamlit multi-page app connecting to the env-aware serving DB:
 | Salesforce Performance | Per-rep metrics vs. targets |
 | Product Performance | Revenue by product |
 | Time Intelligence | Period-over-period comparisons |
+| Data Quality | Audit pass/fail trends (`bi.quality_trend`) |
+| Ask Your Data | Free-form querying |
+| **Sell-In / Sell-Out** *(new)* | KP shipment volumes to each SD vs. what the SD/DG resold, sell-through ratio, KP-level rollup |
 
 ---
 
@@ -346,7 +400,7 @@ SQLMesh run state (`sqlmesh_state.db`) is not in `data/` (which is gitignored) �
 
 ```bash
 cd sqlmesh
-sqlmesh plan dev --start 2025-01-01 --auto-apply
+sqlmesh plan dev --start 2024-10-01 --auto-apply
 ```
 
 See `COLD_START.md` for a full step-by-step procedure including data seeding.
@@ -381,13 +435,13 @@ python -m ingestion.main
 python -m ingestion.main --since 2025-06-01
 
 # Transformation — validate SQL without writing data
-cd sqlmesh && sqlmesh plan dev --no-gaps --start 2025-01-01
+cd sqlmesh && sqlmesh plan dev --no-gaps --start 2024-10-01
 
 # Transformation — apply
-cd sqlmesh && sqlmesh plan dev --start 2025-01-01 --auto-apply
+cd sqlmesh && sqlmesh plan dev --start 2024-10-01 --auto-apply
 
 # Transformation — run audits explicitly
-cd sqlmesh && sqlmesh audit --start 2025-01-01
+cd sqlmesh && sqlmesh audit --start 2024-10-01
 
 # Serving — sync to serving_dev.db
 python -m serving.cli sync --env dev
@@ -439,7 +493,7 @@ cd sqlmesh && sqlmesh test
 Each test in `sqlmesh/tests/` injects fixture rows and asserts the SELECT output. Runs against in-memory DuckDB in under 1 second — no real files needed. Also validates model SQL:
 
 ```bash
-cd sqlmesh && sqlmesh plan dev --no-gaps --start 2025-01-01
+cd sqlmesh && sqlmesh plan dev --no-gaps --start 2024-10-01
 # Press Ctrl-C at the apply prompt — syntax errors appear here
 ```
 
@@ -455,7 +509,7 @@ Creates a minimal DuckLake catalog in `tests/fixtures/` with two mart tables, ru
 
 ```bash
 # 1. SQL validation — no data written
-cd sqlmesh && sqlmesh plan dev --no-gaps --start 2025-01-01 && cd ..
+cd sqlmesh && sqlmesh plan dev --no-gaps --start 2024-10-01 && cd ..
 
 # 2. YAML unit tests
 cd sqlmesh && sqlmesh test && cd ..
@@ -466,8 +520,8 @@ python -m ingestion.main             # real run
 
 # 4. Transform and audit
 cd sqlmesh
-sqlmesh plan dev --start 2025-01-01 --auto-apply
-sqlmesh audit --start 2025-01-01
+sqlmesh plan dev --start 2024-10-01 --auto-apply
+sqlmesh audit --start 2024-10-01
 cd ..
 
 # 5. Sync and validate
@@ -684,14 +738,16 @@ The `prod_promotion_sensor` enforces that a successful dev run exists in the las
 ### Adding a New Data Source
 
 1. Add an extractor in `ingestion/extract/` subclassing `BaseExcelExtractor`
-2. Register the source in `ingestion/config/sources.yaml`
-3. Add a seed entry in `sqlmesh/seeds/`
-4. Create `raw_`, `stg_`, and mart models under `sqlmesh/models/`
-5. Add a Dagster asset in `orchestration/assets/`
+2. Declare its schema in `ingestion/contracts/contracts.yaml` (`required_columns` / `expected_columns`) and load it via `ingestion.contracts.loader.load_contracts()` — this is the pattern introduced for the KP-SD sources; prefer it over inline column sets in the extractor
+3. Register the source's file-discovery rule in `ingestion/config/sources.yaml`, **and** add the matching path to both `ingestion/config/settings.py`'s `SourceConfig`/`load_sources_config()` **and** `shared/paths.py`'s `INPUT_PATHS` — these are two independent dicts read by different consumers (FileDiscovery/preprocessing vs. extractors) and both need the new key
+4. Add a seed entry in `sqlmesh/seeds/`
+5. Create `raw_`, `stg_`, and mart models under `sqlmesh/models/`
+6. Add a Dagster asset in `orchestration/assets/ingestion.py` (filter `preprocessed_files` by the new `source_type`, extract, write seed via `SeedWriter`), wire it into `seeds_metadata`'s `ins`, and add the branch to `orchestration/assets/preprocessing.py` if the source needs sheet-deletion/required-sheet rules (`preprocessing.py` hardcodes these per `source_type` in Python — it does **not** read `sources.yaml`'s `processing:` block, so the two must be kept in sync by hand)
+7. Register the new asset in `orchestration/definitions.py`'s `assets` list
 
 ### Adding a Report Model
 
-1. Create `sqlmesh/models/reports/rep_<name>.sql` with `kind FULL` and `start '2025-01-01'`
+1. Create `sqlmesh/models/reports/rep_<name>.sql` with `kind FULL` and `start '2024-10-01'`
 2. Add the corresponding view to `serving/templates/bi_views.sql`
 3. Add a Streamlit page under `reporting/pages/`
 

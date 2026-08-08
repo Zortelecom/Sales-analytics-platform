@@ -1,0 +1,59 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.11.0/schema.json",
+  "name": "kpi_4",
+  "position": {
+    "x": 1013.5660847880299,
+    "y": 169.67581047381546,
+    "z": 8000,
+    "height": 104.13965087281795,
+    "width": 242.3940149625935,
+    "tabOrder": 9000
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "# Reps At Risk"
+                }
+              },
+              "queryRef": "_Measures.# Reps At Risk",
+              "nativeQueryRef": "# Reps At Risk"
+            }
+          ]
+        }
+      }
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'# Reps At Risk'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

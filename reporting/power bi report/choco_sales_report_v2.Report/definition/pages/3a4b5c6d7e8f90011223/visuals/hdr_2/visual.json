@@ -1,0 +1,59 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.11.0/schema.json",
+  "name": "hdr_2",
+  "position": {
+    "x": 522.09318996415766,
+    "y": 71.569892473118273,
+    "z": 4000,
+    "height": 80,
+    "width": 236,
+    "tabOrder": 4000
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "dim_clientsd"
+                    }
+                  },
+                  "Property": "is_destocked"
+                }
+              },
+              "queryRef": "dim_clientsd.is_destocked",
+              "nativeQueryRef": "is_destocked"
+            }
+          ]
+        }
+      }
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'is_destocked'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

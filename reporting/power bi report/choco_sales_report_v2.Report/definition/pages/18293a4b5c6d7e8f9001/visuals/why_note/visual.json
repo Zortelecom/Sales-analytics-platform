@@ -1,0 +1,36 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.11.0/schema.json",
+  "name": "why_note",
+  "position": {
+    "x": 20.186379928315411,
+    "y": 522.09318996415766,
+    "z": 9000,
+    "height": 100,
+    "width": 1232,
+    "tabOrder": 10000
+  },
+  "visual": {
+    "visualType": "textbox",
+    "objects": {
+      "general": [
+        {
+          "properties": {
+            "paragraphs": [
+              {
+                "textRuns": [
+                  {
+                    "value": "Why this page exists: supervisors hand-enter source data in Excel, so casing and naming drift is expected, not exceptional. This is an interim backstop for checks not yet wired into the pipeline -- assert_no_orphaned_client_kp and assert_no_unmapped_kp_sku both exist on disk but are not referenced by any model's audits() block -- not a permanent replacement for those audits.",
+                    "textStyle": {
+                      "fontSize": "10pt",
+                      "color": "#5c534d"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

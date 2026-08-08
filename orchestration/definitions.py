@@ -22,6 +22,7 @@ from orchestration.assets import (
     preprocessed_files,
     sales_seed,
     targets_seed,
+    kp_sd_seed,
     references_seeds,
     seeds_metadata,
     sqlmesh_models,
@@ -40,7 +41,7 @@ from orchestration.sensors.file_sensor import new_file_sensor
 from orchestration.sensors.prod_promotion_sensor import prod_promotion_sensor
 from orchestration.sensors.sync_health_sensor import sync_health_sensor
 from orchestration.resources import DuckDBResource, DuckLakeResource, SQLMeshResource
-from orchestration.assets.data_quality import data_quality_full_report
+from orchestration.assets.data_quality import data_quality_full_report, data_quality_full_report_kp_sd
 from orchestration.assets.file_discovery import dead_letter_queue_check
 from orchestration.utils.constants import get_serving_db_path
 from orchestration.config import PipelineConfig
@@ -66,6 +67,7 @@ assets = [
     # Ingestion (seed creation)
     sales_seed,
     targets_seed,
+    kp_sd_seed,
     references_seeds,
     seeds_metadata,
 
@@ -83,6 +85,7 @@ defs = Definitions(
     assets=assets,
     asset_checks=[
         data_quality_full_report,
+        data_quality_full_report_kp_sd,
         dead_letter_queue_check,
     ],
     jobs=[
@@ -113,7 +116,7 @@ defs = Definitions(
         "sqlmesh": SQLMeshResource(
             project_path="sqlmesh",
             environment=_cfg.sqlmesh_env,
-            start_date="2025-01-01",
+            start_date="2024-10-01",
         ),
     },
 )

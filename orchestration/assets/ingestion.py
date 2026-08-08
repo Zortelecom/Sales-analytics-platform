@@ -8,6 +8,7 @@ from ingestion.load.seed_writer import SeedWriter
 from ingestion.extract.reference_extractor import ReferenceExtractor
 from ingestion.extract.target_extractor import TargetExtractor
 from ingestion.extract.sales_extractor import SalesExtractor
+from ingestion.extract.kp_sd_extractor import KPDestockeExtractor, KPNonDestockeExtractor
 from ingestion.config.settings import INPUT_PATHS
 from dagster import asset, MetadataValue, AssetExecutionContext, Failure, AssetIn
 import pandas as pd
@@ -256,7 +257,8 @@ def references_seeds(
         seed_mapping = {
             'ref_salesteam': 'salesteam_data',
             'ref_products': 'products_data',
-            'ref_clients_sd': 'clientSD_data'
+            'ref_clients_sd': 'clientSD_data',
+            'ref_kp_sku_mapping': 'kp_sku_mapping_data',
         }
 
         output_results = {}
@@ -295,11 +297,52 @@ def references_seeds(
 
 @asset(
     group_name="ingestion",
+    description="Extract KP sell-in workbooks to SQLMesh seeds",
+    compute_kind="python",
+    ins={"preprocessed_files": AssetIn(), "current_batch_id": AssetIn()},
+)
+def kp_sd_seed(
+    context: AssetExecutionContext,
+    preprocessed_files: pd.DataFrame,
+    current_batch_id: str,
+) -> dict:
+    """Write separate destocked and non-destocked KP sell-in seeds."""
+    files = preprocessed_files[
+        (preprocessed_files["source_type"] == "kp_sd")
+        & (preprocessed_files["status"] == "processed")
+    ] if not preprocessed_files.empty else pd.DataFrame()
+    if files.empty:
+        context.log.warning("No KP-SD files were successfully preprocessed")
+        return {}
+
+    writer = SeedWriter(SEEDS_DIR, current_batch_id)
+    result = {}
+    for seed_name, extractor in (
+        ("kp_sd_destocke_data", KPDestockeExtractor(current_batch_id)),
+        ("kp_sd_non_destocke_data", KPNonDestockeExtractor(current_batch_id)),
+    ):
+        df = extractor.read(INPUT_PATHS["kp_sd"])
+        if df.empty:
+            context.log.warning("No rows extracted for %s", seed_name)
+            continue
+        path = writer.write_seed(df, seed_name)
+        result[seed_name] = {"rows": len(df), "path": str(path)}
+
+    if not result:
+        raise Failure(description="KP-SD files were found but no sell-in rows could be extracted")
+    context.add_output_metadata({"seeds": result, "total_rows": sum(x["rows"] for x in result.values())})
+    return result
+
+
+@asset(
+    group_name="ingestion",
     description="Metadata about all seeds generated in this batch",
     ins={
         "sales_seed": AssetIn(),
         "targets_seed": AssetIn(),
         "references_seeds": AssetIn(),
+        "kp_sd_seed": AssetIn(),
+        "current_batch_id": AssetIn()
     }
 )
 def seeds_metadata(
@@ -307,6 +350,7 @@ def seeds_metadata(
     sales_seed: pd.DataFrame,  # ✅ FIXED: Match asset name
     targets_seed: pd.DataFrame,  # ✅ FIXED: Match asset name
     references_seeds: dict,
+    kp_sd_seed: dict,
     current_batch_id: str
 ) -> dict:
     """
@@ -330,11 +374,12 @@ def seeds_metadata(
         "seeds_path": str(SEEDS_DIR),
         "sales_rows": len(sales_seed),
         "targets_rows": len(targets_seed),
+        "kp_sd_rows": sum(v["rows"] for v in kp_sd_seed.values()),
         "reference_seeds": {
             k: v["rows"] for k, v in references_seeds.items()
         },
         "total_reference_rows": sum(v["rows"] for v in references_seeds.values()),
-        "total_rows": len(sales_seed) + len(targets_seed) + sum(v["rows"] for v in references_seeds.values()),
+        "total_rows": len(sales_seed) + len(targets_seed) + sum(v["rows"] for v in references_seeds.values()) + sum(v["rows"] for v in kp_sd_seed.values()),
     }
 
     context.add_output_metadata(metadata)

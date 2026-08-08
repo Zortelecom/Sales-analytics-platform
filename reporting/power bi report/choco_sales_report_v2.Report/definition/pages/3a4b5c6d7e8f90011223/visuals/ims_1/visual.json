@@ -1,0 +1,59 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.11.0/schema.json",
+  "name": "ims_1",
+  "position": {
+    "x": 968.02867383512546,
+    "y": 268.84587813620072,
+    "z": 9000,
+    "height": 103.68458781362007,
+    "width": 288.11469534050178,
+    "tabOrder": 9000
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Sell-In vs IMS %"
+                }
+              },
+              "queryRef": "_Measures.Sell-In vs IMS %",
+              "nativeQueryRef": "Sell-In vs IMS %"
+            }
+          ]
+        }
+      }
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Sell-In vs IMS %'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

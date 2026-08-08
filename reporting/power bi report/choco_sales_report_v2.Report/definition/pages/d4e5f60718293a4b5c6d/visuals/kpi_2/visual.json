@@ -1,0 +1,59 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.11.0/schema.json",
+  "name": "kpi_2",
+  "position": {
+    "x": 646.38403990024938,
+    "y": 151.72069825436409,
+    "z": 7000,
+    "height": 104,
+    "width": 299,
+    "tabOrder": 8000
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Weighted Avg Price Variance %"
+                }
+              },
+              "queryRef": "_Measures.Weighted Avg Price Variance %",
+              "nativeQueryRef": "Weighted Avg Price Variance %"
+            }
+          ]
+        }
+      }
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Weighted Avg Price Variance %'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

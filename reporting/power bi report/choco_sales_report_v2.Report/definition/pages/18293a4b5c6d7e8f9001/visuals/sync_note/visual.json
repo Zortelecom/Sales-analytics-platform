@@ -1,0 +1,36 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.11.0/schema.json",
+  "name": "sync_note",
+  "position": {
+    "x": 21.103942652329749,
+    "y": 630.36559139784947,
+    "z": 10000,
+    "height": 60,
+    "width": 1232,
+    "tabOrder": 11000
+  },
+  "visual": {
+    "visualType": "textbox",
+    "objects": {
+      "general": [
+        {
+          "properties": {
+            "paragraphs": [
+              {
+                "textRuns": [
+                  {
+                    "value": "No slicer sync on this page by design. It audits the whole dataset unfiltered; a synced region slicer would hide the very rows it exists to surface.",
+                    "textStyle": {
+                      "fontSize": "10pt",
+                      "color": "#5c534d"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

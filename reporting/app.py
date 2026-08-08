@@ -1,160 +1,107 @@
 """
 reporting/app.py
 Main entry point for the Sales Analytics Platform dashboard.
-Run with: streamlit run reporting/app.py
+
+    streamlit run reporting/app.py        (from the project root)
+
+WHAT WAS BROKEN
+---------------
+`streamlit run reporting/app.py` puts *reporting/* on sys.path, not the
+project root. So line 1 of the old app.py -- `import reporting._bootstrap` --
+raised ModuleNotFoundError before anything else ran. The page files worked
+because each one inserts the project root into sys.path *before* importing
+the package; app.py itself had no such guard.
+
+Two things followed from that crash:
+
+  * `st.set_page_config(layout="wide")` and the global CSS never ran, so
+    whichever page you clicked rendered at Streamlit's default centred width
+    and unstyled -- the narrow layout in Screenshot 135945.
+
+  * `st.navigation()` never ran either, so Streamlit fell back to legacy
+    multipage mode and auto-discovered `reporting/pages/*.py`. That is where
+    the phantom "app" entry at the top of the sidebar came from: in legacy
+    mode the entry-point script becomes the first nav item, and clicking it
+    re-ran the crashing app.py.
+
+  * Meanwhile the CSS contained `[data-testid="stSidebarNav"] { display:none }`
+    -- presumably to hide that legacy list. But `st.navigation()` renders into
+    the same container, so on the rare run where app.py *did* work you got a
+    wide layout with no navigation at all (Screenshot 140033).
+
+THE FIX
+-------
+  * sys.path is fixed inline, before any `reporting.*` import.
+  * `reporting/pages/` is renamed to `reporting/app_pages/`, which removes
+    Streamlit's legacy auto-discovery entirely. `st.navigation` is now the
+    only navigation, and the `display:none` rule is gone from theme.py.
+  * Page config + CSS moved to reporting/theme.py so any entry point gets them.
+  * Auth gate runs before `pg.run()`; with legacy discovery gone there is no
+    URL that reaches a page without passing it.
 """
+# --- path bootstrap: must come before any `reporting.*` import ---------------
+import sys
+from pathlib import Path
 
-import reporting._bootstrap  # noqa: F401 — must be first; adds project root to sys.path
-import streamlit as st
-from reporting.config import APP_TITLE, APP_ICON, COLORS
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
+# ----------------------------------------------------------------------------
 
+import streamlit as st  # noqa: E402
 
-# ---------------------------------------------------------------------------
-# Page config — must be first Streamlit call
-# ---------------------------------------------------------------------------
- 
-st.set_page_config(
-    page_title=APP_TITLE,
-    page_icon=APP_ICON,
-    layout="wide",
-    initial_sidebar_state="expanded",
-)
+from reporting.theme import configure_page, inject_css  # noqa: E402
 
+# set_page_config must be the first Streamlit call in the script run.
+configure_page()
+inject_css()
 
-# ---------------------------------------------------------------------------
-# Global CSS injection — dark executive theme
-# ---------------------------------------------------------------------------
-st.markdown(
-    f"""
-    <style>
-    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
+from reporting.auth.session import login_gate, render_user_badge  # noqa: E402
+from reporting.auth.users import AuthConfigError  # noqa: E402
+from reporting.utils.render import reset_render_state  # noqa: E402
 
-    /* ---- Global ---- */
-    html, body, [class*="css"] {{
-        font-family: 'DM Sans', sans-serif;
-        background-color: {COLORS['bg_primary']} !important;
-        color: {COLORS['text_primary']};
-    }}
-
-    /* ---- Main area ---- */
-    .main .block-container {{
-        padding: 1.5rem 2rem 2rem 2rem;
-        max-width: 1400px;
-    }}
-
-    /* ---- Headers ---- */
-    h1, h2, h3, h4 {{ color: {COLORS['text_primary']}; }}
-
-    /* ---- Metric boxes (Streamlit native) ---- */
-    [data-testid="stMetric"] {{
-        background: {COLORS['bg_card']};
-        border: 1px solid {COLORS['border']};
-        border-radius: 8px;
-        padding: 0.75rem 1rem;
-    }}
-    [data-testid="stMetricLabel"] {{ color: {COLORS['text_secondary']} !important; font-size: 0.78rem !important; }}
-    [data-testid="stMetricValue"] {{ color: {COLORS['text_primary']} !important; font-size: 1.4rem !important; }}
-    [data-testid="stMetricDelta"] {{ font-size: 0.78rem !important; }}
-
-    /* ---- Selectboxes ---- */
-    .stSelectbox > div > div {{
-        background: {COLORS['bg_card']} !important;
-        border-color: {COLORS['border']} !important;
-        color: {COLORS['text_primary']} !important;
-    }}
-    .stMultiSelect > div {{
-        background: {COLORS['bg_card']} !important;
-        border-color: {COLORS['border']} !important;
-    }}
-    .stMultiSelect [data-baseweb="tag"] {{
-        background: {COLORS['accent']} !important;
-        color: #000 !important;
-    }}
-
-    /* ---- Tabs ---- */
-    .stTabs [data-baseweb="tab-list"] {{
-        background: {COLORS['bg_card']};
-        border-radius: 8px 8px 0 0;
-        border-bottom: 1px solid {COLORS['border']};
-        gap: 0;
-    }}
-    .stTabs [data-baseweb="tab"] {{
-        background: transparent;
-        color: {COLORS['text_secondary']};
-        border-radius: 0;
-        font-size: 0.85rem;
-        padding: 0.6rem 1.2rem;
-    }}
-    .stTabs [aria-selected="true"] {{
-        background: {COLORS['bg_card_alt']} !important;
-        color: {COLORS['accent']} !important;
-        border-bottom: 2px solid {COLORS['accent']} !important;
-        font-weight: 600;
-    }}
-    .stTabs [data-baseweb="tab-panel"] {{
-        background: {COLORS['bg_card']};
-        border: 1px solid {COLORS['border']};
-        border-top: none;
-        border-radius: 0 0 8px 8px;
-        padding: 1.25rem;
-    }}
-
-    /* ---- Dividers ---- */
-    hr {{ border-color: {COLORS['border']}; }}
-
-    /* ---- Dataframes ---- */
-    .stDataFrame {{
-        background: {COLORS['bg_card']};
-        border: 1px solid {COLORS['border']};
-    }}
-
-    /* ---- Radio / Checkbox ---- */
-    .stRadio [data-testid="stMarkdownContainer"] p {{
-        color: {COLORS['text_secondary']};
-        font-size: 0.85rem;
-    }}
-
-    /* ---- Page nav ---- */
-    [data-testid="stSidebarNav"] {{ display: none; }}
-
-    /* ---- Scrollbar ---- */
-    ::-webkit-scrollbar {{ width: 6px; height: 6px; }}
-    ::-webkit-scrollbar-track {{ background: {COLORS['bg_primary']}; }}
-    ::-webkit-scrollbar-thumb {{ background: {COLORS['border']}; border-radius: 3px; }}
-
-    /* ---- Column gaps ---- */
-    [data-testid="column"] {{ gap: 0.75rem; }}
-
-    /* ---- Info/warning boxes ---- */
-    .stAlert {{ background: {COLORS['bg_card_alt']}; border-radius: 6px; }}
-
-    /* ---- Spacing utility ---- */
-    .spacer-sm {{ margin-top: 0.5rem; }}
-    .spacer-md {{ margin-top: 1rem; }}
-    .spacer-lg {{ margin-top: 1.5rem; }}
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
+# Clear the per-run widget-key counters and header registry. Must happen once
+# per script run, before any page code executes, so download-button keys stay
+# deterministic across reruns instead of drifting upward.
+reset_render_state()
 
 try:
-    st.switch_page("pages/1_Executive_Overview.py")
-except AttributeError:
-    # Streamlit < 1.31 — display a manual navigation prompt instead
-    st.info("👈 Use the sidebar to navigate to a report page.")
+    principal = login_gate()          # halts the script until signed in
+except AuthConfigError as exc:
+    st.error(str(exc))
+    st.stop()
+
+render_user_badge(principal)
+
 
 # ---------------------------------------------------------------------------
-# Navigation definition
+# Navigation
 # ---------------------------------------------------------------------------
-pages = [
-    st.Page("pages/1_Executive_Overview.py",   title="Executive Overview",      icon="🏠"),
-    st.Page("pages/2_Regional_Performance.py", title="Regional Performance",    icon="🗺️"),
-    st.Page("pages/3_Salesforce_Performance.py", title="Salesforce Performance", icon="👥"),
-    st.Page("pages/4_Product_Performance.py",  title="Product Performance",     icon="📦"),
-    st.Page("pages/5_Time_Intelligence.py",    title="Time Intelligence",       icon="⏱️"),
-    st.Page("pages/6_Quality_Trends.py",       title="Data Quality",            icon="🔍"),
-    st.Page("pages/7_Ask_Data.py", title="Ask Your Data", icon="💬"),
+# (page_key, path, title, icon, extra_condition)
+_ALL_PAGES = [
+    ("executive", "app_pages/1_Executive_Overview.py",   "Executive Overview",   "🏠", True),
+    ("regional",  "app_pages/2_Regional_Performance.py", "Regional Performance", "🗺️", True),
+    ("salesforce", "app_pages/3_Salesforce_Performance.py", "Salesforce Performance", "👥", True),
+    ("product",   "app_pages/4_Product_Performance.py",  "Product Performance",  "📦", True),
+    ("time",      "app_pages/5_Time_Intelligence.py",    "Time Intelligence",    "⏱️", True),
+    ("quality",   "app_pages/6_Quality_Trends.py",       "Data Quality",         "🔍", True),
+    # Free-form SQL is the one page RLS cannot make *safe* on its own -- the
+    # rewriter scopes the rows, but a curious user can still enumerate the
+    # schema and probe. Gate it on an explicit per-user flag.
+    ("ask",       "app_pages/7_Ask_Data.py",             "Ask Your Data",        "💬",
+     principal.can_ask_data),
+    ("sellin",    "app_pages/8_Sell_In_Sell_Out.py",     "Sell-In / Sell-Out",   "🔄", True),
 ]
+
+pages = [
+    st.Page(path, title=title, icon=icon)
+    for key, path, title, icon, allowed in _ALL_PAGES
+    if allowed and principal.allows_page(key)
+]
+
+if not pages:
+    st.error("Your account has no pages assigned. Contact the report owner.")
+    st.stop()
 
 pg = st.navigation(pages)
 pg.run()

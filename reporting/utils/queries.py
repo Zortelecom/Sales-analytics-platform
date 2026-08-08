@@ -3,6 +3,16 @@ reporting/utils/queries.py
 All SQL query builders for the reporting pages.
 Returns pd.DataFrames via db.query().
 
+Fix applied (reporting-layer review):
+  - get_quarterly_summary(): the fallback branch (used when v_quarterly_kpi
+    doesn't exist) computed quarters with CEIL(month/3.0), i.e. calendar
+    quarters (Q1=Jan-Mar). Every other part of this app uses the company's
+    Oct-start fiscal year (see reporting/utils/filters.py QUARTER_MONTHS:
+    Q1=Oct-Dec, Q2=Jan-Mar, Q3=Apr-Jun, Q4=Jul-Sep), and the primary
+    v_quarterly_kpi path is built from dim_date's fiscal quarter mapping.
+    The fallback now derives the same fiscal quarter so the two code paths
+    agree — e.g. an October sale is Q1 either way, not Q1 normally but Q4
+    the moment the view happens to be missing.
 """
 from __future__ import annotations
 import pandas as pd
@@ -100,7 +110,12 @@ def get_top_regions(year: int, month: int | None = None,
     Now propagates the channel filter (§2.4).
     """
     kpi_filters, kpi_params = _build_filters(year=year, month=month, channels=channels, prefix="WHERE")
-    base_filters, base_params = _build_filters(year=year, month=month, prefix="WHERE",
+    # FIX: the clients CTE was built WITHOUT `channels`, so active_clients
+    # ignored the channel filter while revenue/target respected it — the
+    # docstring (§2.4) and get_regional_summary / get_category_performance
+    # all propagate channels to both CTEs.
+    base_filters, base_params = _build_filters(year=year, month=month, channels=channels,
+                                                prefix="WHERE",
                                                 year_col="sale_year", month_col="sale_month")
     sql = f"""
     WITH kpi AS (
@@ -542,28 +557,51 @@ def get_category_month_heatmap(year: int) -> pd.DataFrame:
     return query(sql, (year,))
 
 
+def _view_exists(view_name: str) -> bool:
+    """True when a view/table exists in the serving DB.
+
+    FIX: db.query() swallows duckdb.Error and returns an empty DataFrame, so
+    the previous try/except fallback in get_quarterly_summary could never
+    trigger — a missing view flashed a red error and returned empty instead
+    of falling back. Checking information_schema up front makes the fallback
+    real. (Views are listed in information_schema.tables in DuckDB.)
+    """
+    df = query(
+        "SELECT COUNT(*) AS n FROM information_schema.tables WHERE table_name = ?",
+        (view_name,),
+    )
+    return (not df.empty) and int(df.iloc[0]["n"]) > 0
+
+
 def get_quarterly_summary(year: int, region: str | None = None) -> pd.DataFrame:
     """Quarterly summary with graceful fallback to v_monthly_kpi (§3.8)."""
     r_filter = "AND region=?" if region else ""
     params = [year] + ([region] if region else [])
-    sql = f"""
-    SELECT quarter, region,
-           SUM(revenue) AS revenue,
-           SUM(target)  AS target,
-           SUM(units_sold) AS units_sold,
-           CASE WHEN SUM(target)>0 THEN ROUND(SUM(revenue)/SUM(target)*100,2) ELSE NULL END AS achievement_pct
-    FROM v_quarterly_kpi
-    WHERE year=? {r_filter}
-    GROUP BY quarter, region
-    ORDER BY quarter, region
-    """
-    try:
-        return query(sql, tuple(params))
-    except Exception:
-        # Fallback: derive from v_monthly_kpi if v_quarterly_kpi is missing
-        fallback_sql = f"""
+    if _view_exists("v_quarterly_kpi"):
+        sql = f"""
+        SELECT quarter, region,
+               SUM(revenue) AS revenue,
+               SUM(target)  AS target,
+               SUM(units_sold) AS units_sold,
+               CASE WHEN SUM(target)>0 THEN ROUND(SUM(revenue)/SUM(target)*100,2) ELSE NULL END AS achievement_pct
+        FROM v_quarterly_kpi
+        WHERE year=? {r_filter}
+        GROUP BY quarter, region
+        ORDER BY quarter, region
+        """
+    else:
+        # FIX (bug): this fallback used calendar quarters (CEIL(month/3.0)),
+        # i.e. Q1=Jan-Mar, which doesn't match the company's Oct-start
+        # fiscal year used everywhere else (see filters.py QUARTER_MONTHS:
+        # Q1=Oct-Dec, Q2=Jan-Mar, Q3=Apr-Jun, Q4=Jul-Sep) and presumably
+        # baked into v_quarterly_kpi via dim_date's fiscal quarter mapping.
+        # An October sale used to land in "Q4" here but "Q1" in the primary
+        # path — silently wrong the moment v_quarterly_kpi went missing.
+        # Fiscal-month formula: re-index months so Oct=1 .. Sep=12, then
+        # group into quarters of 3 fiscal months.
+        sql = f"""
         SELECT
-            CEIL(month / 3.0)::INT AS quarter,
+            CEIL((((month - 10 + 12) % 12) + 1) / 3.0)::INT AS quarter,
             region,
             SUM(revenue) AS revenue,
             SUM(target)  AS target,
@@ -571,10 +609,10 @@ def get_quarterly_summary(year: int, region: str | None = None) -> pd.DataFrame:
             CASE WHEN SUM(target)>0 THEN ROUND(SUM(revenue)/SUM(target)*100,2) ELSE NULL END AS achievement_pct
         FROM v_monthly_kpi
         WHERE year=? {r_filter}
-        GROUP BY CEIL(month / 3.0)::INT, region
+        GROUP BY CEIL((((month - 10 + 12) % 12) + 1) / 3.0)::INT, region
         ORDER BY quarter, region
         """
-        return query(fallback_sql, tuple(params))
+    return query(sql, tuple(params))
 
 
 # =============================================================================

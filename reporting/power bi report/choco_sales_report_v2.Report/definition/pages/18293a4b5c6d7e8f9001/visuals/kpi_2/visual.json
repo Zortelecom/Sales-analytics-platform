@@ -1,0 +1,59 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.11.0/schema.json",
+  "name": "kpi_2",
+  "position": {
+    "x": 438.59498207885304,
+    "y": 71.569892473118273,
+    "z": 3000,
+    "height": 135.79928315412187,
+    "width": 194.52329749103941,
+    "tabOrder": 4000
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Destock Mismatch Rate"
+                }
+              },
+              "queryRef": "_Measures.Destock Mismatch Rate",
+              "nativeQueryRef": "Destock Mismatch Rate"
+            }
+          ]
+        }
+      }
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Destock Mismatch Rate'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

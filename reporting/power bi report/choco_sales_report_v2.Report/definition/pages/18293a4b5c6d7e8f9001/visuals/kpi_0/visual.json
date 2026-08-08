@@ -1,0 +1,59 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.11.0/schema.json",
+  "name": "kpi_0",
+  "position": {
+    "x": 23.856630824372761,
+    "y": 71.569892473118273,
+    "z": 1000,
+    "height": 135.79928315412187,
+    "width": 194.52329749103941,
+    "tabOrder": 2000
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "# Sales Lines Missing Client Link"
+                }
+              },
+              "queryRef": "_Measures.# Sales Lines Missing Client Link",
+              "nativeQueryRef": "# Sales Lines Missing Client Link"
+            }
+          ]
+        }
+      }
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'# Sales Lines Missing Client Link'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

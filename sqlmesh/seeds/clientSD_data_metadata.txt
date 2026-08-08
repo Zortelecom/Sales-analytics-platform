@@ -2,10 +2,10 @@ Seed Metadata
 ==================================================
 
 Seed Name: clientSD_data
-Batch ID: 20260712_164823
-Timestamp: 2026-07-12T15:49:51.790970+00:00
-Rows Written: 102
-Columns: 11
+Batch ID: 20260806_035531
+Timestamp: 2026-08-06T02:57:23.988010+00:00
+Rows Written: 108
+Columns: 12
 
 Column Names:
   - sd_name
@@ -13,6 +13,7 @@ Column Names:
   - region
   - kp
   - subregion
+  - supervisor
   - phone
   - city
   - location
@@ -24,4 +25,4 @@ Source Files:
   - References.xlsx
 
 Ingestion Batch IDs:
-  - 20260712_164823
+  - 20260806_035531

@@ -1,6 +1,7 @@
 ﻿# Data
 data/
 
+
 # Python
 __pycache__/
 *.pyc
@@ -22,6 +23,11 @@ logs/
 
 docs/prod
 
+#Report
+*.pbix
+
 docker/nginx/certs/
 docker/nginx/.htpasswd
 .env.prod
+
+.streamlit/secrets.toml

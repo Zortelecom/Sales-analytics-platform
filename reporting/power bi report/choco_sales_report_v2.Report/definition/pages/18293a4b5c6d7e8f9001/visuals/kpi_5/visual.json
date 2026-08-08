@@ -1,0 +1,59 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.11.0/schema.json",
+  "name": "kpi_5",
+  "position": {
+    "x": 1058.8673835125448,
+    "y": 71.569892473118273,
+    "z": 6000,
+    "height": 135.79928315412187,
+    "width": 194.52329749103941,
+    "tabOrder": 7000
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "# KP-SD Lines With Unmapped SKU"
+                }
+              },
+              "queryRef": "_Measures.# KP-SD Lines With Unmapped SKU",
+              "nativeQueryRef": "# KP-SD Lines With Unmapped SKU"
+            }
+          ]
+        }
+      }
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'# KP-SD Lines With Unmapped SKU'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

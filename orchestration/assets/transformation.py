@@ -48,7 +48,7 @@ def sqlmesh_models(context: AssetExecutionContext, seeds_metadata: dict) -> dict
         context.log.info("Running SQLMesh plan...")
         t0 = time.perf_counter()
         plan_result = sqlmesh.plan(
-            context, start_date='2025-01-01', auto_apply=True)
+            context, start_date='2024-10-01', auto_apply=True)
 
         # Log plan output (truncated for metadata)
         plan_output = plan_result.stdout if plan_result.stdout else "No output"

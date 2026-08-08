@@ -17,7 +17,7 @@ INPUT_PATHS = {
     "sales":      INPUT_SALES_DIR,
     "targets":    INPUT_TARGETS_DIR,
     "references": INPUT_REFERENCES_DIR,
-    "kp_sd":   INPUT_KP_SD_DIR,
+    "kp_sd":      INPUT_KP_SD_DIR,
 }
 
 DATA_ROOT = DATA_DIR
