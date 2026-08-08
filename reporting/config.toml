@@ -1,0 +1,57 @@
+# .streamlit/config.toml
+
+[theme]
+base = "dark"
+primaryColor = "#F59E0B"
+backgroundColor = "#0A0E1A"
+secondaryBackgroundColor = "#111827"
+textColor = "#F9FAFB"
+font = "sans serif"
+
+[server]
+# Listen on all interfaces so colleagues on the LAN can reach the app.
+address = "0.0.0.0"
+port = 8501
+
+# Don't auto-open a browser tab on the host machine.
+headless = true
+
+# FIXED: the previous config set enableCORS = false alongside
+# enableXsrfProtection = true. Those two are mutually exclusive, and Streamlit
+# logged:
+#     "'server.enableCORS=false' is not compatible with
+#      'server.enableXsrfProtection=true' ... being overridden to 'true'"
+# The setting was doing nothing except emitting a warning on every start.
+# CORS is not needed for LAN access by IP -- the browser loads the whole app
+# from the same origin. Keep XSRF protection on now that there is a login.
+enableXsrfProtection = true
+enableCORS = true
+
+# Trims reconnect churn when a phone's Wi-Fi drops briefly.
+enableWebsocketCompression = true
+
+# ---------------------------------------------------------------------------
+# TLS -- please do this before sharing the URL
+# ---------------------------------------------------------------------------
+# Without it, every password typed into the login form crosses the LAN in
+# clear text, and anyone on the same Wi-Fi can read it. A self-signed cert is
+# enough for internal use (browsers will warn once):
+#
+#   openssl req -x509 -newkey rsa:2048 -nodes -days 365 \
+#       -keyout .streamlit/key.pem -out .streamlit/cert.pem \
+#       -subj "/CN=$(hostname)"
+#
+# Then uncomment:
+# sslCertFile = ".streamlit/cert.pem"
+# sslKeyFile  = ".streamlit/key.pem"
+
+[browser]
+gatherUsageStats = false
+
+[client]
+# Show a generic message instead of a traceback. Turn back on while debugging.
+showErrorDetails = "none"
+
+[runner]
+# Don't re-run the script on every keystroke in a text input.
+fastReruns = true

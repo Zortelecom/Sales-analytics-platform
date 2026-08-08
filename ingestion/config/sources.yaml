@@ -1,92 +1,101 @@
-sales:
-  directory: "ExSD_Sales"
-  file_pattern: "ExSD*.xlsx"
-  table_prefix: "Sales"
-  exclude_sheets: "synthese*"
-  required_columns: ['salesperson_id', 'sd_id', 'sale_date', 'sku', 'qty', 'amount']
+# ─────────────────────────────────────────────────────────────────────────────
+# AUTHORITATIVE SOURCE REGISTRY
+#
+# This file is the single declaration of what sources exist and how each one
+# is discovered, preprocessed and extracted.
+#
+# It is parsed in exactly ONE place: shared/sources.py::load_sources().
+# Nothing else may call yaml.safe_load() on it. If you find yourself adding a
+# second parser, add a field to SourceSpec instead.
+#
+# Adding a source = add a block under `sources:` + write the extractor.
+# There is no second dict to update.
+# ─────────────────────────────────────────────────────────────────────────────
 
-targets:
-  directory: "targets"
-  file_pattern: "*.xlsx"
-  table_prefix: "Target"
-  required_columns: ["month_year", "salesperson_id", "product_category", "target_amount"]
-
-references:
-  directory: "References" 
-  file_pattern: "*.xlsx"
-  table_prefix: "Ref"
-  exclude_sheets: null
-  tables:
-    - name: "Ref_Salesteam"
-      required_columns: ["fullname","salesperson_id", "region", "subregion", "channel", "supervisor"]
-    - name: "Ref_Products"
-      required_columns: 
-        ["sku", "product_name", "product_category", "product_subcategory", 
-        "unit_price", "unit_weight", "is_innovation"]
-    - name: "Ref_ClientsSD"
-      required_columns: 
-        ["sd_name", "sd_id", "region", "kp", "subregion",
-         "city", "is_stockout"]
-    - name: "Ref_kp_sku_mapping"
-      required_columns: ["kp_sku", "internal_sku"]
-
-kp_sd:
-  directory: "ExKP_Sales"
-  file_pattern: "ExKP*.xlsx"
-  table_prefix: "SalesIn"
-  exclude_sheets: "synthese*"
-  required_columns: ['kp_destocke', 'sd_id', 'sale_date', 'sku', 'qty', 'amount']
-
-# Data source configuration
-sources:
-  # Option 1: Local synced folder (recommended - SharePoint syncs here)
+base:
   local_sync:
     enabled: true
     base_path: "D:/Users/Desktop/sales_analytics_data"
-    folders:
-      sales: "ExSD_Sales"
-      targets: "Targets"
-      references: "References"
-      kp_sd: "ExKP_Sales"
-  
-  # Option 2: Direct SharePoint (if using Microsoft Graph API)
+
+  # Not implemented. Kept declared so the shape is obvious when it is.
   sharepoint:
     enabled: false
     site_url: "https://yourcompany.sharepoint.com/sites/SalesAnalytics"
-    folders:
-      sales: "Shared Documents/Data/Sales"
-      targets: "Shared Documents/Data/Targets"
-      references: "Shared Documents/Data/References"
-      kp_sd: "Shared Documents/Data/KP_Sales"
     auth:
       client_id: "${SP_CLIENT_ID}"
       client_secret: "${SP_CLIENT_SECRET}"
       tenant_id: "${SP_TENANT_ID}"
 
-# Processing rules
-processing:
-  sales:
-    delete_sheets_pattern: "Synthese*"  # Regex pattern for sheets to remove
-    required_sheets: null         # Must have at least one matching sheet
-    file_pattern: "*.xlsx"
-    
-  targets:
-    delete_sheets_pattern: null           # No sheet deletion
-    required_sheets: ["Target*"]
-    file_pattern: "*.xlsx"
-    
-  references:
-    delete_sheets_pattern: null
-    required_sheets: ["Salespersons_List", "Products_List", "SD_List", "SKU_Mapping"]
-    file_pattern: "*.xlsx"
-  
-  kp_sd:
-    delete_sheets_pattern: "Synthese*"
-    required_sheets: null
-    file_pattern: "ExKP*.xlsx"
-
-# Validation
 validation:
   max_file_size_mb: 50
   allowed_extensions: [".xlsx", ".xlsm"]
-  check_corruption: true                  # Open file to verify not corrupted
+  check_corruption: true
+
+sources:
+
+  sales:
+    # SD -> market (sell-out)
+    source_folder: "ExSD_Sales"        # relative to base.local_sync.base_path
+    input_subdir: "sales"              # relative to data/input/
+    file_pattern: "ExSD*.xlsx"
+    table_prefix: "Sales"
+    required_columns: ["salesperson_id", "sd_id", "sale_date", "sku", "qty", "amount"]
+    processing:
+      # No trailing space: sheets are hand-named and "SyntheseJan" occurs as
+      # often as "Synthese Jan". preprocessing.py previously hardcoded
+      # "Synthese *", which silently kept every no-space variant.
+      delete_sheets_pattern: "Synthese*"
+      # Deliberately null. required_sheets validation was abandoned for Excel
+      # sources; the table-name prefix match is the sole structural check,
+      # because supervisors rename sheets after themselves. preprocessing.py
+      # still enforced ["Sales*"] -- that was the stale copy, not this.
+      required_sheets: null
+
+  targets:
+    source_folder: "Targets"
+    input_subdir: "targets"
+    file_pattern: "*.xlsx"
+    table_prefix: "Target"
+    required_columns: ["month_year", "salesperson_id", "product_category", "target_amount"]
+    processing:
+      delete_sheets_pattern: null
+      required_sheets: ["Target*"]
+
+  references:
+    source_folder: "References"
+    input_subdir: "references"
+    file_pattern: "*.xlsx"
+    table_prefix: "Ref"
+    processing:
+      delete_sheets_pattern: null
+      # Was ["Salespersons_List", "Products_List", "SD_List", "SKU_Mapping"].
+      # Those sheet names exist nowhere in this codebase -- the real tables are
+      # Ref_Salesteam / Ref_Products / Ref_ClientsSD / Ref_kp_sku_mapping, and
+      # preprocessing.py enforced nothing. Null matches actual behaviour.
+      required_sheets: null
+    tables:
+      - name: "Ref_Salesteam"
+        required_columns: ["fullname", "salesperson_id", "region", "subregion", "channel", "supervisor"]
+      - name: "Ref_Products"
+        required_columns: ["sku", "product_name", "product_category", "product_subcategory",
+                           "unit_price", "unit_weight", "is_innovation"]
+      - name: "Ref_ClientsSD"
+        # is_destocked was previously named is_stockout. `kp` is the SD's
+        # KP of record -- correct while one KP serves each SD, but KP is a
+        # property of the transaction (see fact_kp_sd.kp_name). Add a Ref_KP
+        # table before onboarding a second KP.
+        required_columns: ["sd_name", "sd_id", "region", "kp", "subregion", "city", "is_destocked"]
+      - name: "Ref_kp_sku_mapping"
+        required_columns: ["kp_sku", "internal_sku"]
+
+  kp_sd:
+    # KP -> SD (sell-in). One input dir, two extractors
+    # (KPDestockeExtractor / KPNonDestockeExtractor).
+    source_folder: "ExKP_Sales"
+    input_subdir: "kp_sd"
+    file_pattern: "ExKP*.xlsx"
+    table_prefix: "SalesIn"
+    required_columns: ["kp_destocke", "sd_id", "sale_date", "sku", "qty", "amount"]
+    processing:
+      delete_sheets_pattern: "Synthese*"
+      required_sheets: null

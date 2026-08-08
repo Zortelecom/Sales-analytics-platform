@@ -33,10 +33,6 @@ SELECT
   MOD(
     @GENERATE_SURROGATE_KEY(
       TRIM(sd_id),
-      sd_name,
-      subregion,
-      key_player,
-      is_destocked,
       CAST(effective_from AS TEXT),
     hash_function := 'MD5_NUMBER_LOWER'
     ),

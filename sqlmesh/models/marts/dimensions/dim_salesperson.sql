@@ -44,8 +44,6 @@ SELECT
   MOD(
     @GENERATE_SURROGATE_KEY(
       TRIM(salesperson_id),
-      subregion,
-      sales_channel,
       CAST(effective_from AS TEXT),
     hash_function := 'MD5_NUMBER_LOWER'-- ← default value for NULL effective_from
     ),

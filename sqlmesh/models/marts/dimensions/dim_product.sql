@@ -37,9 +37,6 @@ SELECT
   MOD(
     @GENERATE_SURROGATE_KEY(
       TRIM(sku),
-      unit_price,
-      unit_weight_kg,
-      is_innovation_product,
       CAST(effective_from AS TEXT),
       hash_function := 'MD5_NUMBER_LOWER'
     ), 
