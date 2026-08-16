@@ -1,306 +1,507 @@
 #!/usr/bin/env python3
 """
-Main entry point for Sales Analytics Ingestion Pipeline
-SEED-BASED APPROACH: Extract Excel → Write CSV seeds for SQLMesh
-"""
+Ingestion layer entry point. Excel -> DuckLake landing.
 
-import sys
+LAYER BOUNDARY
+──────────────
+This module is the whole ingestion layer and nothing else. It imports no
+Dagster, no SQLMesh, no serving code. Its output contract is:
+
+    landing.<table>        typed, append-only rows with _-prefixed provenance
+    landing.file_registry  one row per (file, ingest attempt)
+
+Everything downstream consumes that contract and nothing else, so the layer
+can be developed, run and verified on its own:
+
+    python -m ingestion.main --check      # validate config, never touch data
+    python -m ingestion.main --dry-run    # everything except the landing write
+    python -m ingestion.main              # full run
+    python -m ingestion.main --verify     # what is in landing right now
+    pytest tests/ingestion tests/shared   # no Dagster, no lake needed
+
+The Dagster assets in orchestration/assets/ingestion.py do the same work with
+the same classes. This is the path to use while developing; that is the path
+that runs on a schedule. Neither is a reimplementation of the other -- both are
+thin wrappers over the extractors and LandingWriter.
+
+(2026-08) Replaced the SEED-based version: SeedWriter, sqlmesh/seeds/ and the
+CSV round-trip are gone. Phase numbering is also fixed -- the old version had
+two "Phase 2"s and no Phase 3.
+"""
+from __future__ import annotations
+
+import argparse
 import logging
 import shutil
+import sys
+from datetime import datetime, timezone
 from pathlib import Path
-from datetime import datetime
+from typing import Dict, List, Tuple
 
-# Use absolute imports for package structure
-from ingestion.config.settings import ARCHIVE_DIR, load_sources_config, INPUT_PATHS, SQLMESH_SEEDS_DIR
-from ingestion.orchestrate import FileDiscovery, ExcelPreprocessor, ArchiveManager
-from ingestion.extract.sales_extractor import SalesExtractor
+import pandas as pd
+
+from ingestion.config.landing import (
+    CATALOG_ALIAS,
+    DUCKLAKE_CATALOG_PATH,
+    LANDING_EVOLVE_SCHEMA,
+    LANDING_SCHEMA,
+    LANDING_SKIP_DUPLICATE_FILES,
+    PARQUET_PATH,
+)
+from ingestion.config.settings import load_sources_config
 from ingestion.extract.kp_sd_extractor import KPDestockeExtractor, KPNonDestockeExtractor
-from ingestion.extract.target_extractor import TargetExtractor
 from ingestion.extract.reference_extractor import ReferenceExtractor
-from ingestion.load.seed_writer import SeedWriter
+from ingestion.extract.sales_extractor import SalesExtractor
+from ingestion.extract.target_extractor import TargetExtractor
+from ingestion.load.landing_writer import LandingWriter
+from ingestion.orchestrate import ArchiveManager, ExcelPreprocessor, FileDiscovery
+from shared.paths import ARCHIVE_DIR, DEAD_LETTER_DIR, LOGS_DIR
+from shared.sources import load_sources
 
-# Setup logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
 
-def run_ingestion_pipeline(dry_run: bool = False,
-                           skip_archive: bool = False,
-                           since: datetime = None) -> bool:
+# (landing_table, source_type, extractor_class, result_key)
+# result_key is set only for extractors returning a dict of frames.
+EXTRACTION_PLAN: List[Tuple[str, str, type, str | None]] = [
+    ("sales_data", "sales", SalesExtractor, None),
+    ("targets_data", "targets", TargetExtractor, None),
+    ("kp_sd_destocke_data", "kp_sd", KPDestockeExtractor, None),
+    ("kp_sd_non_destocke_data", "kp_sd", KPNonDestockeExtractor, None),
+    ("salesteam_data", "references", ReferenceExtractor, "ref_salesteam"),
+    ("products_data", "references", ReferenceExtractor, "ref_products"),
+    ("clientsd_data", "references", ReferenceExtractor, "ref_clients_sd"),
+    ("kp_sku_mapping_data", "references", ReferenceExtractor, "ref_kp_sku_mapping"),
+]
+
+
+def _open_writer(batch_id: str) -> LandingWriter:
+    return LandingWriter(
+        DUCKLAKE_CATALOG_PATH,
+        PARQUET_PATH,
+        batch_id=batch_id,
+        schema=LANDING_SCHEMA,
+        catalog_alias=CATALOG_ALIAS,
+        evolve_schema=LANDING_EVOLVE_SCHEMA,
+    )
+
+
+# ── check ───────────────────────────────────────────────────────────────────
+
+def check() -> bool:
     """
-    Complete ingestion pipeline with orchestration
-    
-    Phase 1: Discover and preprocess files from SharePoint/local
-    Phase 2: Extract data to seeds
-    Phase 3: Archive processed files
+    Pre-flight. Validates everything that can be validated without reading a
+    workbook or writing a row. Run this first after applying the migration.
     """
+    ok = True
+
+    print("Source registry")
+    try:
+        registry = load_sources()
+    except Exception as exc:  # noqa: BLE001
+        print(f"  FAIL  sources.yaml did not parse: {exc}")
+        return False
+    for source_type, spec in registry.sources.items():
+        src_ok = spec.source_dir.exists()
+        in_ok = spec.input_dir.exists()
+        print(f"  {source_type:11s} source={'ok ' if src_ok else 'MISSING'} "
+              f"input={'ok ' if in_ok else 'missing (will be created)'} "
+              f"pattern={spec.file_pattern}")
+        if not src_ok:
+            ok = False
+
+    print("\nColumn contracts")
+    try:
+        from ingestion.contracts.loader import load_contracts
+        contracts = load_contracts()
+        print(f"  {len(contracts)} contract(s): {sorted(contracts)}")
+    except Exception as exc:  # noqa: BLE001
+        print(f"  FAIL  contracts.yaml did not load: {exc}")
+        ok = False
+
+    print("\nLake")
+    print(f"  catalog     {DUCKLAKE_CATALOG_PATH}"
+          f"  {'(exists)' if DUCKLAKE_CATALOG_PATH.exists() else '(will be created)'}")
+    print(f"  data_path   {PARQUET_PATH}")
+    print(f"  alias       {CATALOG_ALIAS}   schema {LANDING_SCHEMA}")
+
+    # The single most likely misconfiguration: ingestion and SQLMesh pointed at
+    # different lakes. sqlmesh/config.yaml reads these same two variables, and
+    # a mismatch is silent -- raw.* models simply find no tables.
+    import os
+
+    from shared.env import ENV_FILE, parse_env_file
+
+    from_file = parse_env_file(ENV_FILE)
+    print(f"  .env        {ENV_FILE}"
+          f"  {'(%d vars)' % len(from_file) if from_file else '(not found)'}")
+
+    for name, resolved in (("DUCKLAKE_CATALOG_PATH", DUCKLAKE_CATALOG_PATH),
+                           ("PARQUET_PATH", PARQUET_PATH)):
+        raw = os.getenv(name)
+        if raw is None:
+            print(f"  WARN  {name} unset in both .env and the environment — "
+                  f"using default {resolved}. sqlmesh/config.yaml has no "
+                  f"default and will fail.")
+            ok = False
+        elif "$" in raw:
+            print(f"  FAIL  {name}={raw!r} contains shell syntax. A .env file is "
+                  f"not a shell: $(pwd) and ${{VAR}} are literal text. Use an "
+                  f"absolute path or one relative to the project root.")
+            ok = False
+        elif not resolved.parent.exists():
+            print(f"  FAIL  {name}={raw} resolves to {resolved}, "
+                  f"whose parent does not exist")
+            ok = False
+        else:
+            source = "env" if name not in from_file else ".env"
+            print(f"  {name:22s} ok ({source})")
+
+    try:
+        with _open_writer("check"):
+            print("  attach      ok")
+    except Exception as exc:  # noqa: BLE001
+        print(f"  FAIL  could not attach the lake: {exc}")
+        ok = False
+
+    # Discovery is where a wrong file_pattern shows up, and it is silent:
+    # _scan_directory falls back to "*.xlsx" rather than raising.
+    print("\nDiscovery (dry)")
+    try:
+        discovered = FileDiscovery(load_sources_config()).discover_all()
+        for source_type, files in discovered.items():
+            print(f"  {source_type:11s} {len(files):3d} file(s)"
+                  + (f"  e.g. {files[0].name}" if files else ""))
+        if not any(discovered.values()):
+            print("  FAIL  no files discovered in any source directory")
+            ok = False
+    except Exception as exc:  # noqa: BLE001
+        print(f"  FAIL  discovery raised: {exc}")
+        ok = False
+
+    print("\n" + ("All checks passed." if ok else "Fix the above before running."))
+    return ok
+
+
+# ── verify ──────────────────────────────────────────────────────────────────
+
+def verify() -> bool:
+    """Report the ingestion layer's output contract. Reads only."""
+    with _open_writer("verify") as writer:
+        summary = writer.summary()
+        registry = writer.registry_summary()
+        observability = writer.observability_summary()
+
+    if summary.empty:
+        logger.error("Landing is empty at %s — has the pipeline run?", DUCKLAKE_CATALOG_PATH)
+        return False
+
+    print("\nLanding tables")
+    print(summary.to_string(index=False))
+    print("\nFile registry")
+    print(registry.to_string(index=False))
+
+    # Listed because their EXISTENCE is the precondition for `sqlmesh plan`:
+    # meta.audit_results and meta.audit_failures are views over them, and
+    # DuckDB validates a view's references at CREATE VIEW. Empty is fine;
+    # absent stops the transformation layer before it starts.
+    print("\nObservability tables (created empty by the landing writer)")
+    print(observability.to_string(index=False))
+
+    absent = observability.loc[~observability["exists"], "table"].tolist()
+    if absent:
+        logger.error(
+            "Missing from the landing schema: %s. `sqlmesh plan` will fail "
+            "building the meta views over them.", absent,
+        )
+
+    missing = {table for table, _, _, _ in EXTRACTION_PLAN} - set(summary["table"])
+    if missing:
+        logger.warning("Declared but never landed: %s", sorted(missing))
+    empty = summary.loc[summary["current_rows"] == 0, "table"].tolist()
+    if empty:
+        logger.warning("Landed but currently empty: %s", empty)
+
+    return not missing and not empty and not absent
+
+
+# ── extraction ──────────────────────────────────────────────────────────────
+
+def extract_all(batch_id: str) -> Tuple[Dict[str, pd.DataFrame], List[str]]:
+    """
+    Run every extractor once. Reference extraction is cached so the workbook is
+    opened once rather than four times.
+
+    A failing source is recorded and skipped rather than aborting the run: one
+    unreadable workbook should not cost you the other seven tables.
+
+    But the caller must decide whether the surviving sources are enough. A
+    shared dependency -- a malformed contracts.yaml, a missing input directory
+    -- fails EVERY source at once, and reporting that as a partial success is
+    worse than failing: the run exits 0, the workbooks get archived, and
+    nothing downstream knows the lake was not updated. Hence the failure list
+    is returned rather than only logged.
+    """
+    registry = load_sources()
+    frames: Dict[str, pd.DataFrame] = {}
+    reference_cache: Dict[str, pd.DataFrame] | None = None
+    failures: List[str] = []
+
+    for table, source_type, extractor_class, result_key in EXTRACTION_PLAN:
+        input_dir = registry[source_type].input_dir
+        try:
+            if result_key is not None:
+                if reference_cache is None:
+                    reference_cache = extractor_class(batch_id=batch_id).read(input_dir) or {}
+                frame = reference_cache.get(result_key)
+            else:
+                extractor = extractor_class(batch_id=batch_id)
+                frame = extractor.read(input_dir)
+                details = getattr(extractor, "coercion_details", {})
+                if details:
+                    logger.warning("%s: mixed-type columns coerced to string", table)
+                    for column, by_type in sorted(details.items()):
+                        summary = ", ".join(
+                            f"{name}={info['rows']} (e.g. {info['sample']!r})"
+                            for name, info in sorted(
+                                by_type.items(), key=lambda kv: kv[1]["rows"])
+                        )
+                        logger.warning("    %-18s %s", column, summary)
+
+            if frame is None or frame.empty:
+                logger.warning("%-24s no rows", table)
+                continue
+
+            frames[table] = frame
+            logger.info("%-24s %6d rows from %d file(s)",
+                        table, len(frame),
+                        frame["source_file"].nunique() if "source_file" in frame else 1)
+
+        except Exception as exc:  # noqa: BLE001 — one bad source must not sink the rest
+            failures.append(f"{table}: {exc}")
+            logger.error("%-24s FAILED: %s", table, exc, exc_info=True)
+
+    if failures:
+        logger.warning("%d source(s) failed extraction:", len(failures))
+        for failure in failures:
+            logger.warning("    %s", failure)
+    return frames, failures
+
+
+# ── pipeline ────────────────────────────────────────────────────────────────
+
+def run_ingestion_pipeline(
+    dry_run: bool = False,
+    skip_archive: bool = False,
+    since: datetime = None,
+) -> bool:
     batch_id = datetime.now().strftime("%Y%m%d_%H%M%S")
-    logger.info("🚀 Starting ingestion pipeline [Batch: %s]", batch_id)
+    logger.info("Starting ingestion [batch %s]", batch_id)
 
-    # ─────────────────────────────────────────────────────────────
-    # PHASE 1: File Discovery & Preprocessing
-    # ─────────────────────────────────────────────────────────────
-    logger.info("\n📁 Phase 1: File Discovery")
-
+    # ── Phase 1: discovery ──────────────────────────────────────────────────
+    logger.info("Phase 1: file discovery")
     config = load_sources_config()
     discovery = FileDiscovery(config)
-    all_files = discovery.discover_all()
 
-    # Filter for new files only
+    # REQUIRED. check_for_new_files() and get_processing_manifest() both read
+    # self.discovered_files, which only discover_all() populates. Without this
+    # the run reports "no new files" and exits 0 having done nothing.
+    discovered = discovery.discover_all()
+    logger.info("Discovered %d file(s) across %d source(s)",
+                sum(len(v) for v in discovered.values()), len(discovered))
+
     new_files = discovery.check_for_new_files(since=since)
     total_new = sum(len(v) for v in new_files.values())
-
     if total_new == 0:
         logger.info("No new files to process")
         return True
+    logger.info("Found %d new file(s)", total_new)
 
-    logger.info("\nFound %d new file(s) to process", total_new)
+    new_file_paths = {f.resolve() for files in new_files.values() for f in files}
+    manifest = [
+        m for m in discovery.get_processing_manifest()
+        if m["source_path"].resolve() in new_file_paths
+    ]
 
-    # Generate processing manifest
-    manifest = discovery.get_processing_manifest()
-    # Filter manifest to only new files
-    new_file_paths = set()
-    for type_files in new_files.values():
-        new_file_paths.update([f.resolve() for f in type_files])
-    manifest = [m for m in manifest if m["source_path"].resolve()
-                in new_file_paths]
-
-    # Preprocess Excel files
-    logger.info("\n🔧 Phase 2: Preprocessing Excel Files")
-    preprocessor = ExcelPreprocessor(dry_run=dry_run)
+    # ── Phase 2: preprocessing ──────────────────────────────────────────────
+    logger.info("Phase 2: preprocessing")
+    # NOT ExcelPreprocessor(dry_run=dry_run). Preprocessing writes only to
+    # data/input/, which is derived scratch space, and extraction reads from
+    # there -- so skipping it made --dry-run extract nothing whenever
+    # data/input was empty, while reporting success. What a dry run must avoid
+    # is the landing write and the archive, both of which are skipped below.
+    preprocessor = ExcelPreprocessor(dry_run=False)
     results = preprocessor.batch_preprocess(manifest)
 
-    # Handle failures: move to dead_letter, but continue if some files succeeded
     if results["failed"]:
-        logger.warning("⚠️  Failed to process %d file(s)", len(results["failed"]))
-
-        # Setup dead letter directory
-        dead_letter_dir = Path(ARCHIVE_DIR).parent / "dead_letter"
-        dead_letter_dir.mkdir(parents=True, exist_ok=True)
-
-        # Create failure manifest
-        logs_dir = Path(ARCHIVE_DIR).parent / "logs"
-        logs_dir.mkdir(parents=True, exist_ok=True)
-        failure_manifest_path = logs_dir / f"failures_{batch_id}.txt"
-
-        with open(failure_manifest_path, 'w') as f:
-            f.write(f"Preprocessing Failure Manifest - Batch {batch_id}\n")
-            f.write(f"Failed Files: {len(results['failed'])}\n")
-            f.write("=" * 80 + "\n\n")
-            for item in results["failed"]:
-                f.write(f"File: {item['source_path']}\n")
-                f.write(f"Error: {item.get('error', 'Unknown error')}\n")
-                f.write("-" * 80 + "\n")
-
-        logger.info("Failure manifest written to: %s", failure_manifest_path)
-
-        # Move failed files to dead letter for inspection
-        for item in results["failed"]:
-            failed_path = Path(item['source_path'])
-            if failed_path.exists():
-                try:
-                    dest_path = dead_letter_dir / failed_path.name
-                    shutil.move(str(failed_path), str(dest_path))
-                    logger.warning("  → Moved to dead_letter: %s", failed_path.name)
-                except Exception as e:
-                    logger.warning("  → Could not move %s: %s", failed_path.name, e)
-            else:
-                logger.warning("  → File not found: %s", failed_path)
-
-        # Abort only if nothing succeeded
+        logger.warning("Preprocessing failed for %d file(s)", len(results["failed"]))
+        # batch_preprocess appends the raw manifest item, which has no "error"
+        # key -- the messages accumulate on preprocessor.stats instead. Passing
+        # them through is why the old manifest always said "Unknown error".
+        _record_failures(batch_id, results["failed"], preprocessor.stats.get("errors", []))
         if not results["successful"]:
-            logger.error("No files succeeded preprocessing. Pipeline aborted.")
+            logger.error("No files survived preprocessing. Aborting.")
             return False
+        logger.warning("Continuing with %d file(s)", len(results["successful"]))
 
-        logger.warning("Continuing with %d successfully preprocessed file(s)", 
-                      len(results["successful"]))
+    logger.info("Preprocessed %d, skipped %d (already current)",
+                len(results["successful"]), len(results["skipped"]))
 
-    logger.info(
-        "Successfully preprocessed %d file(s)", len(results['successful']))
-    logger.info("Skipped %d file(s) (already current)", len(results['skipped']))
+    # ── Phase 3: extraction ─────────────────────────────────────────────────
+    logger.info("Phase 3: extraction")
+    for spec in load_sources().sources.values():
+        spec.input_dir.mkdir(parents=True, exist_ok=True)
 
-    # ─────────────────────────────────────────────────────────────
-    # PHASE 2: Data Extraction (FIXED)
-    # ─────────────────────────────────────────────────────────────
-    logger.info("\n📊 Phase 2: Data Extraction to Seeds")
+    frames, failures = extract_all(batch_id)
+
+    # A shared dependency failing takes every source with it. Treat "most
+    # sources failed" as a failed run, not a partial one -- otherwise the
+    # workbooks get archived below as though they had been ingested.
+    if failures and len(failures) > len(frames):
+        logger.error(
+            "%d source(s) failed and only %d succeeded. This looks like a "
+            "shared failure (contracts.yaml, a missing input directory, the "
+            "lake) rather than a bad workbook. Nothing will be landed or "
+            "archived. Run `python -m ingestion.main --check` to see why.",
+            len(failures), len(frames),
+        )
+        return False
+
+    if not frames:
+        logger.error(
+            "Files were preprocessed but no rows were extracted. Check that "
+            "data/input/<source>/ contains the cleaned workbooks — extraction "
+            "reads from there, not from the source folder."
+        )
+        return False
 
     if dry_run:
-        logger.info("[DRY RUN] Would extract data to seeds")
-        return True
+        logger.info("[DRY RUN] would land: %s",
+                    {t: len(f) for t, f in frames.items()})
+        return not failures
 
-    # Ensure input directories exist (preprocessor already created them)
-    for path in INPUT_PATHS.values():
-        path.mkdir(parents=True, exist_ok=True)
+    # ── Phase 4: load to landing ────────────────────────────────────────────
+    logger.info("Phase 4: load to landing")
+    registry = load_sources()
+    landed: Dict[str, Dict[str, int]] = {}
 
-    # ─────────────────────────────────────────────────────────────
-    # FIX: Initialize extractors with batch_id, not paths
-    # ─────────────────────────────────────────────────────────────
-
-    # Extract data dictionary to collect all results
-    extracted_data = {}
-
-    # ─────────────────────────────────────────────────────────────
-    # Sales Extraction
-    # ─────────────────────────────────────────────────────────────
-    try:
-        # FIX: SalesExtractor takes batch_id in constructor
-        sales_extractor = SalesExtractor(batch_id=batch_id)
-        # FIX: Use .read() method with directory path
-        df_sales = sales_extractor.read(INPUT_PATHS["sales"])
-
-        if df_sales.empty:
-            logger.warning("No sales data extracted")
-        else:
-            extracted_data["sales_data"] = df_sales
-            logger.info("✓ Extracted %d sales records", len(df_sales))
-    except (FileNotFoundError, ValueError, KeyError) as e:
-        logger.error("Sales extraction failed: %s", e)
-        return False
-    
-    # ──────────────────────────────────────────────────────────────
-    # ── KP-SD Destocké Extraction
-    # ──────────────────────────────────────────────────────────────
-    
-    try:
-        kp_sd_dest_extractor = KPDestockeExtractor(batch_id=batch_id)
-        df_kp_sd_dest = kp_sd_dest_extractor.read(INPUT_PATHS["kp_sd"])
-
-        if df_kp_sd_dest.empty:
-            logger.warning("No KP-SD destocké data extracted")
-        else:
-            extracted_data["kp_sd_destocke_data"] = df_kp_sd_dest
-            logger.info("✓ Extracted %d KP-SD destocké records", len(df_kp_sd_dest))
-    except (FileNotFoundError, ValueError, KeyError) as e:
-        logger.error("KP-SD destocké extraction failed: %s", e)
-        return False
-    
-    # ─────────────────────────────────────────────────────────────
-    # ── KP-SD Non-Destocké Extraction
-    # ──────────────────────────────────────────────────────────────
-    try:
-        kp_sd_non_dest_extractor = KPNonDestockeExtractor(batch_id=batch_id)
-        df_kp_sd_non_dest = kp_sd_non_dest_extractor.read(INPUT_PATHS["kp_sd"])
-
-        if df_kp_sd_non_dest.empty:
-            logger.warning("No KP-SD non-destocké data extracted")
-        else:
-            extracted_data["kp_sd_non_destocke_data"] = df_kp_sd_non_dest
-            logger.info("✓ Extracted %d KP-SD non-destocké records", len(df_kp_sd_non_dest))
-    except (FileNotFoundError, ValueError, KeyError) as e:
-        logger.error("KP-SD non-destocké extraction failed: %s", e)
-        return False
-
-    # ─────────────────────────────────────────────────────────────
-    # Targets Extraction
-    # ─────────────────────────────────────────────────────────────
-    try:
-        # FIX: TargetExtractor takes batch_id in constructor
-        targets_extractor = TargetExtractor(batch_id=batch_id)
-        # FIX: Use .read() method with directory path
-        df_targets = targets_extractor.read(INPUT_PATHS["targets"])
-
-        if df_targets.empty:
-            logger.warning("No targets data extracted")
-        else:
-            extracted_data["targets_data"] = df_targets
-            logger.info("✓ Extracted %d target records", len(df_targets))
-    except (FileNotFoundError, ValueError, KeyError) as e:
-        logger.error("Targets extraction failed: %s", e)
-        return False
-
-    # ─────────────────────────────────────────────────────────────
-    # References Extraction (FIXED)
-    # ─────────────────────────────────────────────────────────────
-    try:
-        # FIX: ReferenceExtractor takes batch_id in constructor
-        ref_extractor = ReferenceExtractor(batch_id=batch_id)
-        # FIX: .read() returns Dict[str, DataFrame], not single DataFrame
-        ref_results = ref_extractor.read(INPUT_PATHS["references"])
-
-        # FIX: Map the returned dictionary keys to seed names
-        # Based on ReferenceExtractor.read() return structure:
-        # {
-        #   'ref_salesteam': df_salesteam,
-        #   'ref_products': df_products,
-        #   'ref_clients_sd': df_clients
-        # }
-        ref_mapping = {
-            'ref_salesteam': 'salesteam_data',
-            'ref_products': 'products_data',
-            'ref_clients_sd': 'clientSD_data',
-            'ref_kp_sku_mapping': 'kp_sku_mapping_data'
-        }
-
-        for ref_key, seed_name in ref_mapping.items():
-            if ref_key in ref_results and not ref_results[ref_key].empty:
-                extracted_data[seed_name] = ref_results[ref_key]
-                logger.info(
-                    "✓ Extracted %d %s records", len(ref_results[ref_key]), ref_key)
+    with _open_writer(batch_id) as writer:
+        for table, source_type, _, _ in EXTRACTION_PLAN:
+            frame = frames.get(table)
+            if frame is None:
+                continue
+            result = writer.append_directory_frame(
+                table,
+                frame,
+                source_type=source_type,
+                input_dir=registry[source_type].input_dir,
+                skip_duplicates=LANDING_SKIP_DUPLICATE_FILES,
+            )
+            if result:
+                landed[table] = result
             else:
-                logger.warning("No data for %s", ref_key)
+                # Either every file was unchanged, or -- the bug this now
+                # guards against -- the table was silently skipped.
+                logger.info("%-24s nothing new to land", table)
+        print("\nLanding tables")
+        print(writer.summary().to_string(index=False))
 
-    except (FileNotFoundError, ValueError, KeyError) as e:
-        logger.error("References extraction failed: %s", e)
-        return False
+    total = sum(sum(files.values()) for files in landed.values())
+    logger.info("Landed %d row(s) across %d table(s)", total, len(landed))
 
-    # ─────────────────────────────────────────────────────────────
-    # Write seeds
-    # ─────────────────────────────────────────────────────────────
-    seeds_dir = SQLMESH_SEEDS_DIR
-    seeds_dir.mkdir(exist_ok=True)
-
-    writer = SeedWriter(seeds_dir, batch_id)
-
-    # FIX: Use write_seeds with the dictionary
-    seed_paths = writer.write_seeds(extracted_data)
-
-    summary = writer.get_seed_summary()
-    logger.info("\n📦 Seed Summary:")
-    for seed, info in summary.items():
-        size_human = f"{info['size_mb']:.2f} MB" if isinstance(
-            info['size_mb'], (int, float)) else "N/A"
-        logger.info(" %s : %s %s rows (%s)", seed, info['size_mb'], info['rows'], size_human)
-
-    # ─────────────────────────────────────────────────────────────
-    # PHASE 3: Archiving
-    # ─────────────────────────────────────────────────────────────
-    if not skip_archive and not dry_run:
-        logger.info("\n📦 Phase 4: Archiving Source Files")
-        archive_mgr = ArchiveManager(batch_id=batch_id, archive_base=ARCHIVE_DIR)
-        archive_path = archive_mgr.archive_processed_files(
-            manifest=results["successful"],
-            move=False  # Set to True to move instead of copy
+    # Archiving marks a workbook as dealt with. Skip it when any source failed,
+    # so a re-run after the fix still sees the files as new.
+    if failures:
+        logger.warning(
+            "%d source(s) failed; skipping the archive step so the affected "
+            "workbooks are re-processed on the next run.", len(failures),
         )
-        logger.info("Archived to: %s", archive_path)
+        skip_archive = True
 
-    logger.info("\n🎉 Ingestion pipeline completed [Batch: %s]", batch_id)
+    # ── Phase 5: archive ────────────────────────────────────────────────────
+    if not skip_archive:
+        logger.info("Phase 5: archiving")
+        archive_path = ArchiveManager(
+            batch_id=batch_id, archive_base=ARCHIVE_DIR
+        ).archive_processed_files(manifest=results["successful"], move=False)
+        logger.info("Archived to %s", archive_path)
+
+    logger.info("Ingestion complete [batch %s]", batch_id)
     return True
 
 
-if __name__ == "__main__":
-    import argparse
+def _record_failures(batch_id: str, failed: List[dict], errors: List[str]) -> None:
+    """Write a failure manifest and quarantine the files."""
+    LOGS_DIR.mkdir(parents=True, exist_ok=True)
+    DEAD_LETTER_DIR.mkdir(parents=True, exist_ok=True)
 
-    parser = argparse.ArgumentParser(description="Sales Analytics Ingestion")
+    manifest_path = LOGS_DIR / f"failures_{batch_id}.txt"
+    with open(manifest_path, "w", encoding="utf-8") as handle:
+        handle.write(f"Preprocessing failures - batch {batch_id}\n")
+        handle.write(f"Failed files: {len(failed)}\n{'=' * 80}\n\n")
+        for item in failed:
+            name = Path(item["source_path"]).name
+            matched = [e for e in errors if name in e] or ["(no message captured)"]
+            handle.write(f"File: {item['source_path']}\n")
+            for message in matched:
+                handle.write(f"Error: {message}\n")
+            handle.write(f"{'-' * 80}\n")
+    logger.info("Failure manifest: %s", manifest_path)
+
+    for item in failed:
+        path = Path(item["source_path"])
+        if not path.exists():
+            logger.warning("  not found: %s", path)
+            continue
+        try:
+            shutil.move(str(path), str(DEAD_LETTER_DIR / path.name))
+            logger.warning("  moved to dead_letter: %s", path.name)
+        except OSError as exc:
+            logger.warning("  could not move %s: %s", path.name, exc)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Sales Analytics ingestion layer")
     parser.add_argument("--dry-run", action="store_true",
-                        help="Preview without making changes")
-    parser.add_argument("--skip-archive", action="store_true",
-                        help="Skip archiving step")
-    parser.add_argument("--since", type=str,
-                        help="Process files modified since (YYYY-MM-DD)")
-
+                        help="Preprocess and extract, but write nothing to the "
+                             "lake and skip archiving")
+    parser.add_argument("--skip-archive", action="store_true")
+    parser.add_argument("--since", type=str, metavar="YYYY-MM-DD",
+                        help="Only files modified since this date (UTC)")
+    parser.add_argument("--all", action="store_true",
+                        help="Every discovered file, ignoring mtime. Use for the "
+                             "first load: the default window is only 24 hours.")
+    parser.add_argument("--verify", action="store_true",
+                        help="Report what is currently in landing and exit")
+    parser.add_argument("--check", action="store_true",
+                        help="Validate configuration without touching data")
     args = parser.parse_args()
 
-    SINCE_FILTER = None
-    if args.since:
-        SINCE_FILTER = datetime.strptime(args.since, "%Y-%m-%d")
+    if args.check:
+        return 0 if check() else 1
+    if args.verify:
+        return 0 if verify() else 1
 
-    SUCCESS = run_ingestion_pipeline(
-        dry_run=args.dry_run,
-        skip_archive=args.skip_archive,
-        since=SINCE_FILTER
+    # FileDiscovery compares against tz-aware UTC mtimes, so a naive datetime
+    # here raises TypeError ("can't compare offset-naive and offset-aware").
+    if args.all:
+        # Everything. check_for_new_files() defaults to the LAST 24 HOURS,
+        # which is not what you want for an initial load into landing.
+        since = datetime(1970, 1, 1, tzinfo=timezone.utc)
+    elif args.since:
+        since = datetime.strptime(args.since, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+    else:
+        since = None   # FileDiscovery's 24h default
+
+    ok = run_ingestion_pipeline(
+        dry_run=args.dry_run, skip_archive=args.skip_archive, since=since
     )
+    return 0 if ok else 1
 
-    sys.exit(0 if SUCCESS else 1)
+
+if __name__ == "__main__":
+    sys.exit(main())

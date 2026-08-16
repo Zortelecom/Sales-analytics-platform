@@ -27,13 +27,16 @@ from __future__ import annotations
 
 import logging
 import re
-import uuid
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 
-from .base_extractor import BaseExcelExtractor
+from ingestion.contracts.loader import load_contracts
+from .base_extractor import (
+    PROVENANCE_SOURCE_COLUMNS,
+    BaseExcelExtractor,
+    stable_row_id,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -43,28 +46,28 @@ class SalesExtractor(BaseExcelExtractor):
     Extract Sales data from ExSD-Sales-{SubRegion}.xlsx files.
     Only processes sheets that look like salesperson full names.
     Tables must be named SalesXXX.
+
+    Column schema is declared in ingestion/contracts/contracts.yaml under
+    the ``sales`` key; this extractor loads it at runtime rather than
+    carrying inline REQUIRED / EXPECTED sets.
     """
+    
+    CONTRACT_NAME = "sales"
 
-    REQUIRED_COLUMNS: set = {
-        "salesperson_id", "sd_id", "sale_date", "sku", "qty", "amount",
-    }
-
-    EXPECTED_COLUMNS: set = {
-        "salesperson_id", "sd_id", "sale_date", "sku", "product_name",
-        "unit_price", "qty", "amount", "subregion", "salesperson",
-        "supervisor", "channel", "city", "product_cat", "product_subcat",
-        "unit_weight", "is_innovation",
-    }
+    def __init__(self, batch_id: str) -> None:
+        super().__init__(batch_id)
+        self._contract = load_contracts()[self.CONTRACT_NAME]
 
     # ── Public API ───────────────────────────────────────────────────────────
 
     def read(self, directory_path: Path) -> pd.DataFrame:
         """Extract sales data with validation and null-key flagging."""
+
         df = self.extract_from_directory(
             directory_path,
             table_prefix="Sales",
             file_pattern="ExSD-Sales-*.xlsx",
-            required_columns=self.REQUIRED_COLUMNS,
+            required_columns=self._contract.required,
         )
 
         if df.empty:
@@ -75,24 +78,14 @@ class SalesExtractor(BaseExcelExtractor):
         df.columns = [col.lower().strip() for col in df.columns]
 
         # Hard-fail if required columns are missing after normalisation
-        missing = self.REQUIRED_COLUMNS - set(df.columns)
-        if missing:
+        is_valid, missing, unexpected = self._contract.validate(
+            set(df.columns) - set(PROVENANCE_SOURCE_COLUMNS)
+        )
+        if not is_valid:
             logger.error("Missing required columns: %s", missing)
             return pd.DataFrame()
-
-        # Warn about unexpected columns (schema drift from source files)
-        _provenance = {"source_file", "sheet_name", "table_name",
-                       "ingestion_ts", "ingestion_batch_id"}
-        unexpected = set(df.columns) - self.EXPECTED_COLUMNS - _provenance
         if unexpected:
             logger.warning("Unexpected columns found: %s", unexpected)
-
-        # Normalise string representations of nulls to real NaN
-        df.replace(
-            ["None", "NaT", "nan", "-", "#N/A"],
-            np.nan,
-            inplace=True,
-        )
 
         # ── Null-key audit (replaces the old silent dropna) ─────────────────
         # We keep all rows in the raw seed so the full source record is
@@ -119,7 +112,11 @@ class SalesExtractor(BaseExcelExtractor):
             logger.debug("All rows have non-null sale_date and sku.")
 
         # Unique surrogate key per sales line
-        df["sales_line_id"] = [str(uuid.uuid4()) for _ in range(len(df))]
+        df["sales_line_id"] = stable_row_id(
+            df,
+            key_columns=["salesperson_id", "sd_id", "sale_date", "sku"],
+            prefix="sales",
+        )
 
         # Subregion derived from filename (used for source tracing in audits)
         df["filename_subregion"] = df["source_file"].apply(

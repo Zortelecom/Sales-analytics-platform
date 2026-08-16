@@ -3,34 +3,57 @@ gateways:
   local_gateway:
     connection:
       type: duckdb
-      
-      # DuckLake catalog configuration
+
+      # DuckLake catalog. `landing` is a schema INSIDE this catalog, written by
+      # the ingestion layer and read by raw.* models. One lake, no second
+      # ATTACH: ingestion/config/landing.py reads the same two env vars below.
       catalogs:
         sales_lakehouse:
           type: ducklake
           path: {{ env_var('DUCKLAKE_CATALOG_PATH') }}
           data_path: {{ env_var('PARQUET_PATH') }}
 
-      
-      # Install DuckLake extension
       extensions:
         - ducklake
-    
-    # SQLMesh state management
+
+    # One model at a time.
+    #
+    # DuckDB is single-writer, and concurrent model execution against a
+    # DuckLake catalog on Windows produced intermittent
+    #   IO Error: Cannot open file ...ducklake-<uuid>.parquet
+    #   The system cannot find the path specified
+    # on a DIFFERENT date partition each run -- the signature of a race in
+    # directory creation, not of one bad partition. Serialising costs seconds
+    # on a project this size.
+
+    # SQLMesh state management.
+    #
+    # This is a DuckDB file at the project root, committed to git so a fresh
+    # clone has state. That works for one developer and stops working the
+    # moment there are two: it is a binary file that cannot merge, and it
+    # grows with every plan. Move it to the PostgreSQL instance at the same
+    # time the DuckLake catalog moves there.
     state_connection:
       type: duckdb
       database: {{ env_var('SQLMESH_STATE_PATH') }}
 
-# Default gateway
 default_gateway: local_gateway
 
-# Model defaults
 model_defaults:
   dialect: duckdb
   start: 2024-10-01
   cron: "@daily"
-  
-# Plan behavior
+
 plan:
   auto_apply: false
   include_unmodified: false
+
+# landing.* is written by the ingestion layer, not by SQLMesh, so SQLMesh
+# treats those tables as external. Regenerate external_models.yaml after the
+# first landing load, and again whenever a source workbook gains a column:
+#
+#     cd sqlmesh && sqlmesh create_external_models
+#
+# Without it the raw.* views still build, but column-level lineage stops at
+# the landing boundary and `sqlmesh plan` cannot warn about a column that a
+# staging model expects and landing no longer has.

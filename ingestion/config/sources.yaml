@@ -39,7 +39,16 @@ sources:
     input_subdir: "sales"              # relative to data/input/
     file_pattern: "ExSD*.xlsx"
     table_prefix: "Sales"
-    required_columns: ["salesperson_id", "sd_id", "sale_date", "sku", "qty", "amount"]
+    # Column contracts live in ingestion/contracts/contracts.yaml, which is what
+    # the extractors actually read. The required_columns previously declared here
+    # were never loaded by anything -- reference_extractor.py's own docstring
+    # records that they had drifted (is_stockout, missing effective_from) without
+    # anyone noticing, because nothing consumed them.
+    #
+    # SalesExtractor is the exception: it still carries inline REQUIRED_COLUMNS /
+    # EXPECTED_COLUMNS class attributes. Move those into contracts.yaml so there
+    # is one schema authority rather than two.
+    contract: sales
     processing:
       # No trailing space: sheets are hand-named and "SyntheseJan" occurs as
       # often as "Synthese Jan". preprocessing.py previously hardcoded
@@ -56,7 +65,7 @@ sources:
     input_subdir: "targets"
     file_pattern: "*.xlsx"
     table_prefix: "Target"
-    required_columns: ["month_year", "salesperson_id", "product_category", "target_amount"]
+    contract: targets
     processing:
       delete_sheets_pattern: null
       required_sheets: ["Target*"]
@@ -73,20 +82,9 @@ sources:
       # Ref_Salesteam / Ref_Products / Ref_ClientsSD / Ref_kp_sku_mapping, and
       # preprocessing.py enforced nothing. Null matches actual behaviour.
       required_sheets: null
-    tables:
-      - name: "Ref_Salesteam"
-        required_columns: ["fullname", "salesperson_id", "region", "subregion", "channel", "supervisor"]
-      - name: "Ref_Products"
-        required_columns: ["sku", "product_name", "product_category", "product_subcategory",
-                           "unit_price", "unit_weight", "is_innovation"]
-      - name: "Ref_ClientsSD"
-        # is_destocked was previously named is_stockout. `kp` is the SD's
-        # KP of record -- correct while one KP serves each SD, but KP is a
-        # property of the transaction (see fact_kp_sd.kp_name). Add a Ref_KP
-        # table before onboarding a second KP.
-        required_columns: ["sd_name", "sd_id", "region", "kp", "subregion", "city", "is_destocked"]
-      - name: "Ref_kp_sku_mapping"
-        required_columns: ["kp_sku", "internal_sku"]
+    # Per-table column contracts: contracts.yaml keys ref_salesteam,
+    # ref_products, ref_clients_sd, ref_kp_sku_mapping.
+    contract: references
 
   kp_sd:
     # KP -> SD (sell-in). One input dir, two extractors
@@ -95,7 +93,8 @@ sources:
     input_subdir: "kp_sd"
     file_pattern: "ExKP*.xlsx"
     table_prefix: "SalesIn"
-    required_columns: ["kp_destocke", "sd_id", "sale_date", "sku", "qty", "amount"]
+    # Two contracts, one per extractor: kp_sd_destocke, kp_sd_non_destocke
+    contract: kp_sd
     processing:
       delete_sheets_pattern: "Synthese*"
       required_sheets: null

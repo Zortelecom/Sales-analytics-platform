@@ -49,7 +49,10 @@ MODEL (
     sales_supervisor TEXT,
     is_destocked BOOLEAN,
     kp_sd_line_id TEXT,
-    sku_was_remapped BOOLEAN
+    sku_was_remapped BOOLEAN,
+    source_file TEXT,
+    sheet_name TEXT,
+    source_row_num BIGINT
   ),
 );
 
@@ -67,7 +70,10 @@ WITH raw_kp_sd AS (
     channel,
     sales_supervisor,
     TRUE AS is_destocked,
-    kp_sd_line_id
+    kp_sd_line_id,
+    _source_file,
+    _sheet_name,
+    _row_num
   FROM raw.kp_sd_destocke_data
   WHERE sale_date IS NOT NULL AND sku IS NOT NULL
 
@@ -86,7 +92,10 @@ WITH raw_kp_sd AS (
     channel,
     sales_supervisor,
     FALSE AS is_destocked,
-    kp_sd_line_id
+    kp_sd_line_id,
+    _source_file,
+    _sheet_name,
+    _row_num
   FROM raw.kp_sd_non_destocke_data
   WHERE sale_date IS NOT NULL AND sku IS NOT NULL
 )
@@ -117,7 +126,14 @@ SELECT
 
   -- TRUE = supervisor pasted an unresolved KP-native SKU; the pipeline
   -- remapped it. This is the anomaly, not the healthy state.
-  m.internal_sku IS NOT NULL AS sku_was_remapped
+  m.internal_sku IS NOT NULL AS sku_was_remapped,
+
+  -- Provenance, carried to fact_kp_sd so a failing row names the workbook and
+  -- the SD tab it came from. For destocké files the sheet IS the SD, which
+  -- makes this the most reliable identifier those files have.
+  r._source_file AS source_file,
+  r._sheet_name  AS sheet_name,
+  r._row_num     AS source_row_num
 
 FROM raw_kp_sd r
 LEFT JOIN staging.stg_kp_sku_mapping m

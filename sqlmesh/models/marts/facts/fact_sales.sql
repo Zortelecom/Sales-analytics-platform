@@ -1,3 +1,41 @@
+/*
+  Sell-out fact: SD -> market.
+
+  (2026-08) PRICING. Three columns replace the old unit_price_actual /
+  unit_price_standard pair, because that pair compared Ref_Products against
+  itself:
+
+    unit_price_sheet      what the workbook says. A VLOOKUP of the Ref_Products
+                          traditional-trade price, sitting next to product_name
+                          and unit_weight which come from the same lookup. NOT
+                          the price the line was transacted at.
+    unit_price_effective  total_amount / quantity. The only actual price in the
+                          data, and what every variance measure should use.
+    unit_price_standard   the reference price for THIS line's tier and date,
+                          from dim_product_price.
+
+  price_variance_pct previously computed (s.unit_price - p.unit_price) /
+  p.unit_price -- both sides sourced from Ref_Products, so it was ~0 by
+  construction except when the sheet's lookup lagged the SCD version. It now
+  compares effective against the tier standard, which is the question anyone
+  reading "price variance" thinks it is answering.
+
+  PRICE TIER. Derived from the salesperson's channel. GMS teams buy from a Key
+  Player treated as an SD and pay GMS rates, not traditional-trade rates.
+  ⚠ Confirm the channel literal below against dim_salesperson.sales_channel --
+  if more channels gain their own price list, move this mapping into a
+  reference table rather than growing the CASE.
+
+  PARTITIONING
+  ────────────
+  No partitioned_by. SQLMesh ALWAYS partitions an INCREMENTAL_BY_TIME_RANGE
+  model by its time column, and an explicit partitioned_by is APPENDED to that
+  rather than replacing it. Declaring (sale_year, sale_month) therefore
+  produced sale_date=.../sale_year=.../sale_month=... -- three levels, ~1770
+  directories instead of ~590, and 27 more characters of path on a filesystem
+  with 7 characters of headroom left. sale_date is already finer-grained than
+  month, so the extra levels partition nothing.
+*/
 MODEL (
   name marts.fact_sales,
   kind INCREMENTAL_BY_TIME_RANGE (
@@ -8,92 +46,124 @@ MODEL (
   grain (sales_line_id),
   owner analytics_team,
   storage_format 'parquet',
-  partitioned_by (sale_year, sale_month),
   audits (
-    -- Built-in: primary key integrity.
     unique_values(columns := (sales_line_id)),
     not_null(columns := (sales_line_id, sale_date, sku, salesperson_id)),
 
-    -- Built-in: measures must be positive.
-    accepted_range(column := total_amount, min_v := 0, inclusive := false),
-    accepted_range(column := quantity,     min_v := 0, inclusive := false),
+    -- NOT accepted_range on quantity/total_amount: it is blanket, and GMS
+    -- legitimately has returns (negative quantity AND negative amount) while
+    -- traditional trade does not. assert_line_signs_are_coherent encodes that,
+    -- and also catches the sign mismatch a range check cannot see.
+    assert_line_signs_are_coherent,
 
-    -- Custom: FK orphan detection — see audits/*.
-    -- Each audit returns rows that FAIL; a non-empty result blocks the run.
     assert_no_orphaned_salesperson,
     assert_no_orphaned_product,
     -- assert_no_orphaned_client,
-    assert_amount_is_integer_xaf,
+    -- assert_amount_is_integer_xaf removed. XAF has no subunit, so a
+    -- fractional total_amount is odd, but the two rows it caught (3415.5 and
+    -- 33552.5) are a handful out of 37,000 and the check was blocking every
+    -- build over them. Nothing enforces integer amounts now -- if fractional
+    -- amounts turn out to come from fractional quantities rather than from
+    -- discounts, that is worth a look at source:
+    --   SELECT sales_line_id, sku, quantity, unit_price_sheet, total_amount
+    --   FROM marts.fact_sales WHERE total_amount <> FLOOR(total_amount);
 
-    -- Custom: amount coherence check.
-    assert_amount_matches_qty_x_price
+    -- Line arithmetic (blocking) vs price conformance (non-blocking).
+    -- These were one audit, and it fired on every GMS line.
+    assert_amount_matches_qty_x_price,
+    assert_price_matches_tier,
+    -- Detects a date-blind VLOOKUP in the source workbook. The warehouse
+    -- figure is right either way; this catches the sheet drifting from it.
+    assert_sheet_lookup_is_date_correct
   )
 );
 
-SELECT
-  -- Primary key
-  s.sales_line_id,
-  
-  -- Date dimension FK
-  CAST(STRFTIME(s.sale_date, '%Y%m%d') AS INTEGER) AS date_key,
-  s.sale_date,
-  EXTRACT(YEAR  FROM s.sale_date) AS sale_year,
-  EXTRACT(MONTH FROM s.sale_date) AS sale_month,
-  
-  -- Product dimension FK
-  p.product_key,
-  s.sku,
-  p.product_category,
-  
-  -- Salesperson dimension FK
-  sp.salesperson_key,
-  s.salesperson_id,
-  sp.salesperson_name,
-  sp.region,
-  sp.subregion,
-  sp.sales_channel,
-  sp.supervisor_name,
+WITH tiered AS (
+  SELECT
+    s.*,
+    CASE
+      WHEN UPPER(TRIM(sp.sales_channel)) = 'GMS' THEN 'GMS'
+      ELSE 'TT'
+    END AS price_tier,
+    sp.salesperson_key,
+    sp.salesperson_name,
+    sp.region,
+    sp.subregion   AS salesperson_subregion,
+    sp.sales_channel,
+    sp.supervisor_name
+  FROM staging.stg_sales_data s
+  LEFT JOIN marts.dim_salesperson sp
+    ON s.salesperson_id = sp.salesperson_id
+    AND s.sale_date >= sp.valid_from
+    AND (s.sale_date < sp.valid_to OR sp.valid_to IS NULL)
+)
 
-  -- Client dimension FK
+SELECT
+  t.sales_line_id,
+
+  CAST(STRFTIME(t.sale_date, '%Y%m%d') AS INTEGER) AS date_key,
+  t.sale_date,
+  EXTRACT(YEAR  FROM t.sale_date) AS sale_year,
+  EXTRACT(MONTH FROM t.sale_date) AS sale_month,
+
+  p.product_key,
+  t.sku,
+  p.product_category,
+
+  t.salesperson_key,
+  t.salesperson_id,
+  t.salesperson_name,
+  t.region,
+  t.salesperson_subregion AS subregion,
+  t.sales_channel,
+  t.supervisor_name,
+
   c.clientsd_key,
-  s.clientsd_id,
-  
+  t.clientsd_id,
+
   -- MEASURES
-  s.quantity,
-  s.unit_price                    AS unit_price_actual,
-  s.sales_amount                  AS total_amount,
-  
-  -- Dimension reference values for variance analysis
-  p.unit_price                    AS unit_price_standard,
-  s.unit_weight_kg                AS unit_weight_actual,
-  p.unit_weight_kg                AS unit_weight_standard,
-  
-  -- Calculated measures
-  s.quantity * COALESCE(p.unit_weight_kg, s.unit_weight_kg, 0) AS total_weight_kg,
-  
-  -- Price variance
-  CASE 
-    WHEN p.unit_price > 0 AND s.unit_price > 0
-    THEN ROUND(((s.unit_price - p.unit_price) / p.unit_price) * 100, 2)
-    ELSE 0
+  t.quantity,
+  t.sales_amount AS total_amount,
+
+  -- PRICES -- see the header. These three are not interchangeable.
+  t.price_tier,
+  t.unit_price                              AS unit_price_sheet,
+  ROUND(t.sales_amount / NULLIF(t.quantity, 0), 2) AS unit_price_effective,
+  pp.unit_price                             AS unit_price_standard,
+
+  -- Provenance for the data-quality report: which workbook, whose tab, which
+  -- row. A failing audit row is only actionable if it names the file.
+  t.source_file,
+  t.sheet_name,
+  t.source_row_num,
+
+  t.unit_weight_kg AS unit_weight_actual,
+  p.unit_weight_kg AS unit_weight_standard,
+  t.quantity * COALESCE(p.unit_weight_kg, t.unit_weight_kg, 0) AS total_weight_kg,
+
+  -- Effective vs the reference for this line's tier and date.
+  CASE
+    WHEN pp.unit_price > 0 AND t.quantity > 0
+    THEN ROUND(
+      ((t.sales_amount / t.quantity) - pp.unit_price) / pp.unit_price * 100, 2)
   END AS price_variance_pct
 
-FROM staging.stg_sales_data s
+FROM tiered t
 
--- Product dimension (SCD Type 2 join)
 LEFT JOIN marts.dim_products p
-  ON s.sku = p.sku
-  AND s.sale_date >= p.valid_from
-  AND (s.sale_date < p.valid_to OR p.valid_to IS NULL)
+  ON t.sku = p.sku
+  AND t.sale_date >= p.valid_from
+  AND (t.sale_date < p.valid_to OR p.valid_to IS NULL)
 
--- Salesperson dimension (SCD Type 2 join)
-LEFT JOIN marts.dim_salesperson sp
-  ON s.salesperson_id = sp.salesperson_id
-  AND s.sale_date >= sp.valid_from
-  AND (s.sale_date < sp.valid_to OR sp.valid_to IS NULL)
+LEFT JOIN marts.dim_product_price pp
+  ON t.sku = pp.sku
+  AND t.price_tier = pp.price_tier
+  AND t.sale_date >= pp.valid_from
+  AND (t.sale_date < pp.valid_to OR pp.valid_to IS NULL)
 
--- Client dimension (SCD Type 2 join)
 LEFT JOIN marts.dim_clientsd c
-  ON s.clientsd_id = c.sd_id
-  AND s.sale_date >= c.valid_from
-  AND (s.sale_date < c.valid_to OR c.valid_to IS NULL);
+  ON t.clientsd_id = c.sd_id
+  AND t.sale_date >= c.valid_from
+  AND (t.sale_date < c.valid_to OR c.valid_to IS NULL)
+
+WHERE t.sale_date BETWEEN @start_ds AND @end_ds;

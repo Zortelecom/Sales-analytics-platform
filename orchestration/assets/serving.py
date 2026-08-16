@@ -1,292 +1,171 @@
 """
 orchestration/assets/serving.py
 
-Dagster assets for the serving layer.
+(2026-08) Rewritten. The previous version wired ServingLayerSync, QuackConfig
+and an async ExportEventBus -- all deleted with the serving redesign.
 
-Changes vs. the previous version
-──────────────────────────────────
-* Uses the new ServingConfig / QuackConfig API from serving.config.
-* Wires CsvExporter and ParquetExporter via ExportEventBus so exports run
-  concurrently *after* the sync without blocking the sync itself.
-* Supports two dispatch modes driven by the EXPORT_BACKGROUND env-var:
-    - False (default) → publish_and_wait  — Dagster waits; export results
-                        land in asset metadata on the same run.
-    - True            → publish_background — fire-and-forget daemon thread;
-                        useful when exports are slow and BI freshness is
-                        the priority.
-* Supports Quack mode when ENABLE_QUACK=true and QUACK_TOKEN are set.
-* Reports per-exporter results and the serving-DB path in asset metadata.
-* All env-var reads centralised via PipelineConfig.
+WHAT THE SERVING ASSET DOES NOW
+───────────────────────────────
+Nothing, for most consumers. Streamlit, Superset and Metabase attach the lake
+and read bi.* directly, so there is no copy to make and no sync to run: the
+moment `sqlmesh plan` finishes, they are current.
+
+What remains is publishing files for the two consumers that cannot attach:
+Power BI reads Parquet (marts -- its semantic model is a star schema built in
+DAX, not the bi views) and Excel reads CSV.
+
+That is why this is `published_files` rather than `serving_database`: the
+asset no longer produces a database.
+
+⚠ prod_promotion_sensor watches AssetKey("serving_database") and reads its
+`environment` metadata. Renaming the asset breaks that sensor -- it is updated
+in the same change. If you keep an old sensor pointing at the old key it will
+simply never fire, silently.
 """
+# NOTE: deliberately NO `from __future__ import annotations`.
+#
+# PEP 563 turns every annotation into a string, and Dagster resolves the
+# `context` parameter by inspecting the actual class:
+#
+#   DagsterInvalidDefinitionError: Cannot annotate `context` parameter with
+#   type AssetExecutionContext
+#
+# ...which reads as though the annotation is wrong when the annotation is the
+# only correct one. Python 3.10+ handles `str | None` and `dict[str, X]`
+# natively, so the import buys nothing here.
 
-import sys
 import time
 from datetime import datetime
-from pathlib import Path
-from typing import Any
 
-from dagster import AssetExecutionContext, AssetIn, Failure, asset
-
-# ── project root on sys.path ────────────────────────────────────────────────
-_PROJECT_ROOT = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(_PROJECT_ROOT))
-
-from serving.config import QuackConfig, ServingConfig
-from serving.export import CsvExporter, ExportEventBus, ParquetExporter
-from serving.sync import ServingLayerSync
+from dagster import AssetExecutionContext, AssetIn, Failure, MetadataValue, asset
 
 from orchestration.config import PipelineConfig
-from orchestration.utils.constants import (
-    CSV_EXPORTS_DIR,
-    PARQUET_EXPORTS_DIR,
-    get_serving_db_path,
-)
+from serving.publish import PublishConfig, publish
 
 _cfg = PipelineConfig()
 
 
-# ── helpers ──────────────────────────────────────────────────────────────────
-
-def _build_config(env: str, context: AssetExecutionContext) -> ServingConfig:
-    """
-    Build ServingConfig from PipelineConfig so callers never have to
-    touch Python code to change runtime behaviour.
-    """
-    quack_cfg: QuackConfig | None = None
-    if _cfg.enable_quack:
-        quack_cfg = QuackConfig(
-            host=_cfg.quack_host,
-            port=_cfg.quack_port,
-            token=_cfg.quack_token,
-        )
-        context.log.info(
-            "Quack mode enabled → %s:%s",
-            quack_cfg.host,
-            quack_cfg.port,
-        )
-
-    config = ServingConfig(environment=env, quack=quack_cfg)
-    config.normalize(project_root=_PROJECT_ROOT)
-    return config
-
-
-def _build_export_bus(env: str, context: AssetExecutionContext) -> ExportEventBus | None:
-    """
-    Build an ExportEventBus with whichever exporters are enabled via PipelineConfig.
-
-    Returns None when no exporters are enabled (skips bus entirely).
-    """
-    exporters = []
-
-    if _cfg.enable_csv_export:
-        csv_dir = CSV_EXPORTS_DIR / env
-        csv_dir.mkdir(parents=True, exist_ok=True)
-        exporters.append(CsvExporter(str(csv_dir), delimiter=_cfg.csv_delimiter))
-        context.log.info("CSV export enabled → %s (delimiter=%r)", csv_dir, _cfg.csv_delimiter)
-
-    if _cfg.enable_parquet_export:
-        pq_dir = PARQUET_EXPORTS_DIR / env
-        pq_dir.mkdir(parents=True, exist_ok=True)
-        exporters.append(ParquetExporter(str(pq_dir), compression=_cfg.parquet_compression))
-        context.log.info(
-            "Parquet export enabled → %s (compression=%s)", pq_dir, _cfg.parquet_compression
-        )
-
-    if not exporters:
-        return None
-
-    bus = ExportEventBus()
-    for exp in exporters:
-        bus.subscribe(exp)
-    return bus
-
-
-def _export_metadata(
-    bus: ExportEventBus | None,
-    background: bool,
-) -> dict[str, Any]:
-    """
-    Return a metadata dict describing the export configuration so it appears
-    in the Dagster asset materialisation panel.
-    """
-    if bus is None:
-        return {"exports": "disabled"}
-    mode = "background" if background else "blocking"
-    return {
-        "export_mode": mode,
-        "exporters": [type(e).__name__ for e in bus.subscribers],
-    }
-
-
-def _fire_background_exports(
-    bus: ExportEventBus,
-    sync: ServingLayerSync,
-    summary: dict,
-    context: AssetExecutionContext,
-) -> None:
-    """
-    Build a SyncCompletedEvent and publish it in a background thread.
-
-    Mirrors the cli.py cmd_sync background path so both entry points
-    behave identically.  The daemon thread is fire-and-forget: the
-    Dagster asset completes without waiting for export I/O to finish.
-    """
-    from serving.export.events import SyncCompletedEvent
-
-    succeeded = [
-        m["table"] for m in sync.sync_metadata if m.get("status") == "success"
-    ]
-    event = SyncCompletedEvent(
-        environment=sync.config.environment,
-        serving_path=sync.config.serving_path,
-        bi_schema=sync.config.bi_schema,
-        tables=succeeded,
-        mode=summary.get("mode", "unknown"),
-    )
-    thread = bus.publish_background(event)
-    context.log.info(
-        "Background exports dispatched (thread: %s). Asset returning immediately.",
-        thread.name,
-    )
-
-
-# ── assets ───────────────────────────────────────────────────────────────────
-
 @asset(
     group_name="serving",
     description=(
-        "Syncs Gold mart tables from DuckLake into serving.db for BI. "
-        "Supports file-swap (default) and Quack server mode. "
-        "Optionally triggers async CSV / Parquet exports via ExportEventBus."
+        "Publishes marts and bi to Parquet (Power BI) and CSV (Excel). "
+        "Interactive tools attach the lake directly and need nothing here."
     ),
-    compute_kind="python",
-    ins={"marts_validation": AssetIn()},
+    compute_kind="duckdb",
+    # Depends on data_quality_report, not just marts_validation. That asset is
+    # the only post-ingestion WRITER of the lake, and a DuckDB file catalog
+    # admits many readers or one writer -- publishing while it wrote produced
+    #   IO Error: Failed to attach DuckLake MetaData ...
+    #   File is already open in python.exe (PID ...)
+    # An explicit dependency is how you serialise in Dagster; there is nothing
+    # in the data flow that needs it, only the lock.
+    ins={"marts_validation": AssetIn(), "data_quality_report": AssetIn()},
 )
-def serving_database(
+def published_files(
     context: AssetExecutionContext,
     marts_validation: dict,
+    data_quality_report: dict,
 ) -> dict:
-    """
-    1. Build ServingConfig (Quack or file-swap) from PipelineConfig.
-    2. Optionally wire an ExportEventBus with CSV / Parquet exporters.
-    3. Run the sync.
-    4. Validate the resulting serving DB.
-    5. Emit rich metadata for the Dagster UI.
-    """
-    env = _cfg.sqlmesh_env
-    background_exports = _cfg.export_background
+    """Publish the file-based consumers' copies, or skip if both are disabled."""
+    formats = [
+        f for f, on in (
+            ("parquet", _cfg.enable_parquet_publish),
+            ("csv", _cfg.enable_csv_publish),
+        ) if on
+    ]
 
-    # ── config ────────────────────────────────────────────────────────────────
-    config = _build_config(env, context)
-    export_bus = _build_export_bus(env, context)
+    if not formats:
+        context.log.info(
+            "Both publishes disabled. Interactive consumers read the lake "
+            "directly and are already current."
+        )
+        context.add_output_metadata({"published": "disabled"})
+        return {"status": "skipped", "formats": []}
 
-    # ── sync ──────────────────────────────────────────────────────────────────
-    if background_exports and export_bus is not None:
-        sync = ServingLayerSync(config, export_bus=None)
-    else:
-        sync = ServingLayerSync(config, export_bus=export_bus)
+    config = PublishConfig(
+        environment=_cfg.sqlmesh_env,
+        formats=formats,
+        schemas=list(_cfg.publish_schemas),
+        compression=_cfg.parquet_compression,
+        csv_delimiter=_cfg.csv_delimiter,
+    )
 
+    context.log.info(
+        "Publishing %s from %s (env=%s)",
+        ", ".join(formats), ", ".join(config.schemas), config.environment,
+    )
+
+    t0 = time.perf_counter()
     try:
-        context.log.info(
-            "Starting serving sync (env=%s, strategy=%s)",
-            env,
-            "quack" if config.quack else "file-swap",
-        )
-        t0 = time.perf_counter()
-        summary = sync.sync(dry_run=False)
-        duration = time.perf_counter() - t0
-
-        # ── partial success handling ────────────────────────────────────────
-        failed_tables: list[str] = []
-        if summary.get("status") == "partial_success":
-            failed_tables = getattr(sync, "failed_tables", []) or []
-            if failed_tables:
-                context.log.warning(
-                    "Serving sync partial_success — stale data possible for %d table(s): %s",
-                    len(failed_tables),
-                    ", ".join(failed_tables),
-                )
-
-        # Background export: fire after sync returns, don't wait
-        if background_exports and export_bus is not None:
-            if summary.get("status") in ("success", "partial_success"):
-                _fire_background_exports(export_bus, sync, summary, context)
-            else:
-                context.log.warning(
-                    "Sync status is %r — skipping background exports.",
-                    summary.get("status"),
-                )
-
-        # ── validation ────────────────────────────────────────────────────────
-        is_valid = sync.validate_serving_db()
-
-        serving_path = get_serving_db_path(env)
-        size_mb = (
-            serving_path.stat().st_size / (1024 * 1024)
-            if serving_path.exists()
-            else 0.0
-        )
-
-        export_meta = _export_metadata(export_bus, background_exports)
-
-        context.add_output_metadata(
-            {
-                "environment": env,
-                "sync_strategy": "quack" if config.quack else "file-swap",
-                "serving_path": str(serving_path),
-                "serving_exists": serving_path.exists(),
-                "validation_passed": is_valid,
-                "size_mb": round(size_mb, 2),
-                "marts_schema": config.marts_schema,
-                "sync_duration_seconds": round(duration, 2),
-                **export_meta,
-            }
-        )
-
-        context.log.info(
-            "Serving sync complete (valid=%s, size=%.1f MB).", is_valid, size_mb
-        )
-
-        return {
-            "status": "success",
-            "serving_path": str(serving_path),
-            "validated": is_valid,
-            "environment": env,
-            "exports_enabled": export_bus is not None,
-        }
-
+        results = publish(config)
     except Exception as exc:
-        raise Failure(description=f"Serving layer sync failed: {exc}") from exc
+        raise Failure(description=f"Publish failed: {exc}") from exc
+    duration = time.perf_counter() - t0
+
+    rows = {name: max(per_format.values()) for name, per_format in results.items()}
+    empty = sorted(n for n, r in rows.items() if r == 0)
+
+    context.add_output_metadata({
+        "environment": config.environment,
+        "formats": MetadataValue.json(formats),
+        "schemas": MetadataValue.json(config.schemas),
+        "objects_published": len(results),
+        "total_rows": int(sum(rows.values())),
+        "empty_objects": MetadataValue.json(empty),
+        "export_root": str(config.export_root),
+        "duration_seconds": round(duration, 2),
+        "detail": MetadataValue.md(
+            "\n".join(f"- `{n}`: {r:,} rows" for n, r in sorted(rows.items()))
+        ),
+    })
+
+    if empty:
+        context.log.warning("Published but empty: %s", empty)
+
+    context.log.info("Published %d object(s) in %.1fs", len(results), duration)
+    return {
+        "status": "success",
+        "environment": config.environment,
+        "formats": formats,
+        "objects": len(results),
+        "export_root": str(config.export_root),
+    }
 
 
 @asset(
     group_name="serving",
     description="Final pipeline completion marker.",
-    ins={"serving_database": AssetIn()},
+    ins={"published_files": AssetIn(), "marts_validation": AssetIn()},
 )
 def pipeline_complete(
     context: AssetExecutionContext,
-    serving_database: dict,
+    published_files: dict,
+    marts_validation: dict,
 ) -> dict:
-    """Emit a pipeline-complete summary with BI readiness status."""
+    """
+    Completion summary.
 
+    `available_for_bi` now means the MARTS are built, not that a serving file
+    validated -- interactive consumers read the lake, so their readiness is
+    marts_validation's business. The publish only gates Power BI and Excel.
+    """
     summary = {
         "timestamp": datetime.now().isoformat(),
         "run_id": context.run.run_id,
-        "data_freshness": "current",
-        "serving_db": serving_database["serving_path"],
-        "available_for_bi": serving_database["validated"],
-        "environment": serving_database.get("environment", "dev"),
-        "exports_enabled": serving_database.get("exports_enabled", False),
+        "environment": published_files.get("environment", _cfg.sqlmesh_env),
+        "objects_validated": len(marts_validation),
+        "rows_validated": int(sum(v for v in marts_validation.values() if v > 0)),
+        "publish_status": published_files.get("status"),
+        "published_formats": published_files.get("formats", []),
+        "available_for_bi": bool(marts_validation),
     }
 
-    context.add_output_metadata(
-        {
-            "pipeline_status": "completed",
-            "available_for_bi": serving_database["validated"],
-            "environment": summary["environment"],
-        }
-    )
+    context.add_output_metadata({
+        "pipeline_status": "completed",
+        "environment": summary["environment"],
+        "available_for_bi": summary["available_for_bi"],
+        "publish_status": summary["publish_status"],
+    })
 
-    context.log.info("🎉 Pipeline completed successfully! %s", summary)
+    context.log.info("Pipeline completed: %s", summary)
     return summary

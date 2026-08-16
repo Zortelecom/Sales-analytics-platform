@@ -61,9 +61,6 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from reporting.config import DB_SCHEMA
-
-
 class RLSError(RuntimeError):
     """Raised when a query cannot be safely scoped for the current user."""
 
@@ -95,8 +92,8 @@ class Via:
     source_column: str
 
 
-_DIM_SP = f"{DB_SCHEMA}.dim_salesperson"
-_DIM_SD = f"{DB_SCHEMA}.dim_clientsd"
+_DIM_SP = "dim_salesperson"
+_DIM_SD = "dim_clientsd"
 
 
 # ---------------------------------------------------------------------------
@@ -288,6 +285,7 @@ UNSCOPED_OBJECTS: frozenset[str] = frozenset({
     "dim_products",
     # Serving-layer sync metadata: timestamps, durations, row counts. No
     # business dimension to scope on and nothing sensitive in it.
+    "dim_product_price",
     "_sync_log",
     # Audit pass/fail history written by data_quality_full_report. Same
     # reasoning, and the Data Quality page is in every user's nav. Remove this
@@ -295,6 +293,31 @@ UNSCOPED_OBJECTS: frozenset[str] = frozenset({
     # cross-territory audit failures.
     "quality_trend",
     "columns", "tables", "schemata",   # information_schema probes
+
+    # ── meta schema (2026-08) ────────────────────────────────────────────
+    # Pipeline observability: batch outcomes, file arrivals, row counts,
+    # schema drift. Operational, not commercial -- there is no region or
+    # subregion to scope on. Without these entries UNKNOWN_OBJECT_POLICY
+    # ("deny") refuses them for every scoped user, so the Data Quality page
+    # renders only for admins.
+    #
+    # ⚠ meta.source_files and meta.extraction_coverage expose FILESYSTEM
+    # PATHS and supervisor sheet names. That is fine for RBMs and
+    # supervisors; think again before adding a role you would not show the
+    # server's directory layout to.
+    "ingestion_batches",
+    "source_files",
+    "landing_inventory",
+    "column_inventory",
+    "freshness",
+    "extraction_coverage",
+
+    # DuckDB catalog functions. db.object_exists() reads these, and _REF_RE
+    # matches `FROM duckdb_views()` as an object reference. Without them a
+    # scoped user's existence check raises RLSError, which silent=True
+    # swallows into False -- so get_quarterly_summary would always take its
+    # fallback path and never notice.
+    "duckdb_views", "duckdb_tables", "duckdb_schemas", "duckdb_columns",
 })
 
 # Objects that are refused for scoped users ON PURPOSE, because they cannot be

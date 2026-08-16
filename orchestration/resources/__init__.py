@@ -1,4 +1,5 @@
-from .duckdb_resource import DuckDBResource, DuckLakeResource
-from .sqlmesh_resource import SQLMeshResource
+"""Resource exports. DuckDBResource and QuackResource were removed with serving.db."""
+from orchestration.resources.duckdb_resource import DuckLakeResource
+from orchestration.resources.sqlmesh_resource import SQLMeshResource
 
-__all__ = ["DuckDBResource", "DuckLakeResource", "SQLMeshResource"]
+__all__ = ["DuckLakeResource", "SQLMeshResource"]

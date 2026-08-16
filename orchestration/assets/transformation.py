@@ -1,10 +1,37 @@
-"""Asset for SQLMesh transformations"""
-from dagster import Failure, asset, MetadataValue, AssetExecutionContext, AssetIn, RetryPolicy
-import duckdb
+"""
+Assets for SQLMesh transformations.
+
+(2026-08) Two changes.
+
+1. sqlmesh_models now depends on landing_load, not seeds_metadata. There are
+   no seeds: ingestion writes to the landing schema of the lake and raw.* are
+   views over it.
+
+2. marts_validation validates marts, bi AND meta, and reads the catalog
+   through DuckLakeResource instead of building its own connection. The
+   previous version did `ATTACH 'ducklake:{path}'` correctly but the shared
+   resource did not -- one of them had to be wrong, and duplicated connection
+   logic is how they diverged. It also dropped its "find any schema containing
+   mart" fallback: that silently validated marts__dev when asked for marts,
+   which is the kind of helpfulness that hides a misconfigured environment.
+"""
 import time
 
+from dagster import (
+    AssetExecutionContext,
+    AssetIn,
+    Failure,
+    MetadataValue,
+    RetryPolicy,
+    asset,
+)
+
+from orchestration.config import PipelineConfig
+from orchestration.resources.duckdb_resource import DuckLakeResource
 from orchestration.resources.sqlmesh_resource import SQLMeshResource
-from orchestration.utils.constants import DUCKLAKE_PATH, CATALOG_NAME
+from orchestration.utils.constants import CATALOG_NAME, DUCKLAKE_PATH, schema_for
+
+_cfg = PipelineConfig()
 
 
 @asset(
@@ -12,10 +39,10 @@ from orchestration.utils.constants import DUCKLAKE_PATH, CATALOG_NAME
     description="Runs SQLMesh plan and apply to transform seeds to marts",
     required_resource_keys={"sqlmesh"},
     compute_kind="sqlmesh",
-    ins={"seeds_metadata": AssetIn()},
+    ins={"landing_load": AssetIn()},
     retry_policy=RetryPolicy(max_retries=2, delay=30)
 )
-def sqlmesh_models(context: AssetExecutionContext, seeds_metadata: dict) -> dict:
+def sqlmesh_models(context: AssetExecutionContext, landing_load: dict) -> dict:
     """
     Execute SQLMesh transformations to create marts tables.
 
@@ -25,9 +52,11 @@ def sqlmesh_models(context: AssetExecutionContext, seeds_metadata: dict) -> dict
     3. Verify models were created
 
     This transforms:
-    - Seeds → Raw models (Bronze layer)
-    - Raw → Staging models (Silver layer)
-    - Staging → Marts models (Gold layer)
+    - landing.* → raw.* views (current version of each source file)
+    - raw → staging (typing, filtering, deduplication)
+    - staging → marts (SCD2 dimensions, facts)
+    - marts → bi (the semantic views every consumer reads)
+    - landing.file_registry → meta (pipeline observability)
 
     Returns:
         Dictionary with transformation results
@@ -40,7 +69,7 @@ def sqlmesh_models(context: AssetExecutionContext, seeds_metadata: dict) -> dict
     context.log.info(f"  Environment: {sqlmesh.environment}")
     context.log.info(f"  Project:     {sqlmesh.project_path}")
     context.log.info(
-        f"  Batch ID:    {seeds_metadata.get('batch_id', 'unknown')}")
+        f"  Batch ID:    {landing_load.get('batch_id', 'unknown')}")
     context.log.info("="*70)
 
     try:
@@ -48,7 +77,7 @@ def sqlmesh_models(context: AssetExecutionContext, seeds_metadata: dict) -> dict
         context.log.info("Running SQLMesh plan...")
         t0 = time.perf_counter()
         plan_result = sqlmesh.plan(
-            context, start_date='2024-10-01', auto_apply=True)
+            context, start_date=_cfg.sqlmesh_start_date, auto_apply=True)
 
         # Log plan output (truncated for metadata)
         plan_output = plan_result.stdout if plan_result.stdout else "No output"
@@ -91,7 +120,7 @@ def sqlmesh_models(context: AssetExecutionContext, seeds_metadata: dict) -> dict
             "ducklake_path": str(DUCKLAKE_PATH),
             "ducklake_exists": ducklake_exists,
             "ducklake_size_mb": f"{ducklake_size_mb:.2f}",
-            "batch_id": seeds_metadata.get('batch_id', 'unknown'),
+            "batch_id": landing_load.get('batch_id', 'unknown'),
             "transformation_duration_seconds": round(duration, 2),
         })
 
@@ -109,7 +138,7 @@ def sqlmesh_models(context: AssetExecutionContext, seeds_metadata: dict) -> dict
             "models_count": len(models_list),
             "audit_status": audit_status,
             "timestamp": str(context.run.run_id),
-            "batch_id": seeds_metadata.get('batch_id', 'unknown'),
+            "batch_id": landing_load.get('batch_id', 'unknown'),
         }
 
     except Exception as e:
@@ -119,164 +148,105 @@ def sqlmesh_models(context: AssetExecutionContext, seeds_metadata: dict) -> dict
 
 @asset(
     group_name="transformation",
-    description="Validates marts tables exist and have data by querying DuckLake catalog",
+    description="Validates that marts, bi and meta were built and hold data",
     compute_kind="duckdb",
+    required_resource_keys={"ducklake"},
     ins={"sqlmesh_models": AssetIn()},
-    retry_policy=RetryPolicy(max_retries=2, delay=10)
+    retry_policy=RetryPolicy(max_retries=2, delay=10),
 )
 def marts_validation(context: AssetExecutionContext, sqlmesh_models: dict) -> dict:
     """
-    Validate that marts tables were created successfully in DuckLake.
-    
-    Returns a dictionary with table names as keys and row counts as values.
-    This is lighter than a DataFrame and avoids Pandas dependency.
-    
-    Process:
-    1. Explicitly loads DuckLake extension
-    2. Dynamically searches for the schema (doesn't assume exact name)
-    3. Queries row counts directly from DuckDB
+    Row counts for every object SQLMesh built, per schema.
+
+    Validates all three serving schemas, not just marts: `bi` is what every
+    consumer actually reads, and an empty bi view is invisible from marts
+    alone. `meta` is checked too -- if it is empty the observability layer is
+    reporting on nothing, which looks identical to a healthy quiet day.
+
+    No "any schema containing 'mart'" fallback. That silently validated
+    marts__dev when asked for marts, hiding a wrong SQLMESH_ENV behind a
+    green tick.
     """
+    ducklake: DuckLakeResource = context.resources.ducklake
+    env = sqlmesh_models.get("environment", _cfg.sqlmesh_env)
+    wanted = {logical: schema_for(logical, env) for logical in ("marts", "bi", "meta")}
 
-    context.log.info("Validating marts tables in DuckLake...")
-
-    if not DUCKLAKE_PATH.exists():
-        raise Failure(f"DuckLake catalog not found: {DUCKLAKE_PATH}")
-
-    # Determine target schema name based on environment (as a starting point)
-    environment = sqlmesh_models.get("environment", "dev")
-    expected_schema = "marts" if environment == "prod" else f"marts__{environment}"
-
-    conn = None
+    conn = ducklake.get_connection()
     try:
-        # 1. SETUP CONNECTION
-        conn = duckdb.connect(":memory:")
-
-        # Install/Load DuckLake extension (Explicit logic from test.py)
-        try:
-            conn.execute("LOAD ducklake;")
-            context.log.info("DuckLake extension loaded")
-        except duckdb.CatalogException:
-            context.log.info("Installing DuckLake extension...")
-            conn.execute("INSTALL ducklake; LOAD ducklake;")
-
-        # 2. ATTACH CATALOG
-        # Using the robust 'ducklake:' protocol syntax
-        attach_sql = f"ATTACH 'ducklake:{DUCKLAKE_PATH}' AS {CATALOG_NAME};"
-        context.log.info(f"Executing: {attach_sql}")
-        conn.execute(attach_sql)
-
-        # Switch context to the catalog
-        conn.execute(f"USE {CATALOG_NAME};")
-
-        # 3. DYNAMIC SCHEMA DISCOVERY (The key fix from test.py)
-        schemas_df = conn.execute("""
-            SELECT DISTINCT table_schema 
-            FROM information_schema.tables 
-            WHERE table_schema NOT IN ('information_schema', 'pg_catalog', 'main')
-            ORDER BY table_schema
-        """).fetchdf()
-
-        available_schemas = schemas_df['table_schema'].tolist(
-        ) if not schemas_df.empty else []
-        context.log.info(f"Available schemas in catalog: {available_schemas}")
-
-        # Smart Schema Matching
-        actual_schema = None
-        if expected_schema in available_schemas:
-            actual_schema = expected_schema
-        else:
-            # Fallback: search for any schema containing "mart"
-            for schema in available_schemas:
-                if "mart" in schema.lower():
-                    actual_schema = schema
-                    context.log.warning(
-                        f"Expected schema '{expected_schema}' not found. "
-                        f"Found and using '{schema}' instead."
-                    )
-                    break
-
-        if not actual_schema:
+        present = {
+            r[0] for r in conn.execute(
+                "SELECT schema_name FROM duckdb_schemas() WHERE database_name = ?",
+                [CATALOG_NAME],
+            ).fetchall()
+        }
+        missing = {k: v for k, v in wanted.items() if v not in present}
+        if "marts" in missing:
             raise Failure(
-                f"No 'marts' schema found. Available schemas: {available_schemas}"
+                f"Schema {wanted['marts']!r} not found. Present: {sorted(present)}. "
+                f"Either `sqlmesh plan` did not run, or SQLMESH_ENV ({env!r}) "
+                f"does not match the environment that was built."
             )
+        for logical, name in missing.items():
+            context.log.warning("Schema %s (%s) is absent", name, logical)
 
-        # 4. FETCH TABLES
-        tables_df = conn.execute("""
-            SELECT table_schema, table_name
-            FROM information_schema.tables
-            WHERE table_schema = ?
-              -- AND table_type = 'BASE TABLE'
-            ORDER BY table_name
-        """, [actual_schema]).fetchdf()
+        counts: dict[str, int] = {}
+        per_schema: dict[str, int] = {}
 
-        if tables_df.empty:
-            raise Failure(f"No tables found in schema '{actual_schema}'")
+        for logical, schema in wanted.items():
+            if schema in missing:
+                continue
+            objects = [
+                r[0] for r in conn.execute(
+                    "SELECT table_name FROM duckdb_tables() WHERE database_name = ? AND schema_name = ? "
+                    "UNION ALL "
+                    "SELECT view_name FROM duckdb_views() WHERE database_name = ? AND schema_name = ? "
+                    "ORDER BY 1",
+                    [CATALOG_NAME, schema, CATALOG_NAME, schema],
+                ).fetchall()
+                if not r[0].startswith("_")
+            ]
+            if not objects:
+                raise Failure(f"Schema {schema!r} exists but contains no objects.")
 
-        context.log.info(
-            f"Found {len(tables_df)} table(s) in '{actual_schema}'")
-
-        # 5. VALIDATE CONTENT AND COLLECT ROW COUNTS
-        table_row_counts = {}
-
-        for _, row in tables_df.iterrows():
-            schema = row['table_schema']
-            table = row['table_name']
-
-            # Use quoted identifiers for safety
-            full_name = f'"{CATALOG_NAME}"."{schema}"."{table}"'
-
-            try:
-                # Count rows
-                count_result = conn.execute(
-                    f"SELECT COUNT(*) FROM {full_name}").fetchone()
-                row_count = count_result[0] if count_result else 0
-
-                # Store in dict: {table_name: row_count}
-                table_row_counts[table] = row_count
-
-                # Log validation
-                status_icon = "✅" if row_count > 0 else "⚠️"
-                context.log.info(
-                    f"  {status_icon} {table}: {row_count:,} rows"
-                )
-
-            except Exception as table_error:
-                context.log.error(
-                    f"  ❌ Error validating {table}: {table_error}")
-                table_row_counts[table] = -1
-
-        # 6. REPORTING AND VALIDATION
-        valid_tables = sum(1 for count in table_row_counts.values() if count > 0)
-        total_rows = sum(count for count in table_row_counts.values() if count > 0)
-
-        if valid_tables == 0:
-            raise Failure("No valid marts tables found (all empty or errors)")
-
-        context.add_output_metadata({
-            "tables_count": len(table_row_counts),
-            "valid_tables": valid_tables,
-            "total_rows": int(total_rows),
-            "marts_schema": actual_schema,
-            "ducklake_path": str(DUCKLAKE_PATH),
-            "table_counts": MetadataValue.md(
-                "\n".join(f"- {table}: {count:,} rows" for table, count in sorted(table_row_counts.items()))
-            ),
-        })
-
-        context.log.info(
-            f"Validation complete: {valid_tables}/{len(table_row_counts)} tables valid, {total_rows:,} total rows"
-        )
-
-        return table_row_counts
-
-    except Failure:
-        raise
-    except Exception as e:
-        context.log.error(f"Validation failed: {e}", exc_info=True)
-        raise Failure(f"Marts validation failed: {e}") from e
+            for obj in objects:
+                try:
+                    n = conn.execute(
+                        f'SELECT COUNT(*) FROM "{CATALOG_NAME}"."{schema}"."{obj}"'
+                    ).fetchone()[0]
+                except Exception as exc:  # noqa: BLE001 -- one bad object, not the run
+                    context.log.error("  %s.%s: %s", schema, obj, exc)
+                    n = -1
+                counts[f"{logical}.{obj}"] = n
+                context.log.info("  %s %s.%s: %s rows",
+                                 "OK " if n > 0 else "EMPTY", logical, obj,
+                                 f"{n:,}" if n >= 0 else "error")
+            per_schema[logical] = len(objects)
     finally:
-        if conn:
-            try:
-                conn.close()
-            except Exception:
-                pass
+        conn.close()
+
+    empty = sorted(k for k, v in counts.items() if v == 0)
+    errored = sorted(k for k, v in counts.items() if v < 0)
+    total_rows = sum(v for v in counts.values() if v > 0)
+
+    if errored:
+        raise Failure(f"Could not read: {errored}")
+    if not any(v > 0 for k, v in counts.items() if k.startswith("marts.")):
+        raise Failure("Every marts object is empty.")
+
+    context.add_output_metadata({
+        "environment": env,
+        "objects_by_schema": MetadataValue.json(per_schema),
+        "total_rows": int(total_rows),
+        "empty_objects": MetadataValue.json(empty),
+        "ducklake_path": str(DUCKLAKE_PATH),
+        "counts": MetadataValue.md(
+            "\n".join(f"- `{k}`: {v:,} rows" for k, v in sorted(counts.items()))
+        ),
+    })
+
+    if empty:
+        # Not a failure: dim_product_price is legitimately empty until the
+        # GMS and SD tiers are enabled in Ref_Products.
+        context.log.warning("Empty objects: %s", empty)
+
+    return counts

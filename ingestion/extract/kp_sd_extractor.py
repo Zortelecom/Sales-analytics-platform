@@ -11,14 +11,18 @@ Two sources:
 from __future__ import annotations
 
 import logging
-import uuid
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 
-from .base_extractor import BaseExcelExtractor
-from ..contracts.loader import load_contracts
+from ingestion.contracts.loader import load_contracts
+
+from .base_extractor import (
+    PROVENANCE_SOURCE_COLUMNS,
+    BaseExcelExtractor,
+    stable_row_id,
+)
+
 
 logger = logging.getLogger(__name__)
 
@@ -49,19 +53,15 @@ class KPDestockeExtractor(BaseExcelExtractor):
             return pd.DataFrame()
 
         df.columns = [col.lower().strip() for col in df.columns]
-
-        is_valid, missing, unexpected = self._contract.validate(set(df.columns))
+        
+        is_valid, missing, unexpected = self._contract.validate(
+            set(df.columns) - set(PROVENANCE_SOURCE_COLUMNS)
+        )
         if not is_valid:
             logger.error("Missing required columns: %s", missing)
             return pd.DataFrame()
         if unexpected:
             logger.warning("Unexpected columns found: %s", unexpected)
-
-        df.replace(
-            ["None", "NaT", "nan", "-", "#N/A"],
-            np.nan,
-            inplace=True,
-        )
 
         # Null-key flagging — sale_date, sku, AND sd_id (see fix #5 above)
         null_mask = df["sale_date"].isna() | df["sku"].isna() | df["sd_id"].isna()
@@ -80,8 +80,9 @@ class KPDestockeExtractor(BaseExcelExtractor):
                     "flagged as has_null_key=True, kept in raw seed.",
                     count, src_file,
                 )
-
-        df["kp_sd_line_id"] = [str(uuid.uuid4()) for _ in range(len(df))]
+                
+        df["kp_sd_line_id"] = stable_row_id(
+            df, key_columns=["sd_id", "sale_date", "sku"], prefix="kp_sd_destocke")
 
         logger.info(
             "Extracted %d KP destocké rows from %d file(s) "
@@ -128,18 +129,14 @@ class KPNonDestockeExtractor(BaseExcelExtractor):
 
         df.columns = [col.lower().strip() for col in df.columns]
 
-        is_valid, missing, unexpected = self._contract.validate(set(df.columns))
+        is_valid, missing, unexpected = self._contract.validate(
+            set(df.columns) - set(PROVENANCE_SOURCE_COLUMNS)
+        )
         if not is_valid:
             logger.error("Missing required columns: %s", missing)
             return pd.DataFrame()
         if unexpected:
             logger.warning("Unexpected columns found: %s", unexpected)
-
-        df.replace(
-            ["None", "NaT", "nan", "-", "#N/A"],
-            np.nan,
-            inplace=True,
-        )
 
         null_mask = df["sale_date"].isna() | df["sku"].isna() | df["sd_id"].isna()
         df["has_null_key"] = null_mask
@@ -158,7 +155,8 @@ class KPNonDestockeExtractor(BaseExcelExtractor):
                     count, src_file,
                 )
 
-        df["kp_sd_line_id"] = [str(uuid.uuid4()) for _ in range(len(df))]
+        df["kp_sd_line_id"] = stable_row_id(
+            df, key_columns=["sd_id", "sale_date", "sku"], prefix="kp_sd_non_destocke")
 
         logger.info(
             "Extracted %d KP non-destocké rows (%d with null keys).",

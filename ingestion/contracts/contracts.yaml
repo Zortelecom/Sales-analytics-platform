@@ -20,6 +20,7 @@ sources:
       - subregion
       - channel
       - supervisor
+      - effective_from
     expected_columns:
       - fullname
       - salesperson_id
@@ -27,6 +28,7 @@ sources:
       - subregion
       - channel
       - supervisor
+      - effective_from
 
   ref_products:
     required_columns:
@@ -35,16 +37,22 @@ sources:
       - product_category
       - product_subcategory
       - unit_price
+      - unit_price_gms
+      - unit_price_sd
       - unit_weight
       - is_innovation
+      - effective_from
     expected_columns:
       - sku
       - product_name
       - product_category
       - product_subcategory
       - unit_price
+      - unit_price_gms
+      - unit_price_sd
       - unit_weight
       - is_innovation
+      - effective_from
 
   # NOTE: 'phone' and 'effective_from' are required here because
   # reference_extractor.py's _extract_clients_sd() requires them.
@@ -58,6 +66,7 @@ sources:
       - region
       - kp
       - subregion
+      - supervisor
       - phone
       - city
       - is_destocked
@@ -68,8 +77,10 @@ sources:
       - region
       - kp
       - subregion
+      - supervisor
       - phone
       - city
+      - location
       - is_destocked
       - effective_from
 
@@ -106,7 +117,7 @@ sources:
       - channel
       - city
       - product_cat
-      - product_sub_cat
+      - product_subcat
       - weight
       - is_innovation
 
@@ -118,6 +129,8 @@ sources:
       - qty
       - amount
     expected_columns:
+      - kp_destocke
+      - sd_name
       - sd_id
       - sale_date
       - sku
@@ -126,9 +139,37 @@ sources:
       - qty
       - amount
       - subregion
+      - sales_supervisor
       - channel
       - city
       - product_cat
-      - product_sub_cat
+      - product_subcat
       - weight
+      - is_innovation
+  sales:
+    required_columns:
+      - salesperson_id
+      - sd_id
+      - sale_date
+      - sku
+      - qty
+      - amount
+    expected_columns:
+      - salesperson_id
+      - sd_id
+      - sd_destocke
+      - sale_date
+      - sku
+      - product_name
+      - unit_price
+      - qty
+      - amount
+      - subregion
+      - salesperson
+      - supervisor
+      - channel
+      - city
+      - product_cat
+      - product_subcat
+      - unit_weight
       - is_innovation

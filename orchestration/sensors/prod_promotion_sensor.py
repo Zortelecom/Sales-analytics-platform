@@ -1,4 +1,12 @@
-"""Sensor gate for promoting prod pipeline only after a recent successful dev materialization."""
+"""Sensor gate: promote to prod only after a recent successful dev run.
+
+(2026-08) Watches published_files, formerly serving_database. The rename
+matters more than it looks -- an asset_sensor pointed at a key that no asset
+emits does not error, it simply never fires, and the prod pipeline silently
+stops being promoted.
+
+It still gates on the `environment` metadata, which published_files emits.
+"""
 from datetime import datetime, timedelta, timezone
 from typing import Any
 from dagster import (
@@ -13,7 +21,7 @@ from dagster import (
 from orchestration.jobs.daily_pipeline import daily_pipeline_job
 
 LOOKBACK_PERIOD = timedelta(hours=24)
-ASSET_KEY = AssetKey("serving_database")
+ASSET_KEY = AssetKey("published_files")
 EXPECTED_ENVIRONMENT = "dev"
 
 
@@ -68,7 +76,7 @@ def _extract_metadata_value(metadata_entries: Any, label: str) -> Any:
 
 
 @asset_sensor(
-    asset_key=AssetKey("serving_database"),
+    asset_key=AssetKey("published_files"),
     job=daily_pipeline_job,
     name="prod_promotion_sensor",
     default_status=DefaultSensorStatus.RUNNING,

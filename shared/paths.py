@@ -20,6 +20,12 @@ SQLMESH_SEEDS_DIR = SQLMESH_DIR / "seeds"
 WAREHOUSE_DIR = DATA_DIR / "warehouse"
 ARCHIVE_DIR = DATA_DIR / "archive"
 
+# Defined here, not in ingestion/main.py and orchestration/utils/constants.py
+# separately. Both computed it as ARCHIVE_DIR.parent / "dead_letter", which is
+# the same value by coincidence of layout rather than by agreement.
+DEAD_LETTER_DIR = DATA_DIR / "dead_letter"
+LOGS_DIR = DATA_DIR / "logs"
+
 DATA_ROOT = DATA_DIR
 
 

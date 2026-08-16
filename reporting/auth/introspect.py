@@ -1,17 +1,32 @@
 """
 reporting/auth/introspect.py
 
-Audit `reporting/auth/rls.py`'s SCOPE_COLUMNS map against the real serving DB.
+Audit `reporting/auth/rls.py`'s SCOPE_COLUMNS map against the real lake.
 
     python -m reporting.auth.introspect
-    python -m reporting.auth.introspect --db data/warehouse/serving_dev.db
+    python -m reporting.auth.introspect --env prod
+    python -m reporting.auth.introspect --catalog path/to/catalog.ducklake
+
+(2026-08) Reads the DuckLake catalog instead of serving.db, and scopes the
+scan to the schemas the app can actually reach -- bi__<env>, marts__<env>,
+meta__<env>. The previous version scanned every schema except
+information_schema and pg_catalog, which against the lake would drag in
+landing, raw, staging and every SQLMesh physical table, and report each as
+NOT MAPPED. Those are not reachable from the app and are not RLS's problem.
 
 For every view and table it prints which scope dimensions can be enforced,
 which are declared but reference a column that does not exist (a latent
 crash), and which objects are in neither SCOPE_COLUMNS nor UNSCOPED_OBJECTS
 (a latent RLSError for scoped users).
 
-Run this whenever you change bi_views.sql.
+Run this whenever you change a model under sqlmesh/models/bi/. That is now the
+only place the semantic layer is defined -- bi_views.sql is gone.
+
+It matters more than it used to: the bi views are rebuilt by `sqlmesh plan`,
+so a column an RLS mapping depends on can disappear without anyone editing
+reporting/ at all. A missing scope column is not a cosmetic break -- for a
+scoped user it is either a crash or, if the dimension silently stops being
+enforceable, rows they should not see.
 """
 from __future__ import annotations
 
@@ -30,7 +45,12 @@ from reporting.auth.rls import (  # noqa: E402
     UNSCOPED_OBJECTS,
     Via,
 )
-from reporting.config import DB_PATH  # noqa: E402
+from reporting.utils.db import (  # noqa: E402
+    CATALOG_ALIAS,
+    SEARCH_SCHEMAS,
+    catalog_path,
+    schema,
+)
 
 # Dimensions we would like every revenue-bearing object to support.
 WANTED = ("regions", "subregions", "salespersons", "supervisors", "channels", "clients")
@@ -42,28 +62,54 @@ if not sys.stdout.isatty() or os.name == "nt":
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--db", default=DB_PATH)
+    ap.add_argument("--catalog", default=None,
+                    help="DuckLake catalog path (default: DUCKLAKE_CATALOG_PATH)")
+    ap.add_argument("--env", default=None,
+                    help="SQLMesh environment (default: SQLMESH_ENV, or dev)")
     args = ap.parse_args()
 
-    if not Path(args.db).exists():
-        print(f"{RED}Serving DB not found: {args.db}{RESET}")
+    if args.env:
+        os.environ["SQLMESH_ENV"] = args.env
+
+    path = Path(args.catalog) if args.catalog else catalog_path()
+    if not path.exists():
+        print(f"{RED}DuckLake catalog not found: {path}{RESET}")
         return 1
 
-    con = duckdb.connect(args.db, read_only=True)
+    con = duckdb.connect()
+    con.execute("INSTALL ducklake; LOAD ducklake;")
+    con.execute(f"ATTACH 'ducklake:{path.as_posix()}' AS {CATALOG_ALIAS} (READ_ONLY)")
+    con.execute(f"USE {CATALOG_ALIAS}")
+
+    # Only the schemas the app's search path can reach. Scanning the whole
+    # catalog would report landing/raw/staging as NOT MAPPED, which is noise:
+    # no query in the app can reach them.
+    reachable = [schema(s) for s in SEARCH_SCHEMAS]
+    placeholders = ",".join(["?"] * len(reachable))
     rows = con.execute(
-        """
-        SELECT table_schema, table_name, column_name
-        FROM information_schema.columns
-        WHERE table_schema NOT IN ('information_schema', 'pg_catalog')
-        ORDER BY table_schema, table_name, ordinal_position
-        """
+        f"""
+        SELECT schema_name, table_name, column_name
+        FROM duckdb_columns()
+        WHERE database_name = ? AND schema_name IN ({placeholders})
+        ORDER BY schema_name, table_name, column_index
+        """,
+        [CATALOG_ALIAS, *reachable],
     ).fetchall()
+
+    if not rows:
+        print(f"{RED}No objects found in {reachable}.{RESET} "
+              f"Has `sqlmesh plan` run for this environment?")
+        return 1
+    print(f"{DIM}catalog: {path}\nschemas: {', '.join(reachable)}{RESET}")
 
     objects: dict[str, set[str]] = {}
     schema_of: dict[str, str] = {}
-    for schema, table, col in rows:
+    # NOT `for schema, ...`: that binds a local named `schema` for the whole
+    # function, shadowing the imported schema() helper used above and raising
+    # UnboundLocalError before this loop is ever reached.
+    for schema_name, table, col in rows:
         objects.setdefault(table.lower(), set()).add(col.lower())
-        schema_of[table.lower()] = schema
+        schema_of[table.lower()] = schema_name
 
     problems = 0
 
@@ -119,10 +165,11 @@ def main() -> int:
 
     print(f"\n{'-' * 60}")
     if problems:
-        print(f"{RED}{problems} problem(s) found.{RESET} Fix rls.py or add the "
-              f"missing columns to serving/templates/bi_views.sql.")
+        print(f"{RED}{problems} problem(s) found.{RESET} Fix rls.py, or add the "
+              f"missing columns to the model under sqlmesh/models/bi/ and "
+              f"re-run `sqlmesh plan`.")
         return 1
-    print(f"{GREEN}Scope map is consistent with the serving DB.{RESET}")
+    print(f"{GREEN}Scope map is consistent with the lake.{RESET}")
     return 0
 
 

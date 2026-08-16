@@ -31,13 +31,25 @@ class SQLMeshResource(ConfigurableResource):
         if context:
             context.log.info(f"Running: {' '.join(full_cmd)}")
 
+        # encoding + PYTHONIOENCODING are load-bearing on Windows.
+        # SQLMesh prints a ✅ in its audit summary; the console default is
+        # cp1252, and capturing it raised
+        #   'charmap' codec can't encode character '\u2705'
+        # AFTER the audits had already run -- so a perfectly good audit pass
+        # was reported as an error because of one character in the output.
         result = subprocess.run(
             full_cmd,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             cwd=self.project_path,
-            env={**os.environ, "PYTHONPATH": os.getcwd()},
-            check=False
+            env={
+                **os.environ,
+                "PYTHONPATH": os.getcwd(),
+                "PYTHONIOENCODING": "utf-8",
+            },
+            check=False,
         )
 
         if result.returncode != 0:
@@ -106,10 +118,19 @@ class SQLMeshResource(ConfigurableResource):
         context.log.info("SQLMesh run completed")
         return result
 
-    def audit(self, context: AssetExecutionContext):
-        """Run SQLMesh audits"""
-        # Audit typically runs on the current project state/config
-        result = self._run_command(["audit"], context)
+    def audit(self, context: AssetExecutionContext, start_date: Optional[str] = None):
+        """Run SQLMesh audits for the target environment.
+
+        (2026-08) Passes the environment and start date. `sqlmesh audit` with
+        no arguments audits the DEFAULT environment over the default window --
+        not necessarily the one just planned, which is how a dev plan could be
+        followed by a prod audit without anything looking wrong.
+        """
+        cmd = ["audit", "--environment", self.environment]
+        effective_start = start_date or self.start_date
+        if effective_start:
+            cmd.extend(["--start", effective_start])
+        result = self._run_command(cmd, context)
         context.log.info("SQLMesh audit completed")
         return result
 
@@ -119,7 +140,10 @@ class SQLMeshResource(ConfigurableResource):
             ["sqlmesh", "info", "--format", "json"],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             cwd=self.project_path,
-            check=False
+            env={**os.environ, "PYTHONIOENCODING": "utf-8"},
+            check=False,
         )
         return json.loads(result.stdout) if result.returncode == 0 else {}

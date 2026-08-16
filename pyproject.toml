@@ -29,6 +29,16 @@ dev = ["pytest", "ruff"]  # black is redundant — ruff handles formatting too
 where = ["."]
 include = ["orchestration*", "shared*"]
 
+[tool.pytest.ini_options]
+addopts = "--import-mode=importlib"
+pythonpath = ["."]
+
 [tool.dagster]
 module = "orchestration.definitions"
 code_location_name = "sales_analytics"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+]
+

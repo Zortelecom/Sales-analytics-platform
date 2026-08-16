@@ -30,3 +30,4 @@ sales_analytics_orchestration.egg-info/requires.txt
 sales_analytics_orchestration.egg-info/top_level.txt
 shared/__init__.py
 shared/paths.py
+shared/sources.py

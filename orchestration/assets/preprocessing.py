@@ -1,17 +1,32 @@
-"""Asset for preprocessing Excel files"""
+"""
+Asset for preprocessing Excel files.
+
+(2026-08) Processing rules come from sources.yaml.
+
+The hardcoded if/elif on source_type was a second, competing copy of the
+`processing:` block in sources.yaml, and the two had already drifted: the yaml
+said the sales delete pattern was "Synthese*" while this file used
+"Synthese *", which misses every "SyntheseJan"-style sheet. Nothing failed,
+because SourceConfig.processing_rules was loaded and never read.
+
+tests/orchestration/test_no_hardcoded_source_rules.py fails if a
+`source_type == "..."` comparison reappears here.
+"""
 import shutil
-import sys
 from datetime import datetime
 from pathlib import Path
-from ingestion.config.settings import INPUT_PATHS
-from ingestion.orchestrate.excel_preprocessor import ExcelPreprocessor
-from dagster import asset, MetadataValue, AssetExecutionContext, AssetIn
+
 import pandas as pd
-from orchestration.assets.file_discovery import load_processed_files, save_processed_files
+from dagster import AssetExecutionContext, AssetIn, MetadataValue, asset
+
+from ingestion.orchestrate.excel_preprocessor import ExcelPreprocessor
+from orchestration.assets.file_discovery import (
+    file_sha256,
+    load_processed_state,
+    save_processed_state,
+)
 from orchestration.utils.constants import DEAD_LETTER_DIR
-
-
-sys.path.append(str(Path(__file__).parent.parent.parent / "ingestion"))
+from shared.sources import load_sources
 
 
 @asset(
@@ -47,7 +62,9 @@ def preprocessed_files(context: AssetExecutionContext,
     processed_records = []
     preprocessor = ExcelPreprocessor(dry_run=False)
     dead_letter_batch = None
-    processed_state = load_processed_files()
+    registry = load_sources()
+    processed_state = load_processed_state()
+    processed_state = load_processed_state()
 
     def _move_to_dead_letter(source_file: Path) -> str:
         nonlocal dead_letter_batch
@@ -85,12 +102,26 @@ def preprocessed_files(context: AssetExecutionContext,
     for idx, row in files_to_process.iterrows():
         source_path = Path(row["file_path"])
         source_type = row["source_type"]
-        target_dir = INPUT_PATHS[source_type]
+        # Raises a listing of declared source types on an unknown one, rather
+        # than a bare KeyError.
+        spec = registry[source_type]
+        target_dir = spec.input_dir
         target_path = target_dir / source_path.name
 
-        if str(source_path) in processed_state:
+        # Content, not mtime. `target_mtime >= source_mtime` silently skipped
+        # three of four KP workbooks that had just gained July rows, because
+        # the copies in data/input/ happened to be newer than the edits.
+        try:
+            source_hash = file_sha256(source_path)
+        except OSError as exc:
+            context.log.error("Cannot hash %s: %s", source_path, exc)
+            source_hash = ""
+
+        if source_hash and processed_state.get(str(source_path)) == source_hash \
+                and target_path.exists():
             context.log.info(
-                f"Skipping {source_path.name} - already recorded in state"
+                "Skipping %s - content unchanged since last preprocess",
+                source_path.name,
             )
             processed_records.append({
                 "source_type": source_type,
@@ -102,42 +133,13 @@ def preprocessed_files(context: AssetExecutionContext,
             })
             continue
 
-        # Determine processing rules based on source_type
-        delete_pattern = None
-        required_sheets = None
-
-        if source_type == "sales":
-            delete_pattern = "Synthese *"
-            required_sheets = ["Sales*"]
-        elif source_type == "targets":
-            required_sheets = ["Target*"]
-        elif source_type == "kp_sd":
-            delete_pattern = "Synthese*"
-        # references files have no special processing
+        # From sources.yaml. Do NOT reintroduce a branch on source_type here.
+        delete_pattern = spec.processing.delete_sheets_pattern
+        required_sheets = spec.processing.required_sheets
 
         try:
             # Ensure target directory exists
             target_dir.mkdir(parents=True, exist_ok=True)
-
-            # Check if file already exists and is up to date
-            if target_path.exists():
-                source_mtime = source_path.stat().st_mtime
-                target_mtime = target_path.stat().st_mtime
-
-                if target_mtime >= source_mtime:
-                    context.log.info(
-                        f"⏭️  Skipping {source_path.name} - already current "
-                        f"(target newer than source)"
-                    )
-                    processed_records.append({
-                        "source_type": source_type,
-                        "file_name": source_path.name,
-                        "file_path": str(source_path),
-                        "status": "skipped",
-                        "sheets_deleted": 0,
-                        "target_path": str(target_path),
-                    })
-                    continue
 
             # Preprocess the file
             context.log.info(f"Processing {source_path.name}...")
@@ -217,18 +219,19 @@ def preprocessed_files(context: AssetExecutionContext,
     total_sheets_deleted = result_df["sheets_deleted"].sum(
     ) if not result_df.empty else 0
 
-    # Persist state for successfully processed/skipped files only.
-    if not result_df.empty:
-        processed_paths = set(
-            result_df[result_df["status"].isin(["processed", "skipped"])]["file_path"]
-        ) if "file_path" in result_df.columns else set()
-
-        if processed_paths:
-            current_state = load_processed_files()
-            updated_state = current_state | set(str(path) for path in processed_paths)
-            save_processed_files(updated_state)
-            context.log.info(
-                f"Updated state: {len(updated_state)} total processed files")
+    # Record the CONTENT HASH of every source that made it through, so the
+    # next run can tell "unchanged" from "merely older".
+    if not result_df.empty and "file_path" in result_df.columns:
+        ok = result_df[result_df["status"].isin(["processed", "skipped"])]
+        if not ok.empty:
+            state = load_processed_state()
+            for path in ok["file_path"]:
+                try:
+                    state[str(path)] = file_sha256(Path(path))
+                except OSError:
+                    state.pop(str(path), None)   # re-check it next time
+            save_processed_state(state)
+            context.log.info("State: %d source file(s) recorded", len(state))
 
     context.add_output_metadata({
         "row_count": len(result_df),

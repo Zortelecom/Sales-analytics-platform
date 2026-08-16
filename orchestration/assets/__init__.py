@@ -1,42 +1,43 @@
 """
-Orchestration Assets Package
-Exports all Dagster assets for the sales analytics pipeline
-"""
+Asset exports for orchestration.definitions.
 
-from .file_discovery import discovered_files, files_to_process
-from .preprocessing import preprocessed_files
-from .ingestion import (
-    current_batch_id,
-    sales_seed,
-    targets_seed,
-    kp_sd_seed,
-    references_seeds,
-    seeds_metadata
+Kept explicit rather than a star import so a renamed asset fails here, at
+import time, with the name that is wrong -- instead of surfacing as a missing
+node in the Dagster graph.
+"""
+from orchestration.assets.file_discovery import (
+    dead_letter_queue_check,
+    discovered_files,
+    files_to_process,
 )
-from .transformation import sqlmesh_models, marts_validation
-from .serving import serving_database, pipeline_complete
+from orchestration.assets.preprocessing import preprocessed_files
+from orchestration.assets.ingestion import (
+    current_batch_id,
+    kp_sd_extract,
+    landing_load,
+    references_extract,
+    sales_extract,
+    targets_extract,
+)
+from orchestration.assets.data_quality import data_quality_checks, data_quality_report
+from orchestration.assets.transformation import marts_validation, sqlmesh_models
+from orchestration.assets.serving import pipeline_complete, published_files
 
 __all__ = [
-    # File discovery
+    "current_batch_id",
+    "dead_letter_queue_check",
     "discovered_files",
     "files_to_process",
-
-    # Preprocessing
     "preprocessed_files",
-
-    # Ingestion
-    "current_batch_id",
-    "sales_seed",
-    "targets_seed",
-    "kp_sd_seed",
-    "references_seeds",
-    "seeds_metadata",
-
-    # Transformation
+    "sales_extract",
+    "targets_extract",
+    "references_extract",
+    "kp_sd_extract",
+    "landing_load",
     "sqlmesh_models",
     "marts_validation",
-
-    # Serving
-    "serving_database",
+    "data_quality_report",
+    "data_quality_checks",
+    "published_files",
     "pipeline_complete",
 ]

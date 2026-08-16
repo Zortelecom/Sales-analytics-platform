@@ -49,14 +49,6 @@ class ProcessingSpec(BaseModel):
     required_sheets: Optional[List[str]] = None
 
 
-class TableSpec(BaseModel):
-    """A named Excel table inside a multi-table workbook (references only)."""
-    model_config = ConfigDict(extra="forbid")
-
-    name: str
-    required_columns: List[str] = Field(default_factory=list)
-
-
 class SourceSpec(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -65,16 +57,11 @@ class SourceSpec(BaseModel):
     input_dir: Path           # resolved: data/input/ / input_subdir
     file_pattern: str
     table_prefix: str
-    required_columns: List[str] = Field(default_factory=list)
-    tables: Optional[List[TableSpec]] = None
+    # Key into ingestion/contracts/contracts.yaml. Column contracts are NOT
+    # declared here: the extractors read contracts.yaml, and the copies that
+    # used to live in this file were dead config that had silently drifted.
+    contract: Optional[str] = None
     processing: ProcessingSpec = Field(default_factory=ProcessingSpec)
-
-    def required_columns_for(self, table_name: str) -> List[str]:
-        """Column contract for a named table, falling back to the source-level set."""
-        for table in self.tables or []:
-            if table.name.lower() == table_name.lower():
-                return table.required_columns
-        return self.required_columns
 
 
 class ValidationSpec(BaseModel):

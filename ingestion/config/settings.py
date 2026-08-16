@@ -31,7 +31,7 @@ from shared.sources import SourceSpec, load_sources
 
 # ── DuckLake / serving ─────────────────────────────────────────────────────
 COMPUTE_DB_PATH = WAREHOUSE_DIR / "ducklake.db"
-PARQUET_STORAGE_PATH = WAREHOUSE_DIR / "parquet_storage"
+PARQUET_STORAGE_PATH = WAREHOUSE_DIR / "parquet"
 
 _CATALOG_FILE = WAREHOUSE_DIR / "catalog.ducklake"
 CATALOG_CONNECTION_STRING = f"ducklake:{_CATALOG_FILE}"
@@ -78,7 +78,8 @@ def load_sources_config() -> SourceConfig:
         source_paths=registry.source_paths,
         input_paths=registry.input_paths,
         processing_rules={
-            source_type: spec.processing.model_dump()
+            source_type: {**spec.processing.model_dump(),
+                          "file_pattern": spec.file_pattern}
             for source_type, spec in registry.sources.items()
         },
     )

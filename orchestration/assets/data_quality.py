@@ -1,483 +1,463 @@
 """
 orchestration/assets/data_quality.py
 
-Runs every SQLMesh audit query directly against DuckDB after
-transformation completes. For each failure, traces the offending
-rows back to their source Excel file using filename_subregion
-(sales) or seed metadata files (reference data).
+Persisted, traceable data-quality results — the half SQLMesh audits cannot do.
 
-Produces:
-  - Dagster AssetCheckResult per audit (visible in the Dagster UI)
-  - A structured JSON quality report in data/exports/quality_reports/
+WHY THIS EXISTS ALONGSIDE SQLMESH AUDITS
+────────────────────────────────────────
+SQLMesh audits enforce rules at build time and report inline on the console.
+That is the right place to stop bad data, and it is useless to a supervisor:
+turning "12 rows failed" into "which workbook, whose tab" means running
+`sqlmesh fetchdf` with a hand-written query. The people who have to FIX the
+data are not SQL users.
+
+So these checks answer a different question. Not "should the build proceed"
+(SQLMesh owns that) but "who needs to open which file". They:
+
+  * run after the marts are built, against the same lake
+  * write a SUMMARY row per audit per run, so failures can be trended
+  * write the FAILING ROWS with source_file / sheet_name / source_row_num, so
+    a page can group by workbook and a supervisor can be handed a filename
+  * never block: blocking is SQLMesh's job
+
+The overlap with SQLMesh audits is deliberate and narrow. Where a rule exists
+in both, SQLMesh's is authoritative for stopping the build; this one exists to
+attribute it. Keep the SQL here aligned with sqlmesh/audits/ — a rule that
+disagrees between the two is worse than a rule enforced once.
+
+WHY AN ASSET PLUS A CHECK, NOT JUST A CHECK
+───────────────────────────────────────────
+Writing the results and reporting the verdict are split:
+
+    data_quality_report   ASSET  — opens the lake for WRITING, runs the audits,
+                                   appends results. Sits IN the dependency
+                                   chain, between marts_validation and
+                                   published_files.
+    data_quality_checks   CHECK  — opens the lake READ-ONLY, reads what the
+                                   asset just wrote, reports pass/fail.
+
+It was one asset check, and that deadlocked: Dagster runs checks in PARALLEL
+with downstream assets by design, so the check held a write attach while
+published_files tried to read the same catalog —
+
+    IO Error: Failed to attach DuckLake MetaData ...
+    File is already open in python.exe (PID 19232)
+
+Making the check blocking would have ordered it correctly and also failed the
+whole pipeline every time negative_sellin found a return, which is the exact
+opposite of what these audits are for. An asset check is the wrong shape for
+something that takes an exclusive lock; an asset in the chain is the right one.
+
+The check is now read-only, so it can run concurrently with anything.
+
+WHERE RESULTS GO
+────────────────
+landing.audit_results and landing.audit_failures, appended.
+
+The `landing` schema, not `meta`: meta.* are SQLMesh VIEW models and SQLMesh
+owns that schema — writing tables into it invites a plan to drop them. This
+mirrors landing.file_registry, which is written by ingestion and exposed
+through meta.ingestion_batches. The matching views are
+sqlmesh/models/meta/meta_audit_*.sql.
 """
+# NOTE: deliberately NO `from __future__ import annotations`.
+#
+# PEP 563 turns every annotation into a string, and Dagster resolves the
+# `context` parameter by inspecting the actual class:
+#
+#   DagsterInvalidDefinitionError: Cannot annotate `context` parameter with
+#   type AssetExecutionContext
+#
+# ...which reads as though the annotation is wrong when the annotation is the
+# only correct one. Python 3.10+ handles `str | None` and `dict[str, X]`
+# natively, so the import buys nothing here.
 
-from __future__ import annotations
-
-import json
 import logging
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from pathlib import Path
-from typing import Any
+from typing import List, Optional
 
 import duckdb
 from dagster import (
+    AssetCheckExecutionContext,
     AssetCheckResult,
     AssetCheckSeverity,
+    AssetExecutionContext,
+    AssetIn,
     MetadataValue,
+    asset,
     asset_check,
 )
 
-from orchestration.resources.duckdb_resource import DuckDBResource
-from orchestration.utils.constants import (
-    QUALITY_REPORTS_DIR,
-    SEEDS_DIR,
-    SQLMESH_ENV,
-    get_serving_db_path,
-)
+from orchestration.config import PipelineConfig
+from orchestration.resources.duckdb_resource import CATALOG_ALIAS, DuckLakeResource
+from ingestion.config.landing import LANDING_DDL
+from orchestration.utils.constants import schema_for
 
 logger = logging.getLogger(__name__)
+_cfg = PipelineConfig()
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
+# Columns every audit query must project, so results are uniformly traceable.
+TRACE_COLUMNS = ("source_file", "sheet_name", "source_row_num")
 
-def _table(model: str) -> str:
+
+@dataclass(frozen=True)
+class Audit:
     """
-    Resolve the physical DuckLake table name for a SQLMesh model in the
-    configured environment.
+    One data-quality question.
 
-    SQLMesh names tables as:  <layer>__<<env>.<<model_name>
-    e.g. staging__dev.stg_sales_data  →  sqlmesh__staging.staging__stg_sales_data__<<hash>__dev
-
-    We query the information_schema instead of hard-coding hashes so this
-    is always correct regardless of model fingerprint changes.
+    `where` is a predicate over the fact table. Keeping it a predicate rather
+    than a full query is what lets every audit project the same trace columns
+    without each one repeating them -- and stops a new audit forgetting to.
     """
-    return model  # passed as fully-qualified view alias; real resolution below
+    name: str
+    entity: str                 # "fact_sales" | "fact_kp_sd"
+    question: str               # plain language, shown in the UI
+    where: str
+    severity: str = "warn"      # "warn" | "error" -- display only, never blocks
+    columns: tuple = ()         # extra business columns to keep on failing rows
 
 
-def _schema(layer: str, env: str) -> str:
-    """Return SQLMesh's physical schema name, including the prod exception."""
-    return layer if env == "prod" else f"{layer}__{env}"
-
-
-def _run(conn: duckdb.DuckDBPyConnection, sql: str) -> list[dict]:
-    """Execute a query and return rows as a list of dicts."""
-    try:
-        rel = conn.execute(sql)
-        cols = [d[0] for d in rel.description]
-        return [dict(zip(cols, row)) for row in rel.fetchall()]
-    except Exception as exc:
-        logger.error("Audit query failed: %s\n%s", exc, sql)
-        return []
-
-
-def _load_seed_metadata(seed_name: str) -> dict:
-    """Parse a seed *_metadata.txt file into a dict."""
-    path = Path(SEEDS_DIR) / f"{seed_name}_metadata.txt"
-    if not path.exists():
-        return {}
-    meta: dict[str, Any] = {}
-    with path.open() as f:
-        for line in f:
-            if ":" in line:
-                key, _, value = line.partition(":")
-                meta[key.strip()] = value.strip()
-    return meta
-
-
-def _write_report(report: dict) -> Path:
-    """Persist the quality report as JSON and return its path."""
-    out_dir = Path(QUALITY_REPORTS_DIR)
-    out_dir.mkdir(parents=True, exist_ok=True)
-    ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-    path = out_dir / f"quality_report_{ts}.json"
-    path.write_text(json.dumps(report, indent=2, default=str))
-    logger.info("Quality report written to %s", path)
-    return path
-
-
-def _source_file_summary(rows: list[dict], file_col: str = "filename_subregion") -> dict:
-    """
-    Group failing rows by source file.
-    Returns  { "ExSD-Sales-Est.xlsx": 12, "ExSD-Sales-Yde_Nord.xlsx": 3, ... }
-    """
-    summary: dict[str, int] = {}
-    for row in rows:
-        fname = row.get(file_col) or "unknown"
-        summary[fname] = summary.get(fname, 0) + 1
-    return summary
-
-
-# ---------------------------------------------------------------------------
-# Audit definitions
-# Each function now receives the resolved env string so table names are
-# evaluated at execution time, not import time.
-# ---------------------------------------------------------------------------
-
-def _audit_not_null_fact_sales(conn: duckdb.DuckDBPyConnection, env: str) -> tuple[list, list]:
-    """Mirrors the not_null audit on fact_sales."""
-    _FACT = f"{_schema('marts', env)}.fact_sales"
-    _STG_SALES = f"{_schema('staging', env)}.stg_sales_data"
-
-    failing = _run(conn, f"""
-        SELECT
-            f.sales_line_id,
-            f.sale_date,
-            f.sku,
-            f.salesperson_id
-        FROM {_FACT} f
-        WHERE f.sales_line_id IS NULL
-           OR f.sale_date     IS NULL
-           OR f.sku           IS NULL
-           OR f.salesperson_id IS NULL
-    """)
-    if not failing:
-        return [], []
-
-    # Trace: join back to stg_sales_data to get filename_subregion
-    ids = ", ".join(
-        f"'{r['sales_line_id']}'" for r in failing if r.get("sales_line_id")
-    )
-    trace = _run(conn, f"""
-        SELECT
-            s.sales_line_id,
-            s.sale_date,
-            s.sku,
-            s.salesperson_id,
-            s.filename_subregion AS source_file,
-            CASE
-                WHEN s.sales_line_id  IS NULL THEN 'sales_line_id'
-                WHEN s.sale_date      IS NULL THEN 'sale_date'
-                WHEN s.sku            IS NULL THEN 'sku'
-                WHEN s.salesperson_id IS NULL THEN 'salesperson_id'
-            END AS null_column
-        FROM {_STG_SALES} s
-        WHERE s.sales_line_id IS NULL
-           OR s.sale_date     IS NULL
-           OR s.sku           IS NULL
-           OR s.salesperson_id IS NULL
-    """) if not ids else _run(conn, f"""
-        SELECT
-            s.sales_line_id,
-            s.filename_subregion  AS source_file,
-            CASE
-                WHEN f.sales_line_id  IS NULL THEN 'sales_line_id'
-                WHEN f.sale_date      IS NULL THEN 'sale_date'
-                WHEN f.sku            IS NULL THEN 'sku'
-                WHEN f.salesperson_id IS NULL THEN 'salesperson_id'
-            END AS null_column
-        FROM {_FACT} f
-        LEFT JOIN {_STG_SALES} s USING (sales_line_id)
-        WHERE f.sales_line_id IS NULL
-           OR f.sale_date     IS NULL
-           OR f.sku           IS NULL
-           OR f.salesperson_id IS NULL
-    """)
-    return failing, trace
-
-
-def _audit_negative_amount(conn: duckdb.DuckDBPyConnection, env: str) -> tuple[list, list]:
-    """Mirrors accepted_range(column := total_amount, min_v := 0, inclusive := false)."""
-    _FACT = f"{_schema('marts', env)}.fact_sales"
-    _STG_SALES = f"{_schema('staging', env)}.stg_sales_data"
-
-    failing = _run(conn, f"""
-        SELECT sales_line_id, sale_date, sku, salesperson_id, total_amount
-        FROM {_FACT}
-        WHERE total_amount <= 0
-    """)
-    if not failing:
-        return [], []
-
-    ids = ", ".join(f"'{r['sales_line_id']}'" for r in failing)
-    trace = _run(conn, f"""
-        SELECT
-            f.sales_line_id,
-            f.sale_date,
-            f.sku,
-            f.salesperson_id,
-            f.total_amount,
-            s.filename_subregion AS source_file
-        FROM {_FACT} f
-        LEFT JOIN {_STG_SALES} s USING (sales_line_id)
-        WHERE f.sales_line_id IN ({ids})
-    """)
-    return failing, trace
-
-
-def _audit_orphaned_products(conn: duckdb.DuckDBPyConnection, env: str) -> tuple[list, list]:
-    """Mirrors assert_no_orphaned_product."""
-    _FACT = f"{_schema('marts', env)}.fact_sales"
-    _STG_SALES = f"{_schema('staging', env)}.stg_sales_data"
-
-    failing = _run(conn, f"""
-        SELECT sales_line_id, sale_date, sku, product_key
-        FROM {_FACT}
-        WHERE sku IS NOT NULL
-          AND product_key IS NULL
-    """)
-    if not failing:
-        return [], []
-
-    ids = ", ".join(f"'{r['sales_line_id']}'" for r in failing)
-    trace = _run(conn, f"""
-        SELECT
-            f.sales_line_id,
-            f.sale_date,
-            f.sku,
-            s.filename_subregion AS source_file,
-            'SKU absent from products reference or outside SCD window' AS reason
-        FROM {_FACT} f
-        LEFT JOIN {_STG_SALES} s USING (sales_line_id)
-        WHERE f.sales_line_id IN ({ids})
-    """)
-    return failing, trace
-
-
-def _audit_amount_vs_qty_price(conn: duckdb.DuckDBPyConnection, env: str) -> tuple[list, list]:
-    """Mirrors assert_amount_matches_qty_x_price (>>1 % deviation)."""
-    _FACT = f"{_schema('marts', env)}.fact_sales"
-    _STG_SALES = f"{_schema('staging', env)}.stg_sales_data"
-
-    failing = _run(conn, f"""
-        SELECT
-            sales_line_id,
-            sale_date,
-            sku,
-            quantity,
-            unit_price_actual,
-            total_amount,
-            ROUND(quantity * unit_price_actual, 2)  AS expected_amount,
-            ROUND(
-                ABS(total_amount - (quantity * unit_price_actual))
-                / NULLIF(quantity * unit_price_actual, 0) * 100, 2
-            ) AS deviation_pct
-        FROM {_FACT}
-        WHERE unit_price_actual > 0
-          AND quantity          > 0
-          AND ABS(total_amount - (quantity * unit_price_actual))
-              / NULLIF(quantity * unit_price_actual, 0) > 0.01
-    """)
-    if not failing:
-        return [], []
-
-    ids = ", ".join(f"'{r['sales_line_id']}'" for r in failing)
-    trace = _run(conn, f"""
-        SELECT
-            f.sales_line_id,
-            f.sale_date,
-            f.sku,
-            f.quantity,
-            f.unit_price_actual,
-            f.total_amount,
-            s.filename_subregion AS source_file
-        FROM {_FACT} f
-        LEFT JOIN {_STG_SALES} s USING (sales_line_id)
-        WHERE f.sales_line_id IN ({ids})
-    """)
-    return failing, trace
-
-
-def _audit_product_price(conn: duckdb.DuckDBPyConnection, env: str) -> tuple[list, list]:
-    """Mirrors accepted_range on unit_price in stg_products_data."""
-    _STG_PRODUCTS = f"{_schema('staging', env)}.stg_products_data"
-
-    failing = _run(conn, f"""
-        SELECT product_key, sku, product_name, unit_price
-        FROM {_STG_PRODUCTS}
-        WHERE unit_price IS NULL OR unit_price < 1
-    """)
-    meta = _load_seed_metadata("products_data")
-    trace = [
-        {**row, "source_file": meta.get("Source Files", "References.xlsx")}
-        for row in failing
-    ]
-    return failing, trace
-
-
-# ---------------------------------------------------------------------------
-# Main orchestrator asset check
-# ---------------------------------------------------------------------------
-
-@asset_check(
-    asset="fact_sales",
-    name="data_quality_full_report",
-    description=(
-        "Runs all audit queries against the current dev tables, "
-        "traces every failing row back to its source Excel file, "
-        "and writes a structured JSON report."
+SALES_AUDITS: List[Audit] = [
+    Audit(
+        name="orphaned_product",
+        entity="fact_sales",
+        question="Sales lines whose SKU is not in the product reference",
+        where="sku IS NOT NULL AND product_key IS NULL",
+        severity="error",
+        columns=("sku", "sale_date", "salesperson_id", "total_amount"),
     ),
-    blocking=False,   # graceful failure: pipeline continues, UI shows red badge
+    Audit(
+        name="orphaned_salesperson",
+        entity="fact_sales",
+        question="Sales lines whose salesperson is not in the team reference",
+        where="salesperson_id IS NOT NULL AND salesperson_key IS NULL",
+        severity="error",
+        columns=("salesperson_id", "sale_date", "total_amount"),
+    ),
+    Audit(
+        name="orphaned_client",
+        entity="fact_sales",
+        question="Sales lines whose sub-distributor is not in the SD reference",
+        where="clientsd_id IS NOT NULL AND clientsd_key IS NULL",
+        severity="error",
+        columns=("clientsd_id", "sale_date", "total_amount"),
+    ),
+    Audit(
+        name="zero_or_negative_line",
+        entity="fact_sales",
+        # GMS accepts returns; traditional trade does not. Mirrors
+        # sqlmesh/audits/assert_line_signs_are_coherent.sql.
+        question="Zero lines, sign mismatches, or a return outside GMS",
+        where=(
+            "quantity = 0 OR total_amount = 0 "
+            "OR (price_tier <> 'GMS' AND (quantity < 0 OR total_amount < 0)) "
+            "OR SIGN(quantity) <> SIGN(total_amount)"
+        ),
+        severity="error",
+        columns=("sku", "sale_date", "quantity", "total_amount", "price_tier"),
+    ),
+    Audit(
+        name="price_off_reference",
+        entity="fact_sales",
+        question="Lines priced more than 5% away from the reference for their channel",
+        where=(
+            "quantity > 0 AND total_amount > 0 AND ("
+            "  unit_price_standard IS NULL"
+            "  OR ABS(unit_price_effective - unit_price_standard)"
+            "     / NULLIF(unit_price_standard, 0) * 100 > 5"
+            ")"
+        ),
+        columns=("sku", "sale_date", "price_tier", "unit_price_effective",
+                 "unit_price_standard", "price_variance_pct"),
+    ),
+    Audit(
+        name="sheet_lookup_out_of_date",
+        entity="fact_sales",
+        question="Workbook price differs from the price in force on the sale date",
+        where=(
+            "price_tier = 'TT' AND unit_price_sheet > 0 AND unit_price_standard > 0 "
+            "AND ABS(unit_price_sheet - unit_price_standard)"
+            "    / NULLIF(unit_price_standard, 0) * 100 > 0.5"
+        ),
+        columns=("sku", "sale_date", "unit_price_sheet", "unit_price_standard"),
+    ),
+]
+
+KP_SD_AUDITS: List[Audit] = [
+    Audit(
+        name="orphaned_product_kp",
+        entity="fact_kp_sd",
+        question="Sell-in lines whose SKU is not in the product reference",
+        where="sku IS NOT NULL AND product_key IS NULL",
+        severity="error",
+        columns=("sku", "sale_date", "clientsd_id", "total_amount"),
+    ),
+    Audit(
+        name="orphaned_client_kp",
+        entity="fact_kp_sd",
+        question="Sell-in lines whose sub-distributor is not in the SD reference",
+        where="clientsd_id IS NOT NULL AND clientsd_key IS NULL",
+        severity="error",
+        columns=("clientsd_id", "sale_date", "kp_name", "total_amount"),
+    ),
+    Audit(
+        name="zero_or_sign_mismatch_kp",
+        entity="fact_kp_sd",
+        # Negatives are legitimate here -- an SD returns stock to a KP -- so
+        # only zero lines and sign mismatches. See
+        # sqlmesh/audits/assert_line_signs_are_coherent_kp.sql.
+        question="Zero sell-in lines, or a negative quantity with a positive amount",
+        where=(
+            "quantity = 0 OR total_amount = 0 "
+            "OR SIGN(quantity) <> SIGN(total_amount)"
+        ),
+        severity="error",
+        columns=("sku", "sale_date", "clientsd_id", "quantity", "total_amount"),
+    ),
+    Audit(
+        name="destockage_channel_conflict",
+        entity="fact_kp_sd",
+        question="Line filed in a workbook that contradicts the SD's destockage status",
+        where="destockage_channel_conflict",
+        columns=("clientsd_id", "sale_date", "destockage_channel",
+                 "is_destocked_sd", "total_amount"),
+    ),
+    Audit(
+        name="kp_mismatch",
+        entity="fact_kp_sd",
+        question="Key Player on the line differs from the SD's KP of record",
+        where="kp_mismatch",
+        columns=("clientsd_id", "kp_name", "kp_of_record_sd", "sale_date", "total_amount"),
+    ),
+    Audit(
+        name="negative_sellin",
+        entity="fact_kp_sd",
+        question="Returns from a sub-distributor to a Key Player",
+        where="quantity < 0 OR total_amount < 0",
+        columns=("clientsd_id", "kp_name", "sku", "sale_date", "quantity", "total_amount"),
+    ),
+]
+
+MAX_FAILING_ROWS_STORED = 500
+"""Per audit per run. A rule failing on 30,000 rows is a broken rule, not
+30,000 problems -- storing them all would bloat the lake and tell a supervisor
+nothing they cannot see from the count and a sample."""
+
+# DDL is shared with ingestion/config/landing.py: the tables are created empty
+# when the landing schema is created, because `sqlmesh plan` builds views over
+# them and would otherwise fail before this check could ever run. Re-applied
+# here (CREATE IF NOT EXISTS) so this asset also works against a lake that
+# predates that change.
+
+
+def _run_audits(
+    conn: duckdb.DuckDBPyConnection,
+    audits: List[Audit],
+    env: str,
+    run_id: str,
+    context,
+) -> dict:
+    marts = schema_for("marts", env)
+    run_at = datetime.now(timezone.utc).replace(tzinfo=None)
+
+    conn.execute("CREATE SCHEMA IF NOT EXISTS landing")
+    for ddl in LANDING_DDL:
+        conn.execute(ddl.format(schema="landing"))
+
+    summary: dict = {}
+    total_failing = 0
+    worst = "PASSED"
+
+    for audit in audits:
+        table = f'"{CATALOG_ALIAS}"."{marts}"."{audit.entity}"'
+        trace = ", ".join(TRACE_COLUMNS)
+        # struct_pack requires NAMED arguments (a := b), not 'key', value
+        # pairs -- the latter raises "Need named argument for struct pack".
+        detail_cols = ", ".join(
+            f"{c} := CAST({c} AS VARCHAR)" for c in audit.columns
+        ) or "row := ''"
+
+        try:
+            checked = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+
+            conn.execute(
+                f"""
+                INSERT INTO landing.audit_failures
+                SELECT ?, ?, ?, ?, {trace},
+                       to_json(struct_pack({detail_cols}))
+                FROM {table}
+                WHERE {audit.where}
+                LIMIT {MAX_FAILING_ROWS_STORED}
+                """,
+                [run_at, run_id, audit.name, audit.entity],
+            )
+
+            failing, files = conn.execute(
+                f"SELECT COUNT(*), COUNT(DISTINCT source_file) "
+                f"FROM {table} WHERE {audit.where}"
+            ).fetchone()
+
+            status = "PASSED" if failing == 0 else "FAILED"
+            error = None
+        except Exception as exc:  # noqa: BLE001 -- one bad audit, not the run
+            context.log.error("Audit %s errored: %s", audit.name, exc)
+            checked = failing = files = 0
+            status, error = "ERROR", str(exc)[:2000]
+
+        if status != "PASSED":
+            worst = "ERROR" if status == "ERROR" or worst == "ERROR" else "FAILED"
+        total_failing += failing
+
+        conn.execute(
+            "INSERT INTO landing.audit_results VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+            [run_at, run_id, env, audit.name, audit.entity, audit.question,
+             audit.severity, status, checked, failing, files, error],
+        )
+        summary[audit.name] = {
+            "status": status, "rows_failing": int(failing),
+            "files_failing": int(files), "severity": audit.severity,
+        }
+        context.log.info(
+            "  %-30s %-7s %6s row(s) across %s file(s)",
+            audit.name, status, failing, files,
+        )
+
+    return {"summary": summary, "total_failing": total_failing, "worst": worst}
+
+
+def _by_file(conn, run_id: str, audits: List[Audit]) -> str:
+    """
+    Failures grouped by workbook — the view a supervisor is handed.
+
+    This is the whole reason these checks exist next to the SQLMesh audits:
+    the answer to "who needs to open which file", not "did the build pass".
+    """
+    names = ",".join(f"'{a.name}'" for a in audits)
+    rows = conn.execute(
+        f"SELECT source_file, sheet_name, COUNT(*) AS failures, "
+        f"       COUNT(DISTINCT audit) AS distinct_audits "
+        f"FROM landing.audit_failures "
+        f"WHERE run_id = ? AND audit IN ({names}) "
+        f"GROUP BY 1, 2 ORDER BY failures DESC LIMIT 25",
+        [run_id],
+    ).fetchall()
+    if not rows:
+        return "No failing rows."
+    return "\n".join(
+        f"- `{f or 'unknown'}` / `{s or '-'}`: {n} failing row(s), {d} audit(s)"
+        for f, s, n, d in rows
+    )
+
+
+@asset(
+    group_name="quality",
+    description=(
+        "Runs the data quality audits and appends results to the lake, traced "
+        "to the source workbook."
+    ),
+    compute_kind="duckdb",
+    ins={"marts_validation": AssetIn()},
 )
-def data_quality_full_report(duckdb: DuckDBResource) -> AssetCheckResult:
+def data_quality_report(
+    context: AssetExecutionContext,
+    marts_validation: dict,
+) -> dict:
     """
-    Graceful failure strategy
-    ─────────────────────────
-    blocking=False means:
-      - A failed audit does NOT stop downstream assets.
-      - The Dagster UI shows a red ❌ badge on fact_sales.
-      - The JSON report is always written so engineers can inspect it.
-      - The AssetCheckResult metadata contains a per-audit summary
-        directly in the UI without opening a file.
+    The only asset that opens the lake for writing after ingestion.
 
-    The DuckDBResource resolves the correct env-aware serving DB path
-    (serving_dev.db / serving.db) via get_serving_db_path(), so this
-    check always queries the same file the serving asset just wrote.
+    In the chain rather than hanging off it as a check, so nothing else holds
+    the catalog at the same time. published_files depends on this.
     """
-    # Resolve env at call time — never cache at import time
-    _ENV = SQLMESH_ENV
+    env = _cfg.sqlmesh_env
+    audits = SALES_AUDITS + KP_SD_AUDITS
+    run_id = context.run_id
 
-    run_dt = datetime.now(timezone.utc)
-    run_ts = run_dt.isoformat()
-    report: dict[str, Any] = {
-        "run_at": run_ts,
-        "environment": _ENV,
-        "audits": {},
+    conn = DuckLakeResource(read_only=False).get_connection()
+    try:
+        context.log.info("Running %d audit(s) against %s", len(audits), env)
+        result = _run_audits(conn, audits, env, run_id, context)
+        by_file = _by_file(conn, run_id, audits)
+    finally:
+        conn.close()
+
+    by_entity: dict = {}
+    for audit in audits:
+        row = result["summary"].get(audit.name, {})
+        bucket = by_entity.setdefault(audit.entity, {"failing": 0, "audits": 0})
+        bucket["failing"] += row.get("rows_failing", 0)
+        bucket["audits"] += 1
+
+    context.add_output_metadata({
+        "environment": env,
+        "run_id": run_id,
+        "audits_run": len(audits),
+        "total_failing_rows": result["total_failing"],
+        "by_entity": MetadataValue.json(by_entity),
+        "summary": MetadataValue.json(result["summary"]),
+        "by_source_file": MetadataValue.md(by_file),
+    })
+
+    return {
+        "run_id": run_id,
+        "environment": env,
+        "worst": result["worst"],
+        "total_failing": result["total_failing"],
+        "summary": result["summary"],
     }
 
-    all_passed = True
-    any_error = False
-    ui_summary: dict[str, str] = {}
-
-    audits = [
-        ("not_null_fact_sales",       _audit_not_null_fact_sales),
-        ("negative_total_amount",     _audit_negative_amount),
-        ("orphaned_products",         _audit_orphaned_products),
-        ("amount_vs_qty_price",       _audit_amount_vs_qty_price),
-        ("product_price_invalid",     _audit_product_price),
-    ]
-
-    with duckdb.get_connection() as conn:
-        for audit_name, audit_fn in audits:
-            try:
-                failing_rows, trace_rows = audit_fn(conn, _ENV)
-            except Exception as exc:
-                logger.error("Audit %s raised: %s", audit_name, exc)
-                all_passed = False
-                any_error = True
-                failing_rows, trace_rows = [], []
-                report["audits"][audit_name] = {"error": str(exc)}
-                ui_summary[audit_name] = f"⚠ ERROR: {exc}"
-                continue
-
-            passed = len(failing_rows) == 0
-
-            if not passed:
-                all_passed = False
-                by_file = _source_file_summary(trace_rows, "source_file")
-                report["audits"][audit_name] = {
-                    "status": "FAILED",
-                    "failing_row_count": len(failing_rows),
-                    "by_source_file": by_file,
-                    "failing_rows": trace_rows,
-                }
-                file_breakdown = " | ".join(
-                    f"{fname}: {n} row{'s' if n > 1 else ''}"
-                    for fname, n in by_file.items()
-                )
-                ui_summary[audit_name] = (
-                    f"❌ {len(failing_rows)} rows failed"
-                    + (f"  ←  {file_breakdown}" if file_breakdown else "")
-                )
-                logger.warning(
-                    "Audit %s FAILED: %d rows. By source file: %s",
-                    audit_name, len(failing_rows), by_file,
-                )
-            else:
-                report["audits"][audit_name] = {"status": "PASSED"}
-                ui_summary[audit_name] = "✔ passed"
-
-        # Write JSON report
-        report_path = _write_report(report)
-        report["report_path"] = str(report_path)
-
-        # Persist one row per audit to serving DB
-        try:
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS bi.quality_trend (
-                    run_at      TIMESTAMPTZ,
-                    audit       TEXT,
-                    status      TEXT,
-                    failing_rows INT
-                )
-            """)
-
-            for audit_name, _ in audits:
-                audit_data = report["audits"].get(audit_name, {})
-                status = audit_data.get("status", "UNKNOWN")
-                failing_count = 0
-
-                if status == "FAILED":
-                    failing_count = audit_data.get("failing_row_count", 0)
-                elif "error" in audit_data:
-                    status = "ERROR"
-
-                conn.execute("""
-                    INSERT INTO bi.quality_trend (run_at, audit, status, failing_rows)
-                    VALUES (?, ?, ?, ?)
-                """, (run_dt, audit_name, status, failing_count))
-
-            logger.info("Quality trend persisted to bi.quality_trend (%s)", run_ts)
-
-        except Exception as exc:
-            logger.error("Failed to persist quality trend: %s", exc)
-
-    severity = AssetCheckSeverity.ERROR if any_error else AssetCheckSeverity.WARN
-
-    return AssetCheckResult(
-        passed=all_passed,
-        severity=severity,
-        metadata={
-            "audit_results": MetadataValue.json(ui_summary),
-            "report_path":   MetadataValue.path(str(report_path)),
-            "run_at":        MetadataValue.text(run_ts),
-            "environment":   MetadataValue.text(_ENV),
-        },
-    )
-
 
 @asset_check(
-    asset="fact_kp_sd",
-    name="data_quality_full_report_kp_sd",
-    description="Runs KP sell-in completeness, reconciliation, and mapping audits.",
+    asset="data_quality_report",
+    name="data_quality_checks",
+    description="Reports the audit verdict. Read-only; never blocks.",
     blocking=False,
 )
-def data_quality_full_report_kp_sd(duckdb: DuckDBResource) -> AssetCheckResult:
-    """Persist KP-SD audit trends using the same table as the sales check."""
-    env = SQLMESH_ENV
-    fact = f"{_schema('marts', env)}.fact_kp_sd"
-    staging = f"{_schema('staging', env)}.stg_kp_sd_data"
-    checks = {
-        "not_null": f"kp_sd_line_id IS NULL OR sale_date IS NULL OR sku IS NULL OR clientsd_id IS NULL",
-        "negative_amount": "total_amount <= 0 OR quantity <= 0",
-        "orphaned_product": "sku IS NOT NULL AND product_key IS NULL",
-        "orphaned_client": "clientsd_id IS NOT NULL AND clientsd_key IS NULL",
-        "amount_vs_qty_price": "quantity > 0 AND unit_price > 0 AND ABS(total_amount - quantity * unit_price) / NULLIF(quantity * unit_price, 0) > 0.01",
-        "integer_xaf": "total_amount <> ROUND(total_amount, 0)",
-    }
-    all_passed = True
-    summary: dict[str, str] = {}
-    run_dt = datetime.now(timezone.utc)
-    with duckdb.get_connection() as conn:
-        # This audit is evaluated at staging grain so it can distinguish a mapped
-        # KP code from an internal SKU that legitimately needs no mapping row.
-        checks["unmapped_sku"] = (
-            f"kp_sd_line_id IN (SELECT s.kp_sd_line_id FROM {staging} s "
-            f"LEFT JOIN {_schema('staging', env)}.stg_kp_sku_mapping m ON s.source_sku = m.kp_sku "
-            f"LEFT JOIN {_schema('marts', env)}.dim_products p ON s.source_sku = p.sku "
-            f"AND s.sale_date >= p.valid_from AND (s.sale_date < p.valid_to OR p.valid_to IS NULL) "
-            f"WHERE s.source_sku IS NOT NULL AND m.kp_sku IS NULL AND p.sku IS NULL)"
+def data_quality_checks(context: AssetCheckExecutionContext) -> AssetCheckResult:
+    """
+    Reads back what data_quality_report wrote.
+
+    READ-ONLY on purpose -- that is what lets it run in parallel with
+    published_files, which is how the original single check deadlocked.
+    """
+    env = _cfg.sqlmesh_env
+    meta = schema_for("meta", env)
+
+    conn = DuckLakeResource(read_only=True).get_connection()
+    try:
+        rows = conn.execute(
+            f'SELECT audit, entity, severity, status, rows_failing, files_failing '
+            f'FROM "{meta}"."audit_results" WHERE is_latest '
+            f"ORDER BY rows_failing DESC"
+        ).fetchdf()
+        worst = conn.execute(
+            f'SELECT source_file, COUNT(*) AS failures FROM "{meta}"."audit_failures" '
+            f"WHERE run_recency = 1 GROUP BY 1 ORDER BY 2 DESC LIMIT 10"
+        ).fetchdf()
+    finally:
+        conn.close()
+
+    if rows.empty:
+        return AssetCheckResult(
+            passed=True,
+            severity=AssetCheckSeverity.WARN,
+            metadata={"note": "No audit results recorded yet."},
         )
-        conn.execute("CREATE TABLE IF NOT EXISTS bi.quality_trend (run_at TIMESTAMPTZ, audit TEXT, status TEXT, failing_rows INT)")
-        for name, predicate in checks.items():
-            count = conn.execute(f"SELECT COUNT(*) FROM {fact} WHERE {predicate}").fetchone()[0]
-            status = "PASSED" if count == 0 else "FAILED"
-            all_passed = all_passed and count == 0
-            audit_name = f"kp_sd_{name}"
-            summary[audit_name] = "✔ passed" if count == 0 else f"❌ {count} rows failed"
-            conn.execute("INSERT INTO bi.quality_trend VALUES (?, ?, ?, ?)", (run_dt, audit_name, status, count))
+
+    failing = rows[rows["status"] != "PASSED"]
     return AssetCheckResult(
-        passed=all_passed,
+        # WARN even when audits fail: these attribute problems, they do not
+        # gate. SQLMesh audits stop a bad build; this says who to talk to.
+        passed=failing.empty,
         severity=AssetCheckSeverity.WARN,
-        metadata={"audit_results": MetadataValue.json(summary), "environment": MetadataValue.text(env)},
+        metadata={
+            "environment": env,
+            "audits_failing": int(len(failing)),
+            "total_failing_rows": int(rows["rows_failing"].sum()),
+            "results": MetadataValue.md(rows.to_markdown(index=False)),
+            "worst_workbooks": MetadataValue.md(
+                worst.to_markdown(index=False) if not worst.empty
+                else "No failing rows."
+            ),
+        },
     )
