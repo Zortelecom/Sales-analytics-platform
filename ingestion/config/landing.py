@@ -1,20 +1,6 @@
 """
 Landing configuration.
 
-ONE LAKE. `landing` is a schema inside the same DuckLake catalog SQLMesh
-already uses (`sales_lakehouse` in sqlmesh/config.yaml), not a separate
-catalog. That is what lets raw.* models read landing.* directly, with no
-second ATTACH and no cross-catalog join.
-
-The paths below read the SAME environment variables as sqlmesh/config.yaml
-(DUCKLAKE_CATALOG_PATH, PARQUET_PATH). If those drift apart, ingestion writes
-to one lake and SQLMesh reads another — which fails loudly and immediately
-(raw models find no tables), not silently.
-
-WRITE ORDERING: the DuckLake catalog is a DuckDB file, so it takes one writer
-at a time. All landing writes happen in a single asset (`landing_load`) with
-a single connection that closes before SQLMesh opens the lake. Do not add a
-second concurrent writer without moving the catalog to PostgreSQL first.
 """
 from __future__ import annotations
 
@@ -24,9 +10,7 @@ from pathlib import Path
 from shared.env import load_env, resolve_path
 from shared.paths import WAREHOUSE_DIR
 
-# Import-time, before any os.getenv below. SQLMesh loads .env itself; plain
-# Python does not, so without this ingestion and SQLMesh read different values
-# for the same variable names -- and the mismatch is silent.
+
 load_env()
 
 CATALOG_ALIAS = "sales_lakehouse"   # must match sqlmesh/config.yaml catalogs:

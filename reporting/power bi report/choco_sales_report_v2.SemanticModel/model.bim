@@ -311,7 +311,7 @@
             "source": {
               "expression": [
                 "let",
-                "    Source = Folder.Files(\"C:\\Users\\User\\projects\\data-engineering-labs\\sales-analytics-platform-v0.4\\data\\exports\\parquet\\dev\"),",
+                "    Source = Folder.Files(\"C:\\Users\\User\\projects\\data-engineering-labs\\sales_analytics_platform\\data\\exports\\parquet\\dev\"),",
                 "    #\"Removed Other Columns\" = Table.SelectColumns(Source,{\"Content\", \"Name\"})",
                 "in",
                 "    #\"Removed Other Columns\""

@@ -1,160 +1,100 @@
-# reporting/utils/ask.py
-"""
-Text-to-SQL helper for the "Ask Your Data" page.
+# reporting/pages/7_Ask_Data.py
+#
+# Fixes applied (reporting-layer review):
+#   - is_safe_sql() was imported-worthy but never called: the LLM's SQL ran
+#     directly against the serving DB with no guard at all. It is now
+#     checked before execution, and the query is wrapped with
+#     enforce_row_limit() so the 500-row cap is guaranteed rather than
+#     merely requested in the system prompt.
+#   - Removed duplicate imports (streamlit, text_to_sql/interpret_result
+#     were each imported twice).
 
-Fixes applied (reporting-layer review):
-  - `is_safe_sql()` existed but was never called anywhere in the app (see
-    reporting/pages/7_Ask_Data.py) — the LLM's generated SQL was executed
-    directly with no guard at all. It is now called from the page before
-    execution.
-  - `is_safe_sql()` only checked for a small keyword blocklist and didn't
-    stop stacked statements (`SELECT ...; DROP ...`) or DuckDB table
-    functions that read arbitrary files from disk (`read_csv`, `read_parquet`,
-    `glob`, etc.) — those aren't blocked by a read-only *connection* to the
-    serving DB, since they read the filesystem directly rather than writing
-    to the database. Both are now blocked.
-  - Added `enforce_row_limit()` so the "500 rows max" rule from SYSTEM_PROMPT
-    is actually guaranteed at the SQL layer instead of relying on the model
-    to comply with the instruction every time.
-  - Code-fence stripping in `text_to_sql()` no longer assumes the *last*
-    line of the response is the closing ``` fence; it strips fences with a
-    regex instead so a real line of SQL can't be silently dropped.
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+import reporting._bootstrap  # noqa: F401
 
-Note: these are defence-in-depth measures for a single-user local tool, not
-a substitute for running against a least-privilege, read-only role scoped to
-the `bi`/BI-views schema if this is ever exposed beyond a trusted user.
-"""
-from __future__ import annotations
-import json
-import anthropic
-import pandas as pd
 import streamlit as st
-import re
+import plotly.express as px
 
-# FIX: this was `_client = anthropic.Anthropic()` at module scope, so importing
-# this module raised if ANTHROPIC_API_KEY wasn't set -- taking down the whole
-# page (and, under the old legacy-nav behaviour, the whole app) rather than
-# just the Ask Your Data feature. Constructed lazily on first use instead.
-_client = None
+from reporting.utils.db import query as db_query
+from reporting.utils.ask import text_to_sql, interpret_result, is_safe_sql, enforce_row_limit
+from reporting.utils.schema_context import get_schema_context
+from reporting.components.charts import trend_line_chart, horizontal_bar_chart
+from reporting.config import COLORS
 
-
-def _get_client() -> "anthropic.Anthropic":
-    global _client
-    if _client is None:
-        _client = anthropic.Anthropic()  # reads ANTHROPIC_API_KEY from env
-    return _client
-
-# Statements that must never appear in LLM-generated analytics SQL.
-_DISALLOWED = re.compile(
-    r"\b(INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|TRUNCATE|COPY|EXPORT|IMPORT|"
-    r"ATTACH|DETACH|PRAGMA|INSTALL|LOAD|CALL|SET|VACUUM|CHECKPOINT|GRANT|REVOKE)\b",
-    re.IGNORECASE,
+st.markdown(f'<h1 style="color:{COLORS["text_primary"]}">💬 Ask Your Data</h1>',
+            unsafe_allow_html=True)
+st.markdown(
+    '<p style="color:#9CA3AF;">Type a question in plain English. '
+    'Examples: <em>"Which salesperson had the highest revenue in Q2?"</em>, '
+    '<em>"Show me monthly trend for innovation products in 2025."</em></p>',
+    unsafe_allow_html=True,
 )
 
-# DuckDB table functions that read directly from the filesystem/network
-# rather than from the serving DB — a read-only DB connection does not
-# stop these, so they need their own guard.
-_FILE_FUNCS = re.compile(
-    r"\b(read_csv\w*|read_parquet|read_json\w*|read_text|read_blob|glob|"
-    r"sqlite_scan|postgres_scan|mysql_scan|iceberg_scan|delta_scan)\s*\(",
-    re.IGNORECASE,
-)
+question = st.text_input("Your question", placeholder="e.g. Top 5 regions by revenue this year")
 
-SYSTEM_PROMPT = """You are a SQL expert for a sales analytics DuckDB database.
-Given the schema context and a user question, return ONLY a valid DuckDB SQL
-SELECT query — no explanation, no markdown fences, no preamble.
-Rules:
-- Use only the views listed in the schema context.
-- Do not use subqueries named 'query'.
-- Limit results to 500 rows maximum.
-- XAF amounts are integers; do not add decimal formatting inside SQL.
-- For ranking questions, always include ORDER BY and LIMIT.
-"""
+if question:
+    with st.spinner("Thinking…"):
+        schema_ctx = get_schema_context()
+        sql = text_to_sql(question, schema_ctx)
 
+    with st.expander("Generated SQL", expanded=False):
+        st.code(sql, language="sql")
 
-def _strip_code_fences(sql: str) -> str:
-    """Strip a leading/trailing markdown code fence if present.
+    if not is_safe_sql(sql):
+        st.error(
+            "⚠️ The generated query didn't pass the safety check, so it wasn't run. "
+            "Try rephrasing your question."
+        )
+        st.stop()
 
-    FIX: the previous version assumed the model's *last* line was always the
-    closing ``` fence and unconditionally dropped it (`split("\\n")[1:-1]`).
-    If the model ever forgot the closing fence, or added trailing commentary,
-    a real line of SQL was silently discarded. This strips fences by pattern
-    instead of by position.
-    """
-    s = sql.strip()
-    if s.startswith("```"):
-        s = re.sub(r"^```[a-zA-Z]*\n?", "", s)
-        s = re.sub(r"```\s*$", "", s)
-    return s.strip()
+    safe_sql = enforce_row_limit(sql)
 
-
-def text_to_sql(question: str, schema_context: str) -> str:
-    """Ask the LLM to convert a natural-language question to a SQL SELECT."""
-    response = _get_client().messages.create(
-        model="claude-sonnet-4-20250514",
-        max_tokens=512,
-        system=SYSTEM_PROMPT,
-        messages=[
-            {"role": "user", "content": f"{schema_context}\n\nQuestion: {question}"}
-        ],
-    )
-    sql = response.content[0].text.strip()
-    return _strip_code_fences(sql)
-
-
-NARRATE_SYSTEM = """You are a data analyst. Given a question, a SQL query,
-and a JSON result table, write a concise 2-3 sentence answer in plain English.
-Then output a JSON object on the last line:
-{"chart": "bar"|"line"|"table"|"metric"|"none", "x": "<col>", "y": "<col>"}
-Pick the most appropriate chart type. Use "metric" for single-value answers.
-"""
-
-def interpret_result(question: str, sql: str, df: pd.DataFrame) -> tuple[str, dict]:
-    """Return (narrative_text, chart_spec)."""
-    sample = df.head(20).to_json(orient="records")
-    response = _get_client().messages.create(
-        model="claude-sonnet-4-20250514",
-        max_tokens=400,
-        system=NARRATE_SYSTEM,
-        messages=[{"role": "user", "content":
-            f"Question: {question}\nSQL: {sql}\nResult (first 20 rows): {sample}"}],
-    )
-    raw = response.content[0].text.strip()
-    # Split narrative from JSON spec on last line
-    lines = raw.strip().split("\n")
     try:
-        spec = json.loads(lines[-1])
-        narrative = "\n".join(lines[:-1]).strip()
-    except (json.JSONDecodeError, IndexError):
-        spec = {"chart": "table", "x": None, "y": None}
-        narrative = raw
-    return narrative, spec
+        df = db_query(safe_sql)
+    except Exception as e:
+        st.error(f"SQL execution failed: {e}")
+        st.stop()
 
+    if df.empty:
+        st.info("The query returned no rows for this question.")
+        st.stop()
 
-def is_safe_sql(sql: str) -> bool:
-    """Defence-in-depth guard for LLM-generated SQL before it is executed.
+    with st.spinner("Interpreting results…"):
+        narrative, spec = interpret_result(question, sql, df)
 
-    Rejects anything that isn't a single, unstacked SELECT/CTE statement,
-    contains a disallowed keyword, or calls a filesystem/network-reading
-    table function.
-    """
-    stripped = sql.strip().rstrip(";").strip()
-    if not stripped:
-        return False
-    if ";" in stripped:  # reject stacked statements
-        return False
-    if not stripped.upper().startswith(("SELECT", "WITH")):
-        return False
-    if _DISALLOWED.search(stripped):
-        return False
-    if _FILE_FUNCS.search(stripped):
-        return False
-    return True
+    st.markdown(
+        f'<div style="background:{COLORS["bg_card"]}; border-left:3px solid {COLORS["accent"]}; '
+        f'padding:0.75rem 1rem; border-radius:4px; margin-bottom:1rem;">'
+        f'<p style="color:{COLORS["text_primary"]}; margin:0;">{narrative}</p></div>',
+        unsafe_allow_html=True,
+    )
 
+    chart_type = spec.get("chart", "table")
+    x_col = spec.get("x")
+    y_col = spec.get("y")
 
-def enforce_row_limit(sql: str, limit: int = 500) -> str:
-    """Wrap the query so the row cap in SYSTEM_PROMPT is guaranteed rather
-    than left to the model's compliance with the instruction.
-    """
-    cleaned = sql.strip().rstrip(";")
-    return f"SELECT * FROM (\n{cleaned}\n) AS _ask_data_subq\nLIMIT {limit}"
+    if chart_type == "metric" and len(df) == 1 and len(df.columns) == 1:
+        val = df.iloc[0, 0]
+        st.metric(label=df.columns[0], value=val)
+
+    elif chart_type == "bar" and x_col in df.columns and y_col in df.columns:
+        fig = px.bar(df, x=x_col, y=y_col,
+                     template="plotly_dark",
+                     color_discrete_sequence=[COLORS["accent"]])
+        fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
+        st.plotly_chart(fig, use_container_width=True)
+
+    elif chart_type == "line" and x_col in df.columns and y_col in df.columns:
+        fig = px.line(df, x=x_col, y=y_col,
+                      template="plotly_dark",
+                      color_discrete_sequence=[COLORS["accent"]])
+        fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
+        st.plotly_chart(fig, use_container_width=True)
+
+    else:
+        st.dataframe(df, use_container_width=True)
+
+    st.download_button("⬇ Export CSV", df.to_csv(index=False),
+                       file_name="query_result.csv", mime="text/csv")

@@ -1,15 +1,5 @@
 """Discover and validate source files from the SharePoint/local sync folder.
 
-(2026-08) Driven by the source registry instead of a hardcoded list.
-
-The four source types were spelled out three times in this file -- in
-__init__, in discover_all, and implicitly via getattr(config, f"{t}_path").
-Adding a source meant editing all three plus SourceConfig. They now come from
-sources.yaml, like everything else.
-
-Validation limits (max size, allowed extensions) now come from sources.yaml's
-`validation:` block, which previously nothing read while this file carried its
-own hardcoded copies.
 """
 import logging
 from datetime import datetime, timedelta, timezone

@@ -31,3 +31,4 @@ docker/nginx/.htpasswd
 .env.prod
 
 .streamlit/secrets.toml
+.dagster_home/

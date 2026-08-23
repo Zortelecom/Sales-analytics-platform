@@ -51,6 +51,7 @@ from reporting.utils.db import (  # noqa: E402
     catalog_path,
     schema,
 )
+from shared import lake  # noqa: E402
 
 # Dimensions we would like every revenue-bearing object to support.
 WANTED = ("regions", "subregions", "salespersons", "supervisors", "channels", "clients")
@@ -72,14 +73,13 @@ def main() -> int:
         os.environ["SQLMESH_ENV"] = args.env
 
     path = Path(args.catalog) if args.catalog else catalog_path()
-    if not path.exists():
+    if not lake.is_postgres_catalog() and not path.exists():
         print(f"{RED}DuckLake catalog not found: {path}{RESET}")
         return 1
 
-    con = duckdb.connect()
-    con.execute("INSTALL ducklake; LOAD ducklake;")
-    con.execute(f"ATTACH 'ducklake:{path.as_posix()}' AS {CATALOG_ALIAS} (READ_ONLY)")
-    con.execute(f"USE {CATALOG_ALIAS}")
+    # Read-only, through shared/lake.py: this is an audit tool and must not be
+    # able to alter what it is auditing.
+    con = lake.connect(read_only=True, role="reader", alias=CATALOG_ALIAS)
 
     # Only the schemas the app's search path can reach. Scanning the whole
     # catalog would report landing/raw/staging as NOT MAPPED, which is noise:
@@ -100,7 +100,8 @@ def main() -> int:
         print(f"{RED}No objects found in {reachable}.{RESET} "
               f"Has `sqlmesh plan` run for this environment?")
         return 1
-    print(f"{DIM}catalog: {path}\nschemas: {', '.join(reachable)}{RESET}")
+    print(f"{DIM}catalog: {lake.describe('reader')}\n"
+          f"schemas: {', '.join(reachable)}{RESET}")
 
     objects: dict[str, set[str]] = {}
     schema_of: dict[str, str] = {}

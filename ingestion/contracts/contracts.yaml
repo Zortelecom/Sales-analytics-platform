@@ -84,9 +84,6 @@ sources:
       - is_destocked
       - effective_from
 
-  # TODO(VERIFY): confirm these match the actual Ref_sku_mapping headers
-  # in References.xlsx — carried over from reference_extractor.py's own
-  # TODO comment, not yet independently confirmed.
   ref_kp_sku_mapping:
     required_columns:
       - kp_sku

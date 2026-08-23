@@ -1,45 +1,6 @@
 """
 Base class for extracting data from Excel Table objects.
 
-(2026-08) TYPE PRESERVATION — the significant change in this version
-────────────────────────────────────────────────────────────────────
-The previous version ended extraction with:
-
-    for col in df.columns:
-        if col != "ingestion_ts":
-            df[col] = df[col].astype(str)
-
-That was correct when the destination was a CSV seed, but it caused two
-problems that outlived the reason for it:
-
-  1. astype(str) renders a missing cell as the literal string "nan", not
-     NULL. Every downstream `WHERE sale_date IS NOT NULL AND sku IS NOT NULL`
-     guard silently passes those rows through, because "nan" is a perfectly
-     good non-null VARCHAR. Check whether has_null_key in the subclasses is
-     computed before or after this loop — if after, it has never fired.
-
-  2. Dates became strings like "2025-12-01 00:00:00" and quantities became
-     "10", pushing every cast into the staging layer and losing openpyxl's
-     already-correct typing on the way.
-
-Blanket str is nevertheless the right answer for ONE case: a column where
-supervisors have mixed types — a qty column holding both the number 12 and
-the text "12". Writing that to a typed column fails or silently coerces.
-
-So the coercion is now per column, not blanket: a column with a single
-non-null Python type keeps that type; a genuinely mixed column falls back to
-string. Mixed columns are recorded in `self.coerced_columns` so the fallback
-is visible rather than silent — it is a hand-entry signal worth counting.
-
-Header normalisation is also new: headers are lowercased, stripped, and
-internal whitespace collapsed. The required_columns check already compared
-against lowercased names, so this closes the gap where a header typed
-"SD_ID " passed validation but produced an unreachable column.
-
-Earlier fixes retained
-──────────────────────
-1. wb.close() in a finally block so the handle is always released.
-2. validate_sheet_name() as a real method with a pass-all default.
 """
 from __future__ import annotations
 

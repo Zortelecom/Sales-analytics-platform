@@ -629,6 +629,62 @@ def get_quarterly_summary(year: int, region: str | None = None) -> pd.DataFrame:
         """
     return query(sql, tuple(params))
 
+# =============================================================================
+# SELL-IN / SELL-OUT  (KP -> SD)
+#
+# Was inline in reporting/pages/8_Sell_In_Sell_Out.py via reporting.utils.views,
+# whose constants carry a "main." prefix from the serving.db era. Bare names
+# here, resolved by the search path db.get_connection() sets — same contract as
+# every other builder in this module.
+# =============================================================================
+
+def get_sellin_years() -> list[int]:
+    df = query("SELECT DISTINCT year FROM v_sellin_sellout_kpi ORDER BY year DESC")
+    return [int(v) for v in df.iloc[:, 0].dropna()] if not df.empty else []
+
+
+def get_sellin_months(year: int) -> list[int]:
+    df = query(
+        "SELECT DISTINCT month FROM v_sellin_sellout_kpi "
+        "WHERE year=? ORDER BY month",
+        (year,),
+    )
+    return [int(v) for v in df.iloc[:, 0].dropna()] if not df.empty else []
+
+
+def get_sellin_sellout(year: int, month: int | None = None,
+                       subregions: list[str] | None = None) -> pd.DataFrame:
+    """Sell-in vs sell-out by SD and product for the period."""
+    clauses, params = ["year=?"], [year]
+    if month:
+        clauses.append("month=?"); params.append(month)
+    if subregions:
+        # Requires bi_views_rls_patch.sql — subregion is marked [PATCH] on this
+        # view in rls.py. If plan hasn't rebuilt with it, this raises a binder
+        # error rather than filtering silently, which is the behaviour you want.
+        clauses.append(f"subregion IN ({','.join(['?']*len(subregions))})")
+        params.extend(subregions)
+    sql = f"SELECT * FROM v_sellin_sellout_kpi WHERE {' AND '.join(clauses)}"
+    return query(sql, tuple(params))
+
+
+def get_destocked_flag_mismatches(year: int, month: int | None = None) -> pd.DataFrame:
+    """Sell-in rows whose source-asserted destockage disagrees with the SD flag.
+
+    ⚠ Column names unverified: this filters v_kp_sd_base on sale_year/sale_month
+    while v_sellin_sellout_kpi uses year/month. Confirm with
+    `SELECT * FROM v_kp_sd_base LIMIT 0` before trusting it.
+    """
+    clauses, params = ["sale_year=?"], [year]
+    if month:
+        clauses.append("sale_month=?"); params.append(month)
+    clauses.append("destocked_flag_mismatch")
+    sql = f"""
+    SELECT clientsd_id, client_name, sale_date, sku, source_asserted_destocked
+    FROM v_kp_sd_base
+    WHERE {' AND '.join(clauses)}
+    """
+    return query(sql, tuple(params))
 
 # =============================================================================
 # HELPERS
@@ -637,32 +693,26 @@ def get_quarterly_summary(year: int, region: str | None = None) -> pd.DataFrame:
 def _build_filters(year: int,
                    month: int | None = None,
                    regions: list[str] | None = None,
+                   subregions: list[str] | None = None,   # NEW
                    channels: list[str] | None = None,
                    prefix: str = "WHERE",
                    year_col: str = "year",
                    month_col: str = "month") -> tuple[str, list]:
-    """
-    Build a parameterised WHERE clause.
-
-    Supported filter dimensions: year, month, regions (list), channels (list).
-    Not supported: subregion, salesperson_id, supervisor_name, sku.
-
-    year_col / month_col allow switching between v_monthly_kpi (year / month)
-    and v_sales_base (sale_year / sale_month) column names.
-
-    Returns (clause_string, params_list).  Year is always a bound parameter —
-    never f-string-interpolated — so @st.cache_data keys are stable across years.
-    """
     clauses = [f"{year_col}=?"]
     params: list = [year]
     if month:
         clauses.append(f"{month_col}=?"); params.append(month)
     if regions:
-        placeholders = ",".join(["?"] * len(regions))
-        clauses.append(f"region IN ({placeholders})")
+        clauses.append(f"region IN ({','.join(['?']*len(regions))})")
         params.extend(regions)
+    if subregions:
+        # `subregion` exists on v_monthly_kpi, v_sales_base, v_weekly_kpi and
+        # v_quarterly_kpi — see SCOPE_COLUMNS in rls.py, which is the same
+        # audit. Composes with RLS: this is an outer WHERE, RLS rewrites the
+        # object beneath it, so a scoped user gets the intersection.
+        clauses.append(f"subregion IN ({','.join(['?']*len(subregions))})")
+        params.extend(subregions)
     if channels:
-        placeholders = ",".join(["?"] * len(channels))
-        clauses.append(f"sales_channel IN ({placeholders})")
+        clauses.append(f"sales_channel IN ({','.join(['?']*len(channels))})")
         params.extend(channels)
     return (f"{prefix} " + " AND ".join(clauses)), params

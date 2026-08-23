@@ -1,21 +1,6 @@
-"""Clean Excel files before moving to input folder.
+"""
+Clean Excel files before moving to input folder.
 
-(2026-08) Two fixes.
-
-1. wb.close() moved into a finally block.
-   Previously close() ran only on the success path, after wb.save(). If save
-   raised -- a full disk, a locked target, a corrupt sheet -- the workbook
-   stayed open. On Windows that leaves a handle on the SOURCE file, which is
-   what produces the PermissionError the retry loop below then has to work
-   around on the next run. The retry loop was treating a symptom of this.
-
-   This is the same fix already applied to BaseExcelExtractor.extract_single_file.
-
-2. batch_preprocess catches unexpected exceptions per file.
-   preprocess() only catches (InvalidFileException, IOError, ValueError).
-   Anything else -- a zipfile.BadZipFile, a KeyError from a malformed
-   workbook -- propagated out of batch_preprocess and killed the whole run.
-   One unreadable file should cost you that file, not the batch.
 """
 import logging
 import re

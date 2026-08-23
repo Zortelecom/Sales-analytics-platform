@@ -5,7 +5,8 @@ Requires-Python: >=3.10
 Requires-Dist: dagster==1.13.6
 Requires-Dist: dagster-webserver==1.13.6
 Requires-Dist: dagster-duckdb==0.29.*
-Requires-Dist: sqlmesh[duckdb,lsp]==0.235.*
+Requires-Dist: dagster-postgres==0.29.*
+Requires-Dist: sqlmesh[duckdb,lsp,postgres]==0.236.*
 Requires-Dist: openpyxl==3.1.2
 Requires-Dist: pandas>=2.0.0
 Requires-Dist: pyyaml>=6.0

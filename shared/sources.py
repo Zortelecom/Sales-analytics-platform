@@ -5,22 +5,6 @@ This module is the ONLY place that parses ingestion/config/sources.yaml.
 Every consumer -- FileDiscovery, ExcelPreprocessor, the Dagster preprocessing
 and ingestion assets, the extractors -- imports the parsed object from here.
 
-WHAT THIS REPLACED (2026-08)
-────────────────────────────
-Before this module, a source's identity was declared in four places:
-
-  1. sources.yaml top-level blocks (directory / file_pattern / table_prefix)
-  2. sources.yaml `sources.local_sync.folders` (source directory)
-  3. sources.yaml `processing:` block (sheet rules)  -- loaded, never read
-  4. settings.py SourceConfig                        -- one named field per source
-  5. shared/paths.py INPUT_PATHS                     -- one key per source
-  6. preprocessing.py                                -- if/elif on source_type
-
-...and they had already drifted: the yaml said the sales delete pattern was
-"Synthese*" while preprocessing.py used "Synthese *"; the yaml required four
-reference sheets that do not exist. sources.yaml is now the single declaration
-and drift is caught by tests/test_sources_config.py.
-
 CACHING
 ───────
 load_sources() is lru_cached, so editing sources.yaml requires a process

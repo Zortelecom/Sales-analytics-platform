@@ -13,7 +13,19 @@ ASSET GRAPH
         └─ kp_sd_extract ─────┘                      ↓
                                               marts_validation
                                                      ↓
+                                          data_quality_report
+                                                     ↓
                                               published_files → pipeline_complete
+
+data_quality_report sits BETWEEN validation and publish, and that ordering is
+a lock, not a data dependency: it is the only post-ingestion writer of the
+lake, and a DuckDB file catalog admits many readers or one writer. Publishing
+while it wrote produced
+
+    IO Error: Failed to attach DuckLake MetaData ...
+    File is already open in python.exe (PID ...)
+
+An explicit dependency is how you serialise in Dagster.
 
 Four extract assets run in parallel; ONE load asset writes. That split is not
 cosmetic: the DuckLake catalog is a DuckDB file and takes a single writer,
@@ -21,18 +33,25 @@ while Dagster materialises assets concurrently by default. Four writing assets
 would contend for the catalog lock and fail intermittently. When the catalog
 moves to PostgreSQL this can collapse back into four writers.
 
-WHAT WAS REMOVED, AND WHY
-─────────────────────────
-    sales_seed / targets_seed / kp_sd_seed / references_seeds / seeds_metadata
-        Replaced by *_extract + landing_load. There are no CSV seeds.
-    serving_database
-        Replaced by published_files. There is no serving.db to sync -- the
-        interactive consumers attach the lake.
-    DuckDBResource
-        It opened serving.db.
-    sync_health_sensor
-        It read bi._sync_log inside serving.db. Replaced by
-        pipeline_health_sensor over meta.*.
+
+
+LAUNCH
+──────
+Prefer module loading over `-f`:
+
+    [tool.dagster]
+    module_name = "orchestration.definitions"
+    code_location_name = "sales_analytics_platform"
+
+...in pyproject.toml, then plain `dagster dev` from the project root. Loading
+by path imports this file as an ad-hoc module, which can produce two
+PipelineConfig instances from one process.
+
+SET DAGSTER_HOME. Without it `dagster dev` uses a temporary directory and
+discards run history AND SENSOR CURSORS on every restart. pipeline_health_
+sensor keeps its rolling duration window and its per-table column
+fingerprints in its cursor, so schema-drift detection -- the thing that sensor
+exists for -- cannot fire across a restart until DAGSTER_HOME is persistent.
 """
 
 import logging
@@ -63,6 +82,7 @@ from orchestration.config import PipelineConfig
 from orchestration.jobs.daily_pipeline import (
     daily_pipeline_job,
     ingestion_only_job,
+    quality_only_job,
     serving_only_job,
     transformation_only_job,
 )
@@ -120,6 +140,11 @@ defs = Definitions(
         daily_pipeline_job,
         ingestion_only_job,
         transformation_only_job,
+        # quality_only_job selects AssetSelection.groups("quality"). VERIFY
+        # that data_quality_report actually declares group_name="quality" --
+        # a group-scoped job whose group matches no asset is not an error in
+        # Dagster, it is an empty job that succeeds instantly.
+        quality_only_job,
         serving_only_job,
     ],
     schedules=[
@@ -129,16 +154,34 @@ defs = Definitions(
     sensors=[
         new_file_sensor,
         pipeline_health_sensor,
+        # Reports promotion eligibility; targets no job. It used to fire
+        # daily_pipeline_job, which materialises the very asset it watches --
+        # an unbounded loop that run_key deduplication could not stop because
+        # the key included the run id. STOPPED by default.
         prod_promotion_sensor,
     ],
     resources={
         # Read-only by default: validation and quality assets have no business
         # writing, and a write attach would lock the catalog against SQLMesh.
+        # DuckLakeResource now derives its CREDENTIAL role from this flag too
+        # (reader vs writer), so read paths stop attaching PostgreSQL as the
+        # writing user.
+        #
+        # NOTE: data_quality_report and data_quality_checks construct their own
+        # DuckLakeResource inline rather than taking this one, so config set
+        # here does not reach them. Worth consolidating when data_quality.py is
+        # next touched.
         "ducklake": DuckLakeResource(read_only=True),
         "sqlmesh": SQLMeshResource(
             project_path="sqlmesh",
             environment=_cfg.sqlmesh_env,
             start_date=_cfg.sqlmesh_start_date,
+            # `sqlmesh audit` has no --environment option and targets the
+            # DEFAULT target environment. Set False if the
+            # SQLMESH__DEFAULT_TARGET_ENVIRONMENT override proves unreliable --
+            # `sqlmesh plan` already enforces blocking audits on the models it
+            # builds, so this only costs the audit_status metadata.
+            run_audits=True,
         ),
     },
 )

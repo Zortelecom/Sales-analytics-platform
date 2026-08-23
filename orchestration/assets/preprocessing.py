@@ -1,5 +1,7 @@
 """
-Asset for preprocessing Excel files.
+orchestration/assets/preprocessing.py
+
+Clean each discovered workbook and place it in data/input/<source_type>/.
 
 (2026-08) Processing rules come from sources.yaml.
 
@@ -11,6 +13,32 @@ because SourceConfig.processing_rules was loaded and never read.
 
 tests/orchestration/test_no_hardcoded_source_rules.py fails if a
 `source_type == "..."` comparison reappears here.
+
+(2026-08b) FAILURE HANDLING NO LONGER EDITS THE SUPERVISORS' FOLDER
+──────────────────────────────────────────────────────────────────
+It used to do this on any preprocessing error:
+
+    shutil.move(str(source_file), str(destination))
+
+source_file is under the path sources.yaml points at -- the SYNCED folder the
+supervisors work in. A move propagates as a DELETE to every other copy of that
+folder. So a workbook disappeared from a supervisor's own machine because an
+extractor did not like a sheet name, with no notification and no obvious way
+for them to get it back. The pipeline is a READER of that directory; it has no
+business mutating it.
+
+It copies now. The consequence is that a failing workbook stays discoverable
+and would fail again on every run -- which is why quarantine exists:
+
+    file fails            -> copy to dead_letter, record {path: sha256}
+    next run, unchanged   -> status "quarantined", skipped, no retry
+    supervisor edits it   -> hash differs, quarantine cleared, retried
+
+Same mechanism as processed-state hashing, same reason: content is the only
+thing that reliably says whether a file is the one that already failed.
+
+"quarantined" is deliberately NOT in ingestion.EXTRACTABLE_STATUSES, so a
+quarantined file does not gate extraction open the way "skipped" does.
 """
 import shutil
 from datetime import datetime
@@ -21,85 +49,124 @@ from dagster import AssetExecutionContext, AssetIn, MetadataValue, asset
 
 from ingestion.orchestrate.excel_preprocessor import ExcelPreprocessor
 from orchestration.assets.file_discovery import (
+    clear_quarantine,
     file_sha256,
+    is_quarantined,
     load_processed_state,
+    record_quarantine,
     save_processed_state,
 )
 from orchestration.utils.constants import DEAD_LETTER_DIR
 from shared.sources import load_sources
 
+# Every record carries every key, so the resulting frame has no NaN-filled
+# columns and downstream `.isin([...])` checks on status are total.
+_RECORD_FIELDS = (
+    "source_type",
+    "file_name",
+    "file_path",
+    "status",
+    "sheets_deleted",
+    "target_path",
+    "error",
+    "dead_letter_path",
+)
+
+
+def _record(**kwargs) -> dict:
+    """A processing record with all fields present."""
+    record = {field: "" for field in _RECORD_FIELDS}
+    record["sheets_deleted"] = 0
+    record.update(kwargs)
+    return record
+
 
 @asset(
     group_name="ingestion",
-    description="Preprocesses Excel files (deletes synthesis sheets, validates)",
+    description="Preprocesses Excel workbooks (deletes synthesis sheets, validates)",
     compute_kind="python",
-    ins={"files_to_process": AssetIn()}
+    ins={"files_to_process": AssetIn()},
 )
-def preprocessed_files(context: AssetExecutionContext,
-                       files_to_process: pd.DataFrame) -> pd.DataFrame:
+def preprocessed_files(
+    context: AssetExecutionContext, files_to_process: pd.DataFrame
+) -> pd.DataFrame:
     """
-    Clean and move files to input directory.
-    
-    For each file:
-    1. Delete unwanted sheets (e.g., "Synthese *" for sales files)
-    2. Validate required sheets exist
-    3. Copy cleaned file to data/input/{source_type}/
-    
-    Returns:
-        DataFrame with processing results:
-        - source_type: File category
-        - file_name: Original filename
-        - status: 'processed', 'skipped', or 'error'
-        - sheets_deleted: Number of sheets removed
-        - target_path: Path to cleaned file
-        - error: Error message (if status='error')
-    """
+    Clean and copy workbooks into the input directory.
 
+    Per file:
+      1. Skip if content is unchanged since the last successful preprocess.
+      2. Skip if this exact content already failed (quarantine).
+      3. Delete unwanted sheets per sources.yaml.
+      4. Validate required sheets.
+      5. Write the cleaned copy to data/input/<source_type>/.
+
+    Status is one of: processed, skipped, quarantined, error.
+    """
     if files_to_process.empty:
         context.log.info("No files to preprocess")
         return pd.DataFrame()
 
-    processed_records = []
+    records: list[dict] = []
     preprocessor = ExcelPreprocessor(dry_run=False)
-    dead_letter_batch = None
     registry = load_sources()
     processed_state = load_processed_state()
-    processed_state = load_processed_state()
+    dead_letter_batch: Path | None = None
 
-    def _move_to_dead_letter(source_file: Path) -> str:
+    def _copy_to_dead_letter(source_file: Path) -> str:
+        """
+        COPY, never move. See the module docstring -- the source directory is
+        the supervisors' synced folder and a move deletes their file.
+        """
         nonlocal dead_letter_batch
         if dead_letter_batch is None:
-            dead_letter_batch = DEAD_LETTER_DIR / f"batch_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            dead_letter_batch = DEAD_LETTER_DIR / f"batch_{stamp}"
             dead_letter_batch.mkdir(parents=True, exist_ok=True)
 
         destination = dead_letter_batch / source_file.name
         try:
-            shutil.move(str(source_file), str(destination))
-            context.log.warning("Moved failed file to dead_letter: %s", destination)
+            shutil.copy2(str(source_file), str(destination))
+            context.log.warning("Copied failed file to dead_letter: %s", destination)
             return str(destination)
-        except Exception as move_exc:
+        except OSError as copy_exc:
             context.log.error(
-                "Failed to move %s to dead_letter: %s",
-                source_file.name,
-                move_exc,
+                "Could not copy %s to dead_letter: %s", source_file.name, copy_exc
             )
             return ""
 
     def _remove_partial_target(target_file: Path) -> None:
+        """A half-written cleaned copy is worse than none: extractors read it."""
         if not target_file.exists():
             return
-
         try:
             target_file.unlink()
             context.log.warning("Removed partial input file: %s", target_file)
         except OSError as cleanup_exc:
             context.log.error(
-                "Failed to remove partial input file %s: %s",
-                target_file,
-                cleanup_exc,
+                "Could not remove partial input file %s: %s", target_file, cleanup_exc
             )
 
-    for idx, row in files_to_process.iterrows():
+    def _fail(source_path: Path, source_type: str, target_path: Path, message: str) -> None:
+        """Quarantine a workbook at its current content and record the failure."""
+        _remove_partial_target(target_path)
+        dead_path = _copy_to_dead_letter(source_path)
+        try:
+            record_quarantine(source_path, file_sha256(source_path))
+        except OSError:
+            # Unreadable now: leave it out of quarantine so it is retried
+            # rather than skipped on a hash we could not compute.
+            pass
+        records.append(_record(
+            source_type=source_type,
+            file_name=source_path.name,
+            file_path=str(source_path),
+            status="error",
+            error=message,
+            dead_letter_path=dead_path,
+        ))
+        context.log.error("Failed to process %s: %s", source_path.name, message)
+
+    for _, row in files_to_process.iterrows():
         source_path = Path(row["file_path"])
         source_type = row["source_type"]
         # Raises a listing of declared source types on an unknown one, rather
@@ -123,105 +190,93 @@ def preprocessed_files(context: AssetExecutionContext,
                 "Skipping %s - content unchanged since last preprocess",
                 source_path.name,
             )
-            processed_records.append({
-                "source_type": source_type,
-                "file_name": source_path.name,
-                "file_path": str(source_path),
-                "status": "skipped",
-                "sheets_deleted": 0,
-                "target_path": str(target_path),
-            })
+            records.append(_record(
+                source_type=source_type,
+                file_name=source_path.name,
+                file_path=str(source_path),
+                status="skipped",
+                target_path=str(target_path),
+            ))
             continue
+
+        if is_quarantined(source_path, source_hash):
+            context.log.warning(
+                "Skipping %s - this exact content already failed. It will be "
+                "retried automatically once the workbook is edited.",
+                source_path.name,
+            )
+            records.append(_record(
+                source_type=source_type,
+                file_name=source_path.name,
+                file_path=str(source_path),
+                status="quarantined",
+                error="Unchanged since a previous preprocessing failure",
+            ))
+            continue
+
+        # Content differs from whatever was quarantined, so give it a fresh
+        # chance and forget the old verdict.
+        clear_quarantine(source_path)
 
         # From sources.yaml. Do NOT reintroduce a branch on source_type here.
         delete_pattern = spec.processing.delete_sheets_pattern
         required_sheets = spec.processing.required_sheets
 
         try:
-            # Ensure target directory exists
             target_dir.mkdir(parents=True, exist_ok=True)
-
-            # Preprocess the file
-            context.log.info(f"Processing {source_path.name}...")
+            context.log.info("Processing %s...", source_path.name)
 
             # Reset stats for this file
-            preprocessor.stats = {
-                "processed": 0,
-                "sheets_deleted": 0,
-                "errors": []
-            }
+            preprocessor.stats = {"processed": 0, "sheets_deleted": 0, "errors": []}
 
             success = preprocessor.preprocess(
                 source_file=source_path,
                 target_file=target_path,
                 delete_pattern=delete_pattern,
-                required_sheets=required_sheets
+                required_sheets=required_sheets,
             )
 
             if success:
                 sheets_deleted = preprocessor.stats.get("sheets_deleted", 0)
-
-                processed_records.append({
-                    "source_type": source_type,
-                    "file_name": source_path.name,
-                    "file_path": str(source_path),
-                    "status": "processed",
-                    "sheets_deleted": sheets_deleted,
-                    "target_path": str(target_path),
-                })
-
+                records.append(_record(
+                    source_type=source_type,
+                    file_name=source_path.name,
+                    file_path=str(source_path),
+                    status="processed",
+                    sheets_deleted=sheets_deleted,
+                    target_path=str(target_path),
+                ))
                 context.log.info(
-                    f"✅ Preprocessed {source_path.name} → {target_path.name} "
-                    f"({sheets_deleted} sheets deleted)"
+                    "Preprocessed %s -> %s (%d sheet(s) deleted)",
+                    source_path.name, target_path.name, sheets_deleted,
                 )
             else:
-                error_msg = preprocessor.stats.get("errors", ["Unknown error"])[
-                    0] if preprocessor.stats.get("errors") else "Unknown error"
-                _remove_partial_target(target_path)
-                dead_path = _move_to_dead_letter(source_path)
-                processed_records.append({
-                    "source_type": source_type,
-                    "file_name": source_path.name,
-                    "file_path": str(source_path),
-                    "status": "error",
-                    "sheets_deleted": 0,
-                    "error": error_msg,
-                    "target_path": "",
-                    "dead_letter_path": dead_path,
-                })
-                context.log.error(
-                    f"❌ Failed to process {source_path.name}: {error_msg}")
+                errors = preprocessor.stats.get("errors") or ["Unknown error"]
+                _fail(source_path, source_type, target_path, str(errors[0]))
 
-        except Exception as e:
-            context.log.error(f"❌ Failed to process {source_path.name}: {e}")
-            _remove_partial_target(target_path)
-            dead_path = _move_to_dead_letter(source_path)
-            processed_records.append({
-                "source_type": source_type,
-                "file_name": source_path.name,
-                "file_path": str(source_path),
-                "status": "error",
-                "sheets_deleted": 0,
-                "error": str(e),
-                "target_path": "",
-                "dead_letter_path": dead_path,
-            })
+        except Exception as exc:  # noqa: BLE001 -- one bad workbook, not the run
+            _fail(source_path, source_type, target_path, str(exc))
 
-    result_df = pd.DataFrame(processed_records)
+    result_df = pd.DataFrame(records)
 
-    # Summary statistics
-    processed_count = len(
-        result_df[result_df["status"] == "processed"]) if not result_df.empty else 0
-    skipped_count = len(
-        result_df[result_df["status"] == "skipped"]) if not result_df.empty else 0
-    error_count = len(result_df[result_df["status"]
-                      == "error"]) if not result_df.empty else 0
-    total_sheets_deleted = result_df["sheets_deleted"].sum(
-    ) if not result_df.empty else 0
+    def _count(status: str) -> int:
+        if result_df.empty:
+            return 0
+        return int((result_df["status"] == status).sum())
 
-    # Record the CONTENT HASH of every source that made it through, so the
-    # next run can tell "unchanged" from "merely older".
-    if not result_df.empty and "file_path" in result_df.columns:
+    processed_count = _count("processed")
+    skipped_count = _count("skipped")
+    quarantined_count = _count("quarantined")
+    error_count = _count("error")
+    total_sheets_deleted = (
+        int(result_df["sheets_deleted"].sum()) if not result_df.empty else 0
+    )
+
+    # Record the CONTENT HASH of every source that made it through, so the next
+    # run can tell "unchanged" from "merely older". Quarantined and errored
+    # files are deliberately absent: the quarantine manifest tracks those, and
+    # recording them here would make a fixed workbook look already-processed.
+    if not result_df.empty:
         ok = result_df[result_df["status"].isin(["processed", "skipped"])]
         if not ok.empty:
             state = load_processed_state()
@@ -237,24 +292,30 @@ def preprocessed_files(context: AssetExecutionContext,
         "row_count": len(result_df),
         "processed": processed_count,
         "skipped": skipped_count,
+        "quarantined": quarantined_count,
         "errors": error_count,
-        "total_sheets_deleted": int(total_sheets_deleted),
-        "dead_letter_files": len(result_df[result_df["status"] == "error"])
-            if not result_df.empty else 0,
+        "total_sheets_deleted": total_sheets_deleted,
         "preview": MetadataValue.md(
-            result_df[["source_type", "file_name",
-                       "status", "sheets_deleted"]].to_markdown()
+            result_df[["source_type", "file_name", "status", "sheets_deleted"]]
+            .to_markdown(index=False)
             if not result_df.empty else "No records"
         ),
     })
 
-    # Log summary
-    context.log.info("="*70)
-    context.log.info("Preprocessing Summary:")
-    context.log.info(f"  ✅ Processed: {processed_count}")
-    context.log.info(f"  ⏭️  Skipped:   {skipped_count}")
-    context.log.info(f"  ❌ Errors:    {error_count}")
-    context.log.info(f"  🗑️  Sheets deleted: {total_sheets_deleted}")
-    context.log.info("="*70)
+    context.log.info("=" * 70)
+    context.log.info("Preprocessing summary")
+    context.log.info("  Processed:      %d", processed_count)
+    context.log.info("  Skipped:        %d", skipped_count)
+    context.log.info("  Quarantined:    %d", quarantined_count)
+    context.log.info("  Errors:         %d", error_count)
+    context.log.info("  Sheets deleted: %d", total_sheets_deleted)
+    context.log.info("=" * 70)
+
+    if quarantined_count:
+        context.log.warning(
+            "%d workbook(s) skipped as unchanged-since-failure. They will be "
+            "retried automatically once edited; see data/dead_letter/.",
+            quarantined_count,
+        )
 
     return result_df

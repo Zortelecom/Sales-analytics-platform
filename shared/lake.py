@@ -14,6 +14,27 @@ With a PostgreSQL catalog the string gains a host, a database, a user and a
 password. Four copies of that is four places to leak a credential and four
 places to get the DATA_PATH rule wrong.
 
+CREDENTIALS GO IN A SECRET, NOT IN THE ATTACH STRING
+────────────────────────────────────────────────────
+DuckLake echoes the Postgres connection string in its exceptions:
+
+    IO Error: Failed to attach DuckLake MetaData "__ducklake_metadata_lake"
+    Unable to connect to Postgres at user='lake_writer' password='hunter2'
+    host='localhost' dbname='ducklake_catalog'
+
+So an inline password ends up in the Dagster daemon log, in a Streamlit error
+banner, and in every stack trace anyone pastes anywhere -- every time the
+service is down or a password is wrong, which is exactly when people share
+logs. Redacting our own logging does not help; this is DuckDB's own message.
+
+A DuckDB SECRET holds the credential instead, and the ATTACH refers to it by
+name, so the exception has nothing to echo.
+
+TEMPORARY, not PERSISTENT. A persistent secret is written to
+~/.duckdb/stored_secrets/*.json as a readable file -- a SECOND copy of the
+credential to rotate, on a machine where .env already holds one. A temporary
+secret lives only in the connection that created it.
+
 TWO BACKENDS, ONE INTERFACE
 ───────────────────────────
     DUCKLAKE_CATALOG_CONN   set   -> PostgreSQL catalog (multi-client)
@@ -49,27 +70,113 @@ logger = logging.getLogger(__name__)
 CATALOG_ALIAS = "sales_lakehouse"
 
 
+SECRET_NAME = "sales_lake_pg"
+
+
 def is_postgres_catalog() -> bool:
-    return bool(os.getenv("DUCKLAKE_CATALOG_CONN"))
+    """True when the catalog is PostgreSQL, by either configuration style."""
+    return bool(os.getenv("DUCKLAKE_CATALOG_CONN") or os.getenv("PG_CATALOG_HOST"))
+
+
+def _pg_settings(role: Optional[str]) -> Optional[dict]:
+    """
+    Postgres connection parameters as discrete values, or None.
+
+    Preferred over DUCKLAKE_CATALOG_CONN because discrete values can go into a
+    secret, and a connection string cannot without being parsed -- and parsing
+    a Postgres connection string correctly (quoting, escapes, URI vs keyword
+    form) is not something to do by hand for a credential.
+
+    Per-role user and password, one shared host/port/database:
+
+        PG_CATALOG_HOST=localhost
+        PG_CATALOG_PORT=5432
+        PG_CATALOG_DB=sales_lakehouse
+        PG_CATALOG_USER=lake_writer            # default for every role
+        PG_CATALOG_PASSWORD=...
+        PG_CATALOG_USER_READER=bi_reader       # overrides for role="reader"
+        PG_CATALOG_PASSWORD_READER=...
+    """
+    host = os.getenv("PG_CATALOG_HOST")
+    if not host:
+        return None
+
+    suffix = f"_{role.upper()}" if role else ""
+    user = os.getenv(f"PG_CATALOG_USER{suffix}") or os.getenv("PG_CATALOG_USER")
+    password = (os.getenv(f"PG_CATALOG_PASSWORD{suffix}")
+                or os.getenv("PG_CATALOG_PASSWORD"))
+
+    if not user:
+        raise RuntimeError(
+            "PG_CATALOG_HOST is set but PG_CATALOG_USER is not. Set a user, or "
+            "unset PG_CATALOG_HOST to fall back to the DuckDB file catalog."
+        )
+
+    return {
+        "host": host,
+        "port": os.getenv("PG_CATALOG_PORT", "5432"),
+        "database": os.getenv("PG_CATALOG_DB", "sales_lakehouse"),
+        "user": user,
+        "password": password or "",
+    }
+
+
+def _scrub(message: str) -> str:
+    """
+    Remove anything that looks like a password from an error message.
+
+    Belt and braces: the secret path should mean no credential reaches an
+    exception, but the inline fallback below can still produce one, and an
+    error is precisely what gets copied into a bug report.
+    """
+    import re
+    message = re.sub(r"(password\s*=\s*)'[^']*'", r"\1'***'", message)
+    message = re.sub(r"(password\s*=\s*)(\S+)", r"\1***", message)
+    return re.sub(r"(://[^:/@\s]+:)[^@\s]+@", r"\1***@", message)
+
+
+def _create_secret(con: duckdb.DuckDBPyConnection, settings: dict) -> bool:
+    """
+    Create a temporary Postgres secret. False if the build does not support it.
+
+    The CREATE SECRET statement itself carries the password, so it is never
+    logged -- only whether it succeeded.
+    """
+    try:
+        con.execute(f"""
+            CREATE OR REPLACE TEMPORARY SECRET {SECRET_NAME} (
+                TYPE postgres,
+                HOST '{settings["host"]}',
+                PORT {int(settings["port"])},
+                DATABASE '{settings["database"]}',
+                USER '{settings["user"]}',
+                PASSWORD '{settings["password"].replace("'", "''")}'
+            )
+        """)
+        return True
+    except duckdb.Error as exc:
+        logger.warning(
+            "Could not create a Postgres secret (%s); falling back to an "
+            "inline connection string. The password may then appear in "
+            "DuckDB error messages.", _scrub(str(exc).splitlines()[0]),
+        )
+        return False
 
 
 def data_path() -> Path:
     return resolve_path(os.getenv("PARQUET_PATH"), WAREHOUSE_DIR / "parquet")
 
 
-def catalog_uri(role: Optional[str] = None) -> str:
+def catalog_uri(role: Optional[str] = None, with_secret: bool = False) -> str:
     """
     The `ducklake:...` URI for ATTACH.
 
-    `role` selects a per-role connection string when one is set, so ingestion
-    can connect as a writer while reporting connects as a reader:
-
-        DUCKLAKE_CATALOG_CONN_READER=postgresql://bi_reader:...@localhost/...
-
-    Falling back to DUCKLAKE_CATALOG_CONN means least privilege is opt-in --
-    the platform works with one credential and gets safer with four, rather
-    than refusing to start until all four exist.
+    with_secret=True returns `ducklake:postgres:` with no parameters -- the
+    credential comes from the secret instead, which is the point.
     """
+    if with_secret:
+        return "ducklake:postgres:"
+
     if role:
         specific = os.getenv(f"DUCKLAKE_CATALOG_CONN_{role.upper()}")
         if specific:
@@ -84,14 +191,15 @@ def catalog_uri(role: Optional[str] = None) -> str:
     return f"ducklake:{path.as_posix()}"
 
 
-def describe() -> str:
+def describe(role: Optional[str] = None) -> str:
     """A log-safe description of the catalog. Never renders a password."""
+    settings = _pg_settings(role)
+    if settings:
+        return (f"postgres: {settings['user']}@{settings['host']}:"
+                f"{settings['port']}/{settings['database']} (via secret)")
     if not is_postgres_catalog():
         return f"duckdb file: {catalog_uri().removeprefix('ducklake:')}"
-    raw = os.getenv("DUCKLAKE_CATALOG_CONN", "")
-    parts = [p for p in raw.replace("postgres:", "").split()
-             if not p.lower().startswith("password")]
-    return "postgres: " + " ".join(parts)
+    return "postgres: " + _scrub(os.getenv("DUCKLAKE_CATALOG_CONN", ""))
 
 
 def attach(
@@ -113,8 +221,17 @@ def attach(
     if is_postgres_catalog():
         con.execute("INSTALL postgres; LOAD postgres;")
 
-    uri = catalog_uri(role)
+    settings = _pg_settings(role)
+    using_secret = bool(settings) and _create_secret(con, settings)
+
+    uri = catalog_uri(role, with_secret=using_secret)
     options = ["READ_ONLY"] if read_only else []
+    if using_secret:
+        # META_ parameters are forwarded to the metadata catalog. META_SECRET
+        # names the secret explicitly rather than relying on DuckDB matching a
+        # default one -- deterministic, and it fails loudly if the secret was
+        # not created.
+        options.append(f"META_SECRET {SECRET_NAME}")
 
     def _attach(with_data_path: bool) -> None:
         opts = list(options)
@@ -136,13 +253,15 @@ def attach(
         try:
             _attach(with_data_path=True)
         except duckdb.Error as second_error:
+            # Scrubbed: DuckLake echoes the connection string, password and
+            # all, in exactly this class of error.
             raise RuntimeError(
-                f"Could not attach the lake ({describe()}).\n"
-                f"  without DATA_PATH: {str(first_error).splitlines()[0]}\n"
-                f"  with DATA_PATH:    {str(second_error).splitlines()[0]}\n"
-                f"If the catalog is PostgreSQL, check the server is running "
+                f"Could not attach the lake ({describe(role)}).\n"
+                f"  without DATA_PATH: {_scrub(str(first_error).splitlines()[0])}\n"
+                f"  with DATA_PATH:    {_scrub(str(second_error).splitlines()[0])}\n"
+                f"If the catalog is PostgreSQL, check the service is running "
                 f"and the role has CONNECT on the database."
-            ) from second_error
+            ) from None
 
     if use:
         con.execute(f"USE {alias}")

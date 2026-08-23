@@ -1,14 +1,9 @@
 """
 Reference extractor — References.xlsx.
 
-2026-07-05 review
-───────────────────────────────────────────────────
-1. Schema now comes from ingestion/contracts/contracts.yaml via
+1. Schema comes from ingestion/contracts/contracts.yaml via
    load_contracts(), not from inline `expected` sets per method — one
-   declared schema, not two. (This also fixed a real drift bug: the old
-   sources.yaml had 'is_stockout' for Ref_ClientsSD and was missing both
-   'phone' and 'effective_from' — unused dead config, since nothing read
-   it, but wrong regardless.)
+   declared schema, not two. 
 2. Column normalization strips internal spaces too, matching the same
    fix applied to kp_sd_extractor.py.
 3. Added a duplicate (sd_id, effective_from) check in

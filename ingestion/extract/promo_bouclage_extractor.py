@@ -7,30 +7,6 @@ salespeople (DG) or KP invoices pulled from the ERP (SD). This is the fast
 path: no tier-resolution logic needed here, we're transcribing numbers
 finance/ops already computed, not recomputing them from raw transactions.
 
-IMPORTANT — table_prefix bug found in the real files
------------------------------------------------------
-Excel Table names are NOT a reliable channel indicator: the "ODIST SD
-AVRIL-26" sheet (in the *SD* bouclage workbook) uses a table literally named
-"dg_odist_avril_2026" — a copy-paste leftover from a DG template. Filtering
-with table_prefix="sd_" would silently drop all of ODIST's SD data with no
-error. table_prefix is therefore passed as "" (extract every table found;
-extract_single_file's `table.startswith("")` always matches) — channel is
-decided by which FILE we're reading, never by the table's internal name.
-
-Similarly, the "KP" column inside the table (e.g. "Henri et Frères", "HF")
-is more reliable than parsing the KP identity from the sheet name, since
-sheet names mix anonymized placeholders ("KP A") with real names ("HF",
-"ODIST") inconsistently. We take the most frequent non-null "KP" value per
-(source_file, sheet_name) group rather than trusting every row (the first
-row of "HF SD Avril-26" has a blank KP cell).
-
-Grain differs by channel, by design — not a bug to reconcile away:
-  - DG (destockage): Vendeur x Client (the vendeur's own retail client) —
-    no SD identifier at this grain. Matches what was described: sales
-    aren't digitized at salesperson level, gains flow KP -> vendeur ->
-    client on paper.
-  - SD (direct KP invoices via ERP): Client SD — the actual SD, since this
-    side already has a digitized source (invoices).
 """
 from __future__ import annotations
 

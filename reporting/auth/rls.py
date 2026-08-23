@@ -311,6 +311,10 @@ UNSCOPED_OBJECTS: frozenset[str] = frozenset({
     "column_inventory",
     "freshness",
     "extraction_coverage",
+    "workbook_health",
+    "audit_results",
+    "audit_failures",
+    
 
     # DuckDB catalog functions. db.object_exists() reads these, and _REF_RE
     # matches `FROM duckdb_views()` as an object reference. Without them a

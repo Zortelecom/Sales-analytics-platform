@@ -20,6 +20,24 @@ ADDED
         sqlmesh/config.yaml read. One value, three consumers: this is what
         stopped ingestion writing to one lake while SQLMesh read another.
     publish_* -- what serving/publish.py writes.
+
+(2026-08b) `reports` IS NOW A FIRST-CLASS SERVING SCHEMA
+────────────────────────────────────────────────────────
+`sqlmesh plan` builds reports__dev.rep_target_attainment, rep_weekly_meeting
+and rep_top_products. Nothing consumed them: marts_validation checked only
+marts/bi/meta, and _valid_schemas below actively REJECTED "reports", so the
+models were built on every run, validated by nothing, and impossible to
+publish even deliberately.
+
+That is the worst of the three states. An unbuilt model is obvious; a built
+and published one is used; a built-but-unreachable one costs plan time every
+run and silently accrues drift nobody sees.
+
+Note that this changes what a default publish WRITES: three more files appear
+under data/exports/parquet/<env>/. They cannot collide with existing names --
+marts is fact_*/dim_*, bi is v_*, reports is rep_* -- so Power BI's existing
+file paths are untouched. Drop "reports" from publish_schemas below if you
+want them validated but not exported.
 """
 # NOTE: deliberately NO `from __future__ import annotations`.
 #
@@ -33,11 +51,20 @@ ADDED
 # only correct one. Python 3.10+ handles `str | None` and `dict[str, X]`
 # natively, so the import buys nothing here.
 
-from pathlib import Path
-from typing import List, Optional
+from typing import List
 
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# The logical schemas SQLMesh builds that a consumer can read. `meta` is
+# deliberately absent: it is observability, validated by marts_validation but
+# not exported -- a Power BI refresh has no use for the file registry.
+#
+# Keep this in step with marts_validation's tuple in
+# orchestration/assets/transformation.py and with serving/publish.py's
+# --schemas choices. Three places, one list; a fourth schema added to SQLMesh
+# and forgotten here is invisible rather than broken.
+PUBLISHABLE_SCHEMAS = ("marts", "bi", "reports")
 
 
 class PipelineConfig(BaseSettings):
@@ -62,6 +89,10 @@ class PipelineConfig(BaseSettings):
     # sqlmesh/config.yaml. If these three ever disagree, ingestion writes to
     # one lake and SQLMesh reads another -- silently, because the raw.* views
     # simply find no tables.
+    #
+    # Both are DuckDB-FILE-backend settings. With PG_CATALOG_HOST set, the
+    # catalog is PostgreSQL and ducklake_catalog_path names a file no process
+    # opens; shared/lake.py decides which backend is live, not this class.
     ducklake_catalog_path: str = "data/warehouse/catalog.ducklake"
     parquet_path: str = "data/warehouse/parquet"
 
@@ -73,11 +104,13 @@ class PipelineConfig(BaseSettings):
 
     # ── Publish (Power BI / Excel) ─────────────────────────────────────────
     enable_parquet_publish: bool = True
-    """Publish marts and bi to Parquet for Power BI."""
+    """Publish to Parquet for Power BI."""
     enable_csv_publish: bool = False
     """Publish to CSV for Excel."""
-    publish_schemas: List[str] = ["marts", "bi"]
-    """Power BI's semantic model reads marts; Excel usually reads bi."""
+    publish_schemas: List[str] = ["marts", "bi", "reports"]
+    """Power BI's semantic model reads marts and does its own modelling in
+    DAX; Excel and ad-hoc consumers read bi; reports are the pre-shaped
+    report views (rep_*) that used to be built and then stranded."""
     parquet_compression: str = "zstd"
     csv_delimiter: str = ";"
     """Semicolon by default: French-locale Excel reads a comma as a decimal
@@ -94,10 +127,14 @@ class PipelineConfig(BaseSettings):
     @field_validator("publish_schemas")
     @classmethod
     def _valid_schemas(cls, v: List[str]) -> List[str]:
-        allowed = {"marts", "bi"}
-        bad = set(v) - allowed
+        bad = set(v) - set(PUBLISHABLE_SCHEMAS)
         if bad:
-            raise ValueError(f"publish_schemas may only contain {sorted(allowed)}; got {sorted(bad)}")
+            raise ValueError(
+                f"publish_schemas may only contain {sorted(PUBLISHABLE_SCHEMAS)}; "
+                f"got {sorted(bad)}. If SQLMesh has gained a new serving schema, "
+                f"add it to PUBLISHABLE_SCHEMAS in this module, to "
+                f"marts_validation, and to publish.py's --schemas choices."
+            )
         return v
 
     @model_validator(mode="after")

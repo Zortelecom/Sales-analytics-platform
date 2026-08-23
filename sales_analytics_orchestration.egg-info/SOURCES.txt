@@ -19,8 +19,8 @@ orchestration/schedules/__init__.py
 orchestration/schedules/daily_schedule.py
 orchestration/sensors/__init__.py
 orchestration/sensors/file_sensor.py
+orchestration/sensors/pipeline_health_sensor.py
 orchestration/sensors/prod_promotion_sensor.py
-orchestration/sensors/sync_health_sensor.py
 orchestration/utils/__init__.py
 orchestration/utils/constants.py
 sales_analytics_orchestration.egg-info/PKG-INFO
@@ -29,5 +29,7 @@ sales_analytics_orchestration.egg-info/dependency_links.txt
 sales_analytics_orchestration.egg-info/requires.txt
 sales_analytics_orchestration.egg-info/top_level.txt
 shared/__init__.py
+shared/env.py
+shared/lake.py
 shared/paths.py
 shared/sources.py

@@ -4,17 +4,19 @@ gateways:
     connection:
       type: duckdb
 
+      extensions:
+        - ducklake
+        - postgres
+
       # DuckLake catalog. `landing` is a schema INSIDE this catalog, written by
       # the ingestion layer and read by raw.* models. One lake, no second
       # ATTACH: ingestion/config/landing.py reads the same two env vars below.
       catalogs:
         sales_lakehouse:
           type: ducklake
-          path: {{ env_var('DUCKLAKE_CATALOG_PATH') }}
-          data_path: {{ env_var('PARQUET_PATH') }}
+          path: {{ env_var('DUCKLAKE_CATALOG_CONN_SQLMESH') }}
+          read_only: False
 
-      extensions:
-        - ducklake
 
     # One model at a time.
     #
@@ -34,8 +36,12 @@ gateways:
     # grows with every plan. Move it to the PostgreSQL instance at the same
     # time the DuckLake catalog moves there.
     state_connection:
-      type: duckdb
-      database: {{ env_var('SQLMESH_STATE_PATH') }}
+      type: postgres
+      host: {{ env_var('PG_CATALOG_HOST') }}
+      port: {{ env_var('PG_CATALOG_PORT') }}
+      user: {{ env_var('SQLMESH_STATE_USER') }}
+      password: {{ env_var('SQLMESH_STATE_PASSWORD') }}
+      database: {{ env_var('SQLMESH_STATE_DB') }}
 
 default_gateway: local_gateway
 

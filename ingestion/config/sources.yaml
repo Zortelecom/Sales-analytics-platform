@@ -20,7 +20,7 @@ base:
   # Not implemented. Kept declared so the shape is obvious when it is.
   sharepoint:
     enabled: false
-    site_url: "https://yourcompany.sharepoint.com/sites/SalesAnalytics"
+    site_url: "https://company.sharepoint.com/sites/SalesAnalytics"
     auth:
       client_id: "${SP_CLIENT_ID}"
       client_secret: "${SP_CLIENT_SECRET}"
@@ -40,14 +40,7 @@ sources:
     file_pattern: "ExSD*.xlsx"
     table_prefix: "Sales"
     # Column contracts live in ingestion/contracts/contracts.yaml, which is what
-    # the extractors actually read. The required_columns previously declared here
-    # were never loaded by anything -- reference_extractor.py's own docstring
-    # records that they had drifted (is_stockout, missing effective_from) without
-    # anyone noticing, because nothing consumed them.
-    #
-    # SalesExtractor is the exception: it still carries inline REQUIRED_COLUMNS /
-    # EXPECTED_COLUMNS class attributes. Move those into contracts.yaml so there
-    # is one schema authority rather than two.
+    # the extractors actually read. 
     contract: sales
     processing:
       # No trailing space: sheets are hand-named and "SyntheseJan" occurs as
@@ -77,13 +70,7 @@ sources:
     table_prefix: "Ref"
     processing:
       delete_sheets_pattern: null
-      # Was ["Salespersons_List", "Products_List", "SD_List", "SKU_Mapping"].
-      # Those sheet names exist nowhere in this codebase -- the real tables are
-      # Ref_Salesteam / Ref_Products / Ref_ClientsSD / Ref_kp_sku_mapping, and
-      # preprocessing.py enforced nothing. Null matches actual behaviour.
       required_sheets: null
-    # Per-table column contracts: contracts.yaml keys ref_salesteam,
-    # ref_products, ref_clients_sd, ref_kp_sku_mapping.
     contract: references
 
   kp_sd:

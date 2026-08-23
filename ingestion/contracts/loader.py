@@ -6,12 +6,6 @@ per process — the result is cached, since the schema is static for the
 life of a pipeline run and there's no reason for every extractor
 instantiation to re-read and re-parse the file.
 
-Deliberately named contracts.yaml, and deliberately kept out of
-ingestion/config/sources.yaml: that file handles file-discovery routing
-(directories, file patterns, folders) for a *different* consumer
-(FileDiscovery / load_sources_config), and giving schema its own file
-under its own name removes any risk of the two colliding if someone ever
-points this loader at the wrong path.
 """
 from __future__ import annotations
 

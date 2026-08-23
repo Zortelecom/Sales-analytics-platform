@@ -2,10 +2,6 @@
 Filesystem constants. Launch-directory-agnostic: everything derives from
 PROJECT_ROOT, resolved from this file's own location at import time.
 
-INPUT_PATHS moved to shared/sources.py, where it is derived from
-sources.yaml rather than hand-maintained. A deprecation shim below keeps
-existing `from shared.paths import INPUT_PATHS` call sites working; remove
-it once the extractors and orchestration assets have been migrated.
 """
 from __future__ import annotations
 

@@ -1,7 +1,7 @@
 /*
   Sell-out fact: SD -> market.
 
-  (2026-08) PRICING. Three columns replace the old unit_price_actual /
+  PRICING. Three columns replace the old unit_price_actual /
   unit_price_standard pair, because that pair compared Ref_Products against
   itself:
 
@@ -14,27 +14,10 @@
     unit_price_standard   the reference price for THIS line's tier and date,
                           from dim_product_price.
 
-  price_variance_pct previously computed (s.unit_price - p.unit_price) /
-  p.unit_price -- both sides sourced from Ref_Products, so it was ~0 by
-  construction except when the sheet's lookup lagged the SCD version. It now
-  compares effective against the tier standard, which is the question anyone
-  reading "price variance" thinks it is answering.
-
   PRICE TIER. Derived from the salesperson's channel. GMS teams buy from a Key
   Player treated as an SD and pay GMS rates, not traditional-trade rates.
-  ⚠ Confirm the channel literal below against dim_salesperson.sales_channel --
-  if more channels gain their own price list, move this mapping into a
-  reference table rather than growing the CASE.
 
-  PARTITIONING
-  ────────────
-  No partitioned_by. SQLMesh ALWAYS partitions an INCREMENTAL_BY_TIME_RANGE
-  model by its time column, and an explicit partitioned_by is APPENDED to that
-  rather than replacing it. Declaring (sale_year, sale_month) therefore
-  produced sale_date=.../sale_year=.../sale_month=... -- three levels, ~1770
-  directories instead of ~590, and 27 more characters of path on a filesystem
-  with 7 characters of headroom left. sale_date is already finer-grained than
-  month, so the extra levels partition nothing.
+.
 */
 MODEL (
   name marts.fact_sales,
@@ -132,7 +115,7 @@ SELECT
   pp.unit_price                             AS unit_price_standard,
 
   -- Provenance for the data-quality report: which workbook, whose tab, which
-  -- row. A failing audit row is only actionable if it names the file.
+  -- row.
   t.source_file,
   t.sheet_name,
   t.source_row_num,

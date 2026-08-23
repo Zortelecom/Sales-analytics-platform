@@ -1,16 +1,7 @@
 """
 Central configuration for the ingestion pipeline: paths and DB connection
 strings.
-
-(2026-08 review)
-────────────────
-sources.yaml is now parsed only by shared/sources.py. SourceConfig no longer
-declares one Path field per source -- that hand-maintained list was the reason
-the two KP-SD sources went missing from it, and the reason the previous
-docstring claimed kp_sd_destocke_path / kp_sd_non_destocke_path existed when
-the dataclass only ever had kp_sd_path.
-
-SourceConfig now wraps the parsed registry. The four named properties are
+SourceConfig  wraps the parsed registry. The four named properties are
 back-compat shims for FileDiscovery; new code should index source_paths /
 input_paths by source_type, which requires no edit here when a source is added.
 """
@@ -24,7 +15,6 @@ from shared.paths import (
     ARCHIVE_DIR,
     DATA_DIR,
     PROJECT_ROOT,
-    SQLMESH_SEEDS_DIR,
     WAREHOUSE_DIR,
 )
 from shared.sources import SourceSpec, load_sources
@@ -35,14 +25,6 @@ PARQUET_STORAGE_PATH = WAREHOUSE_DIR / "parquet"
 
 _CATALOG_FILE = WAREHOUSE_DIR / "catalog.ducklake"
 CATALOG_CONNECTION_STRING = f"ducklake:{_CATALOG_FILE}"
-
-# Multi-client example (uncomment to switch). A DuckDB-file catalog limits the
-# lake to a single client; Postgres is the supported multi-client backend.
-# import os
-# CATALOG_CONNECTION_STRING = os.getenv(
-#     "DUCKLAKE_CATALOG_CONN",
-#     "ducklake:postgres:dbname=ducklake_catalog host=localhost user=postgres",
-# )
 
 
 # ── Source configuration ───────────────────────────────────────────────────

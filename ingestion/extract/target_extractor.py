@@ -1,11 +1,6 @@
 """
 Target extractor — Sales_Targets.xlsx.
 
-No critical bugs in this file.  Minor changes applied for consistency
-with the rest of the fixed ingestion layer:
-  - validate_sheet_name() is no longer needed here (base default is
-    pass-all, which is the correct behaviour for targets).
-  - Type annotations and docstrings aligned with the updated base class.
 """
 from __future__ import annotations
 

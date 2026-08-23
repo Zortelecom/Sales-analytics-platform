@@ -1,27 +1,6 @@
 """
 Sales extractor — ExSD-Sales-{SubRegion}.xlsx files.
 
-Fix applied
-───────────
-Previously, rows with a null sale_date or sku were silently dropped inside
-the extractor via dropna().  They never appeared in any audit, quality
-report, or log that survives beyond the pipeline run.
-
-The raw layer should always contain every row the source file contains.
-Filtering is staging's job.  The fix:
-
-  1. A boolean column `has_null_key` is added to the raw seed.
-     True  → sale_date or sku is null (row needs attention).
-     False → both keys are present (normal row).
-
-  2. The count of null-key rows is logged per source file so operators
-     get an immediate attribution without opening the source Excel.
-
-  3. The actual WHERE-clause filter (DROP rows with null keys) belongs in
-     stg_sales.sql — not here.  Add:
-         WHERE sale_date IS NOT NULL AND sku IS NOT NULL
-     to the staging model and an assert_no_null_keys audit on raw_sales
-     that logs but does not fail (historical count of dirty source rows).
 """
 from __future__ import annotations
 

@@ -84,13 +84,14 @@ _ALL_PAGES = [
     ("salesforce", "app_pages/3_Salesforce_Performance.py", "Salesforce Performance", "👥", True),
     ("product",   "app_pages/4_Product_Performance.py",  "Product Performance",  "📦", True),
     ("time",      "app_pages/5_Time_Intelligence.py",    "Time Intelligence",    "⏱️", True),
-    ("quality",   "app_pages/6_Quality_Trends.py",       "Data Quality",         "🔍", True),
+    ("sellin",    "app_pages/6_Sell_In_Sell_Out.py",     "Sell-In / Sell-Out",   "🔄", True),
     # Free-form SQL is the one page RLS cannot make *safe* on its own -- the
-    # rewriter scopes the rows, but a curious user can still enumerate the
-    # schema and probe. Gate it on an explicit per-user flag.
+        # rewriter scopes the rows, but a curious user can still enumerate the
+        # schema and probe. Gate it on an explicit per-user flag.
     ("ask",       "app_pages/7_Ask_Data.py",             "Ask Your Data",        "💬",
-     principal.can_ask_data),
-    ("sellin",    "app_pages/8_Sell_In_Sell_Out.py",     "Sell-In / Sell-Out",   "🔄", True),
+        principal.can_ask_data),
+    ("quality",   "app_pages/8_Pipeline_Health.py",       "Data Quality",         "🔍", True),
+    
 ]
 
 pages = [

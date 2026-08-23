@@ -10,7 +10,8 @@ dependencies = [
     "dagster==1.13.6",
     "dagster-webserver==1.13.6",
     "dagster-duckdb==0.29.*",
-    "sqlmesh[duckdb,lsp]==0.235.*",
+    "dagster-postgres==0.29.*",
+    "sqlmesh[duckdb,lsp,postgres]==0.236.*",
     "openpyxl==3.1.2",
     "pandas>=2.0.0",
     "pyyaml>=6.0",
@@ -34,8 +35,8 @@ addopts = "--import-mode=importlib"
 pythonpath = ["."]
 
 [tool.dagster]
-module = "orchestration.definitions"
-code_location_name = "sales_analytics"
+module_name = "orchestration.definitions"
+code_location_name = "sales_analytics_platform"
 
 [dependency-groups]
 dev = [

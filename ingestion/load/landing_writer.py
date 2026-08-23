@@ -2,16 +2,7 @@
 Append-only landing writer. Replaces SeedWriter.
 
 Writes extractor output straight into the `landing` schema of the DuckLake
-catalog SQLMesh reads, with full provenance. There is no CSV in the path.
-
-WHY APPEND-ONLY
-───────────────
-Seeds are overwritten on every run, so a corrected workbook silently replaces
-its predecessor and the before/after is unrecoverable. (Concretely: the
-destockage misfiling found by assert_destockage_channel_matches_sd was fixed
-by editing the source workbooks, and there is now no way to quantify what was
-wrong.) Landing appends, and supersession is resolved at read time --
-`current_rows()` below -- so every version of every file stays queryable.
+catalog SQLMesh reads, with full provenance.
 
 SUPERSESSION MODEL
 ──────────────────
@@ -22,15 +13,6 @@ which is what makes it work uniformly across all four sources.
 
 Its limitation: a file that is renamed or split leaves its old rows current
 forever. Retire those explicitly via `retire_file()`.
-
-WHAT REPLACED SeedWriter
-────────────────────────
-SeedWriter dropped source_file, sheet_name, table_name, ingestion_ts and
-ingestion_batch_id before writing the CSV -- the extractor was already
-producing per-row provenance and it was being discarded at the last step.
-Those five columns are kept here, renamed to _-prefixed provenance so they
-cannot be confused with business columns. A landing row therefore traces back
-to a specific table, on a specific sheet, in a specific workbook.
 
 CONNECTION SAFETY
 ─────────────────
@@ -80,6 +62,7 @@ PROVENANCE_COLUMNS: List[str] = [
 # which orchestration writes but which must EXIST before `sqlmesh plan` can
 # build the meta views over them -- see the note there.
 from ingestion.config.landing import LANDING_DDL, OBSERVABILITY_TABLES
+from shared import lake
 
 
 
@@ -177,7 +160,14 @@ class LandingWriter:
         self.catalog_path.parent.mkdir(parents=True, exist_ok=True)
         self.data_path.mkdir(parents=True, exist_ok=True)
 
-        if self._use_ducklake:
+        if lake.is_postgres_catalog():
+            # PostgreSQL catalog: shared/lake.py owns the connection string,
+            # the secret and the DATA_PATH rule. The explicit catalog_path
+            # this class was constructed with is ignored -- there is no file.
+            self._con = duckdb.connect()
+            lake.attach(self._con, alias=self.catalog_alias,
+                        read_only=False, role="writer")
+        elif self._use_ducklake:
             self._con = duckdb.connect()
             self._con.execute("INSTALL ducklake; LOAD ducklake;")
             # DATA_PATH is stored in the catalog at creation. Passing it again

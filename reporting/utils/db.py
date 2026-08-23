@@ -24,9 +24,11 @@ CHANGES vs. the previous version
    DB_SCHEMA is gone: fact_sales lives in marts__dev while the v_* views live
    in bi__dev, so one schema constant cannot address both.
 
-   ⚠ A DuckDB-file catalog admits many readers OR one writer. While
-   `sqlmesh plan` runs, this app cannot attach. See docs/LAYER3_SERVING.md
-   phase B (PostgreSQL catalog) for the fix.
+   ⚠ A DuckDB-file catalog admits many readers OR one writer, so while
+   `sqlmesh plan` runs, this app cannot attach. A PostgreSQL catalog removes
+   that restriction; which one is in play is decided by PG_CATALOG_HOST in
+   .env and by nothing here. The attach is logged with lake.describe(), so
+   the log always says which backend the session actually reached.
 
 1. Connection: `threading.local()` replaced with `@st.cache_resource`.
    Streamlit runs each session's script in a worker thread drawn from a pool,
@@ -61,13 +63,14 @@ import pandas as pd
 import streamlit as st
 
 from reporting.auth.rls import RLSError, apply_rls
+from shared import lake
 from shared.env import load_env, resolve_path
 from shared.paths import WAREHOUSE_DIR
 
 load_env()
 logger = logging.getLogger(__name__)
 
-CATALOG_ALIAS = "sales_lakehouse"
+CATALOG_ALIAS = lake.CATALOG_ALIAS
 
 # Logical schemas the app reads, in resolution order. bi first so a bare name
 # present in both resolves to the semantic view, not the underlying mart.
@@ -84,7 +87,16 @@ def schema(logical: str = "bi") -> str:
     return logical if env == "prod" else f"{logical}__{env}"
 
 
-def catalog_path() -> Path:
+def catalog_path() -> Path | None:
+    """The catalog FILE, or None when the catalog is PostgreSQL.
+
+    Returns None rather than a path that happens to exist on disk: under the
+    PostgreSQL backend the .ducklake file is not what is being read, and a
+    caller checking `.exists()` on it would be answering a question about a
+    stale artefact. None forces the caller to notice which backend it is on.
+    """
+    if lake.is_postgres_catalog():
+        return None
     return resolve_path(os.getenv("DUCKLAKE_CATALOG_PATH"),
                         WAREHOUSE_DIR / "catalog.ducklake")
 
@@ -123,27 +135,28 @@ def _connection() -> tuple[duckdb.DuckDBPyConnection, str]:
     `con.__search_path_sql = ...` raises AttributeError. Caching the pair keeps
     the two together without needing anywhere to put it.
     """
-    global _SEARCH_PATH_SQL
-    path = catalog_path()
-    if not path.exists():
+    path = catalog_path()  # None under the PostgreSQL backend
+    if path is not None and not path.exists():
         st.error(
             f"⚠️ DuckLake catalog not found at `{path}`. "
             f"Check DUCKLAKE_CATALOG_PATH in .env and run the pipeline first."
         )
         st.stop()
 
-    con = duckdb.connect()
-    con.execute("INSTALL ducklake; LOAD ducklake;")
     try:
-        con.execute(f"ATTACH 'ducklake:{path.as_posix()}' AS {CATALOG_ALIAS} (READ_ONLY)")
-    except duckdb.Error as exc:
+        # role="reader" so a per-role credential, when configured, is the
+        # read-only one. shared/lake.py scrubs credentials from any error it
+        # raises -- DuckLake echoes the connection string, password included,
+        # in exactly this failure, and this one renders in the browser.
+        con = lake.connect(read_only=True, role="reader", alias=CATALOG_ALIAS)
+    except Exception as exc:  # noqa: BLE001
         st.error(
-            f"⚠️ Could not attach the lake: {exc}\n\n"
-            f"If the pipeline is running, wait for it to finish -- a DuckDB "
-            f"file catalog allows many readers or one writer, not both."
+            f"⚠️ Could not attach the lake.\n\n{exc}\n\n"
+            f"With a DuckDB FILE catalog, wait for the pipeline to finish — "
+            f"it allows many readers or one writer, not both. With a "
+            f"PostgreSQL catalog this should not happen; check the service."
         )
         st.stop()
-    con.execute(f"USE {CATALOG_ALIAS}")
 
     sp = _search_path_sql(con)
     if sp is None:
@@ -153,9 +166,8 @@ def _connection() -> tuple[duckdb.DuckDBPyConnection, str]:
         )
         st.stop()
     con.execute(sp)
-    _SEARCH_PATH_SQL = sp                       # <-- changed
-    logger.info("Attached %s read-only | env=%s | %s", path, environment(), sp)
-    return con
+    logger.info("Attached %s | env=%s | %s", lake.describe("reader"), environment(), sp)
+    return con, sp
 
 
 def get_connection() -> duckdb.DuckDBPyConnection:
@@ -169,11 +181,9 @@ def get_connection() -> duckdb.DuckDBPyConnection:
     Without the replay below, every bare object name fails to resolve. This is
     why callers must go through here rather than through _connection().
     """
-    parent = _connection()
+    parent, search_path_sql = _connection()
     cur = parent.cursor()
-    sp = _SEARCH_PATH_SQL                       # <-- changed
-    if sp:
-        cur.execute(sp)
+    cur.execute(search_path_sql)
     return cur
 
 
@@ -184,9 +194,7 @@ def reset_connection() -> None:
     after a `sqlmesh plan` adds or renames a schema -- the search path is
     computed once, at attach time.
     """
-    global _SEARCH_PATH_SQL                     # <-- changed
     _connection.clear()
-    _SEARCH_PATH_SQL = None 
 
 
 # ---------------------------------------------------------------------------
@@ -259,14 +267,20 @@ def object_exists(name: str, logical: str = "bi") -> bool:
     that name in ANY schema -- staging, raw, a SQLMesh physical table. Harmless
     against a single-schema serving.db; against the lake it reports a view as
     present that the search path cannot reach, and the fallback never fires.
+
+    Scoped to the DATABASE as well, for the same reason one step out.
+    duckdb_views() and duckdb_tables() span every attached database, and under
+    the PostgreSQL backend DuckLake attaches a second one for its own metadata.
+    _search_path_sql already filters this way; the two should agree about what
+    "exists" means.
     """
     df = query(
         "SELECT COUNT(*) AS n FROM ("
-        "  SELECT view_name AS nm, schema_name FROM duckdb_views()"
+        "  SELECT view_name AS nm, schema_name, database_name FROM duckdb_views()"
         "  UNION ALL"
-        "  SELECT table_name, schema_name FROM duckdb_tables()"
-        ") WHERE nm = ? AND schema_name = ?",
-        (name, schema(logical)),
+        "  SELECT table_name, schema_name, database_name FROM duckdb_tables()"
+        ") WHERE nm = ? AND schema_name = ? AND database_name = ?",
+        (name, schema(logical), CATALOG_ALIAS),
         silent=True,
     )
     return (not df.empty) and int(df.iloc[0]["n"]) > 0

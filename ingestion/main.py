@@ -19,14 +19,6 @@ can be developed, run and verified on its own:
     python -m ingestion.main --verify     # what is in landing right now
     pytest tests/ingestion tests/shared   # no Dagster, no lake needed
 
-The Dagster assets in orchestration/assets/ingestion.py do the same work with
-the same classes. This is the path to use while developing; that is the path
-that runs on a schedule. Neither is a reimplementation of the other -- both are
-thin wrappers over the extractors and LandingWriter.
-
-(2026-08) Replaced the SEED-based version: SeedWriter, sqlmesh/seeds/ and the
-CSV round-trip are gone. Phase numbering is also fixed -- the old version had
-two "Phase 2"s and no Phase 3.
 """
 from __future__ import annotations
 
@@ -55,6 +47,7 @@ from ingestion.extract.sales_extractor import SalesExtractor
 from ingestion.extract.target_extractor import TargetExtractor
 from ingestion.load.landing_writer import LandingWriter
 from ingestion.orchestrate import ArchiveManager, ExcelPreprocessor, FileDiscovery
+from shared import lake
 from shared.paths import ARCHIVE_DIR, DEAD_LETTER_DIR, LOGS_DIR
 from shared.sources import load_sources
 
@@ -123,30 +116,58 @@ def check() -> bool:
         print(f"  FAIL  contracts.yaml did not load: {exc}")
         ok = False
 
-    print("\nLake")
-    print(f"  catalog     {DUCKLAKE_CATALOG_PATH}"
-          f"  {'(exists)' if DUCKLAKE_CATALOG_PATH.exists() else '(will be created)'}")
-    print(f"  data_path   {PARQUET_PATH}")
-    print(f"  alias       {CATALOG_ALIAS}   schema {LANDING_SCHEMA}")
+    # WHICH BACKEND IS IN PLAY DECIDES WHAT IS WORTH CHECKING.
+    #
+    # This block used to report DUCKLAKE_CATALOG_PATH unconditionally, which
+    # under the PostgreSQL catalog names a file nothing reads -- and then failed
+    # the check because the variable was unset, while the attach on the next
+    # line succeeded. A pre-flight check that contradicts itself is worse than
+    # no check: the next real failure gets read as more of the same noise.
+    postgres = lake.is_postgres_catalog()
 
-    # The single most likely misconfiguration: ingestion and SQLMesh pointed at
-    # different lakes. sqlmesh/config.yaml reads these same two variables, and
-    # a mismatch is silent -- raw.* models simply find no tables.
     import os
 
     from shared.env import ENV_FILE, parse_env_file
 
     from_file = parse_env_file(ENV_FILE)
+
+    print("\nLake")
+    print(f"  backend     {lake.describe('writer')}")
+    if not postgres:
+        print(f"  catalog     {DUCKLAKE_CATALOG_PATH}"
+              f"  {'(exists)' if DUCKLAKE_CATALOG_PATH.exists() else '(will be created)'}")
+    print(f"  data_path   {PARQUET_PATH}")
+    print(f"  alias       {CATALOG_ALIAS}   schema {LANDING_SCHEMA}")
     print(f"  .env        {ENV_FILE}"
           f"  {'(%d vars)' % len(from_file) if from_file else '(not found)'}")
 
-    for name, resolved in (("DUCKLAKE_CATALOG_PATH", DUCKLAKE_CATALOG_PATH),
-                           ("PARQUET_PATH", PARQUET_PATH)):
+    # PARQUET_PATH matters on both backends -- it is the DATA_PATH DuckLake
+    # stores in the catalog at creation, and sqlmesh/config.yaml deliberately
+    # does NOT pass one, so this value is the only definition of where table
+    # data lives. DUCKLAKE_CATALOG_PATH matters only on the file backend.
+    checked = [("PARQUET_PATH", PARQUET_PATH)]
+    if not postgres:
+        checked.insert(0, ("DUCKLAKE_CATALOG_PATH", DUCKLAKE_CATALOG_PATH))
+
+    if postgres:
+        # Set-but-unused is the trap here, not unset. It makes every path
+        # report in this output describe a catalog no process opens.
+        if os.getenv("DUCKLAKE_CATALOG_PATH"):
+            print("  WARN  DUCKLAKE_CATALOG_PATH is set but ignored: "
+                  "PG_CATALOG_HOST selects the PostgreSQL catalog. Unset it, "
+                  "or unset PG_CATALOG_HOST to go back to the file catalog.")
+        for role in ("reader", "publisher"):
+            if not os.getenv(f"PG_CATALOG_USER_{role.upper()}"):
+                print(f"  WARN  PG_CATALOG_USER_{role.upper()} unset — role "
+                      f"\"{role}\" will connect as PG_CATALOG_USER "
+                      f"({os.getenv('PG_CATALOG_USER')}), so least privilege "
+                      f"is not actually in force.")
+
+    for name, resolved in checked:
         raw = os.getenv(name)
         if raw is None:
             print(f"  WARN  {name} unset in both .env and the environment — "
-                  f"using default {resolved}. sqlmesh/config.yaml has no "
-                  f"default and will fail.")
+                  f"using default {resolved}.")
             ok = False
         elif "$" in raw:
             print(f"  FAIL  {name}={raw!r} contains shell syntax. A .env file is "
