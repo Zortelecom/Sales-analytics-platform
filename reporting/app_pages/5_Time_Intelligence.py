@@ -10,7 +10,7 @@ import reporting._bootstrap  # noqa: F401
 
 import streamlit as st
 import pandas as pd
-from reporting.utils.filters import render_sidebar_filters, MONTH_NAMES
+from reporting.utils.filters import MONTH_NAMES, period_label, render_sidebar_filters
 from reporting.utils.formatters import (
     fmt_currency, fmt_pct, fmt_number, achievement_color, month_name,
     fmt_delta, wow_color,
@@ -37,22 +37,24 @@ from reporting.components.charts import (
 )
 from reporting.components.ranking_table import render_comparison_table, render_ranking_table
 from reporting.config import COLORS
+from reporting.utils.markup import html_block, html_table
 
 
 # ---- Filters ---------------------------------------------------------------
-f = render_sidebar_filters(show_region=True, show_channel=False)
-year    = f["year"]
-month   = f["month"]
-regions = f["regions"]
-mt      = f["meeting_type"]
+f = render_sidebar_filters(show_region=True, show_subregion=True, show_channel=False)
+period      = f["period"]
+month       = f["month"]
+regions     = f["regions"]
+subregions  = f["subregions"]
+mt          = f["meeting_type"]
 
-region_arg = regions[0] if (regions and len(regions) == 1) else None
-period_label = (
-    f"{MONTH_NAMES.get(month,'')} {year}" if month else
-    f"Q{f['quarter']} {year}" if f["quarter"] else f"Full Year {year}"
-)
+# `month_label` is the calendar-correct name for the selected month. Under a
+# fiscal basis "October" belongs to the PREVIOUS calendar year, so the headings
+# below take it from period_label() rather than rebuilding it from MONTH_NAMES.
+label = period_label(f)
+month_label = label
 
-render_page_header("Time Intelligence", period_label, mt)
+render_page_header("Time Intelligence", label, mt)
 
 
 # ============================================================================
@@ -73,13 +75,17 @@ with tab_wow:
         st.info("👈 Select a month in the sidebar to see week-over-week analysis.")
     else:
         render_section_header(
-            f"Week-over-Week — {MONTH_NAMES[month]} {year}",
+            f"Week-over-Week — {month_label}",
             "Revenue progression within the selected month"
         )
 
         with st.spinner("Loading weekly data…"):
-            wow_df  = get_week_over_week(year, month)
-            week_df = get_weekly_performance(year, month, region_arg)
+            # The scope filters now reach BOTH. get_week_over_week took none,
+            # so the four KPI cards were national totals sitting beside a
+            # filtered chart -- two numbers on one screen answering different
+            # questions.
+            wow_df  = get_week_over_week(period, None, regions, subregions)
+            week_df = get_weekly_performance(period, None, regions, subregions)
 
         if wow_df.empty:
             st.info("No weekly data available.")
@@ -115,7 +121,7 @@ with tab_wow:
                     wow_df,
                     x_col="week_of_month",
                     value_col="revenue",
-                    title=f"Weekly Revenue — {MONTH_NAMES[month]} {year}",
+                    title=f"Weekly Revenue — {month_label}",
                     height=300,
                 )
             with col_bar:
@@ -137,24 +143,27 @@ with tab_wow:
                         <td style="color:{COLORS['text_secondary']}; text-align:right;">{fmt_number(r.get('units_sold'))}</td>
                     </tr>
                     """
-                st.markdown(f"""
-                <table style="width:100%; border-collapse:collapse; font-size:0.83rem;">
-                    <thead><tr style="background:{COLORS['bg_card_alt']}; color:{COLORS['text_secondary']};
-                               font-size:0.72rem; text-transform:uppercase;">
-                        <th style="text-align:left;">Week</th>
-                        <th style="text-align:right;">Revenue</th>
-                        <th style="text-align:center;">WoW %</th>
-                        <th style="text-align:right;">Units</th>
-                    </tr></thead>
-                    <tbody>{rows}</tbody>
-                </table>
-                """, unsafe_allow_html=True)
+                # The Weekly Breakdown panel from the screenshot. `rows` is
+                # accumulated inside a loop nested two levels deep, so every
+                # line is indented far past four spaces and each row is
+                # separated by a blank line -- CommonMark renders that as
+                # literal text. html_table collapses it first.
+                html_table(
+                    headers_html=(
+                        '<th style="text-align:left;">Week</th>'
+                        '<th style="text-align:right;">Revenue</th>'
+                        '<th style="text-align:center;">WoW %</th>'
+                        '<th style="text-align:right;">Units</th>'
+                    ),
+                    rows_html=rows,
+                    colors=COLORS,
+                )
 
-            if region_arg is None and not week_df.empty:
+            if not regions and not week_df.empty:
                 st.markdown('<div class="spacer-sm"></div>', unsafe_allow_html=True)
                 render_section_header("Weekly by Region")
                 with st.spinner("Loading regional weekly data…"):
-                    region_weekly = get_region_weekly(year, month)
+                    region_weekly = get_region_weekly(period, None, subregions=subregions)
                 if not region_weekly.empty:
                     pivot_rw = region_weekly.pivot_table(
                         index="week_of_month", columns="region", values="revenue", aggfunc="sum"
@@ -179,11 +188,11 @@ with tab_smly:
     else:
         render_section_header(
             f"Same Month Last Year — {MONTH_NAMES[month]}",
-            f"{MONTH_NAMES[month]} {year} vs {MONTH_NAMES[month]} {year-1}"
+            f"{month_label} vs the same month of {period.prior().label}"
         )
 
         with st.spinner("Loading SMLY data…"):
-            smly_df = get_same_month_last_year(year, month, region_arg)
+            smly_df = get_same_month_last_year(period, None, regions, subregions)
 
         if smly_df.empty:
             st.info("No comparison data.")
@@ -202,9 +211,9 @@ with tab_smly:
             d_pos = (rev_delta or 0) >= 0
 
             render_kpi_row([
-                {"title": f"CY {MONTH_NAMES[month]} {year}", "value": fmt_currency(cy_rev, short=True),
+                {"title": f"CY {month_label}", "value": fmt_currency(cy_rev, short=True),
                  "accent_color": COLORS["accent"], "icon": "📅"},
-                {"title": f"PY {MONTH_NAMES[month]} {year-1}", "value": fmt_currency(py_rev, short=True),
+                {"title": f"PY {MONTH_NAMES[month]} {period.prior().label}", "value": fmt_currency(py_rev, short=True),
                  "accent_color": COLORS["chart"][2], "icon": "📆"},
                 {"title": "Revenue Growth", "value": fmt_pct(rev_delta),
                  "delta_positive": d_pos,
@@ -220,14 +229,14 @@ with tab_smly:
 
             render_section_header("Month-by-Month: CY vs PY")
             with st.spinner("Loading YTD comparison…"):
-                yoy_df = get_ytd_vs_prior_year(year)
+                yoy_df = get_ytd_vs_prior_year(period, regions, subregions)
             trend_line_chart(
                 yoy_df,
                 x_col="month",
                 y_cols=["cy_revenue", "py_revenue"],
-                names=[f"CY {year}", f"PY {year-1}"],
+                names=[period.label, period.prior().label],
                 colors=[COLORS["accent"], COLORS["chart"][2]],
-                title=f"Monthly Revenue — {year} vs {year-1}",
+                title=f"Monthly Revenue — {period.label} vs {period.prior().label}",
                 x_label_fn=month_name,
                 height=280,
             )
@@ -235,7 +244,7 @@ with tab_smly:
             st.markdown('<div class="spacer-sm"></div>', unsafe_allow_html=True)
             render_section_header(f"By Region — {MONTH_NAMES[month]} CY vs PY")
             with st.spinner("Loading regional YoY…"):
-                region_yoy = get_region_yoy(year, month)
+                region_yoy = get_region_yoy(period, None, subregions)
             if not region_yoy.empty:
                 region_yoy["yoy_pct"] = region_yoy.apply(
                     lambda r: round((r.cy_revenue - r.py_revenue) / r.py_revenue * 100, 2)
@@ -256,7 +265,7 @@ with tab_qtd:
     render_section_header("Quarterly Performance", "Revenue and achievement by quarter")
 
     with st.spinner("Loading quarterly data…"):
-        q_df = get_quarterly_summary(year, region_arg)
+        q_df = get_quarterly_summary(period, regions, subregions)
 
     if q_df.empty:
         st.info("No quarterly data.")
@@ -279,8 +288,7 @@ with tab_qtd:
                     r = q_row.iloc[0]
                     ach = r.get("achievement_pct")
                     color = achievement_color(ach)
-                    st.markdown(
-                        f"""
+                    html_block(f"""
                         <div style="background:{COLORS['bg_card']};
                                     border:1px solid {COLORS['border']};
                                     border-top:3px solid {color};
@@ -288,7 +296,7 @@ with tab_qtd:
                                     text-align:center;">
                             <div style="color:{COLORS['text_secondary']}; font-size:0.75rem;
                                         text-transform:uppercase; letter-spacing:0.08em;">
-                                Q{q} {year}
+                                Q{q} {period.label}
                             </div>
                             <div style="color:{COLORS['text_primary']}; font-size:1.3rem;
                                         font-weight:700; margin:0.3rem 0;">
@@ -301,9 +309,7 @@ with tab_qtd:
                                 vs {fmt_currency(r.target, short=True)}
                             </div>
                         </div>
-                        """,
-                        unsafe_allow_html=True,
-                    )
+                    """)
                 else:
                     st.markdown(
                         f'<div style="background:{COLORS["bg_card"]}; border:1px solid {COLORS["border"]}; '
@@ -318,12 +324,12 @@ with tab_qtd:
             q_totals,
             x_col="quarter",
             x_label_fn=lambda q: f"Q{int(q)}",
-            title=f"Quarterly Revenue vs Target — {year}",
+            title=f"Quarterly Revenue vs Target — {period.label}",
             height=280,
         )
 
         st.markdown('<div class="spacer-sm"></div>', unsafe_allow_html=True)
-        if region_arg is None:
+        if not regions:
             q_pivot = q_df.pivot_table(
                 index="region", columns="quarter", values="achievement_pct", aggfunc="mean"
             ).round(1)
@@ -345,24 +351,23 @@ with tab_qtd:
                     """
                 headers = "".join(f'<th style="text-align:center;">Q{int(q)}</th>'
                                   for q in q_pivot.columns)
-                st.markdown(f"""
-                <table style="width:100%; border-collapse:collapse; font-size:0.83rem;">
-                    <thead><tr style="background:{COLORS['bg_card_alt']}; color:{COLORS['text_secondary']};
-                               font-size:0.72rem; text-transform:uppercase;">
-                        <th style="text-align:left; padding:0.4rem 0.5rem;">Region</th>
-                        {headers}
-                    </tr></thead>
-                    <tbody>{rows}</tbody>
-                </table>
-                """, unsafe_allow_html=True)
+                html_table(
+                    headers_html=(
+                        '<th style="text-align:left; padding:0.4rem 0.5rem;">Region</th>'
+                        + headers
+                    ),
+                    rows_html=rows,
+                    colors=COLORS,
+                )
 
 
 # ====== ANNUAL TREND ========================================================
 with tab_annual:
-    render_section_header(f"Annual View — {year}", "Full-year monthly trend and cumulative performance")
+    render_section_header(f"Annual View — {period.label}",
+                          "Full-year monthly trend and cumulative performance")
 
     with st.spinner("Loading annual data…"):
-        annual_df = get_monthly_trend(year)
+        annual_df = get_monthly_trend(period.whole(), regions, subregions=subregions)
     if annual_df.empty:
         st.info("No annual data.")
     else:
@@ -376,7 +381,7 @@ with tab_annual:
                 annual_df,
                 x_col="month",
                 x_label_fn=month_name,
-                title=f"Monthly Revenue vs Target — {year}",
+                title=f"Monthly Revenue vs Target — {period.label}",
                 height=280,
             )
         with col_trend2:
@@ -386,7 +391,7 @@ with tab_annual:
                 y_cols=["cum_revenue", "cum_target"],
                 names=["Cumulative Revenue", "Cumulative Target"],
                 colors=[COLORS["accent"], COLORS["danger"]],
-                title=f"YTD Cumulative — {year}",
+                title=f"YTD Cumulative — {period.label}",
                 x_label_fn=month_name,
                 height=280,
             )
@@ -394,16 +399,16 @@ with tab_annual:
         st.markdown('<div class="spacer-sm"></div>', unsafe_allow_html=True)
 
         with st.spinner("Loading YoY data…"):
-            yoy_df = get_ytd_vs_prior_year(year)
+            yoy_df = get_ytd_vs_prior_year(period, regions, subregions)
         col_yoy, col_yoy_tbl = st.columns([3, 2])
         with col_yoy:
             trend_line_chart(
                 yoy_df,
                 x_col="month",
                 y_cols=["cy_revenue", "py_revenue"],
-                names=[f"{year}", f"{year-1}"],
+                names=[period.label, period.prior().label],
                 colors=[COLORS["accent"], COLORS["chart"][2]],
-                title=f"Revenue — {year} vs {year-1}",
+                title=f"Revenue — {period.label} vs {period.prior().label}",
                 x_label_fn=month_name,
                 height=260,
             )
@@ -426,7 +431,7 @@ with tab_heat:
     )
 
     with st.spinner("Loading seasonality data…"):
-        heat_df = get_seasonality_heatmap(year, region_arg)
+        heat_df = get_seasonality_heatmap(period.whole(), regions, subregions)
 
     if heat_df.empty:
         st.info("No seasonality data.")
@@ -444,7 +449,7 @@ with tab_heat:
             x_col="month",
             y_col="day_of_week",
             value_col="revenue",
-            title=f"Revenue Seasonality — {year}",
+            title=f"Revenue Seasonality — {period.label}",
             height=300,
         )
 
@@ -452,13 +457,13 @@ with tab_heat:
 
         render_section_header("Category × Month Revenue Matrix")
         with st.spinner("Loading category heatmap…"):
-            cat_month = get_category_month_heatmap(year)
+            cat_month = get_category_month_heatmap(period.whole(), regions, subregions)
         if not cat_month.empty:
             heatmap_chart(
                 cat_month,
                 x_col="month",
                 y_col="product_category",
                 value_col="revenue",
-                title=f"Category × Month Revenue — {year}",
+                title=f"Category × Month Revenue — {period.label}",
                 height=280,
             )

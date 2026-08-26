@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 import reporting._bootstrap  # noqa: F401
 
 import streamlit as st
-from reporting.utils.filters import render_sidebar_filters, MONTH_NAMES
+from reporting.utils.filters import period_label, render_sidebar_filters
 from reporting.utils.formatters import (
     fmt_currency, fmt_pct, fmt_number, achievement_color, month_name
 )
@@ -30,28 +30,27 @@ from reporting.config import COLORS
 
 
 # ---- Filters ---------------------------------------------------------------
-f = render_sidebar_filters(show_region=True, show_channel=True)
-year     = f["year"]
-month    = f["month"]
-regions  = f["regions"]
-channels = f["channels"]
-mt       = f["meeting_type"]
+f = render_sidebar_filters(show_region=True, show_subregion=True, show_channel=True)
+period      = f["period"]
+regions     = f["regions"]
+subregions  = f["subregions"]
+channels    = f["channels"]
+mt          = f["meeting_type"]
 
-region_scalar  = regions[0] if (regions and len(regions) == 1) else None
-channel_scalar = channels[0] if (channels and len(channels) == 1) else None
+# region_scalar / channel_scalar are GONE. They collapsed a multiselect to its
+# first element and dropped the filter entirely when two were chosen -- so
+# picking Centre AND Littoral filtered by neither, which reads as a data bug on
+# the page rather than a filter bug. The builders take lists now.
 
-period_label = (
-    f"{MONTH_NAMES.get(month,'')} {year}" if month else
-    f"Q{f['quarter']} {year}" if f["quarter"] else f"Full Year {year}"
-)
-
-render_page_header("Salesforce Performance", period_label, mt)
+label = period_label(f)
+render_page_header("Salesforce Performance", label, mt)
 
 
 # ---- Data ------------------------------------------------------------------
 with st.spinner("Loading salesforce data…"):
-    sp_df  = get_salesperson_ranking(year, month, regions, None, channel_scalar)
-    sup_df = get_supervisor_summary(year, month, region_scalar, channels)
+    sp_df  = get_salesperson_ranking(period, None, regions, None, channels,
+                                     subregions)
+    sup_df = get_supervisor_summary(period, None, regions, channels, subregions)
 
 if sp_df.empty:
     st.warning("No salesforce data for the selected period.")
@@ -182,12 +181,12 @@ with tab3:
 
     st.markdown('<div class="spacer-sm"></div>', unsafe_allow_html=True)
     with st.spinner("Loading monthly trend…"):
-        sp_trend = get_salesperson_monthly_trend(year, sp_id)
+        sp_trend = get_salesperson_monthly_trend(period.whole(), sp_id)
     revenue_vs_target_chart(
         sp_trend,
         x_col="month",
         x_label_fn=month_name,
-        title=f"{sp_row['salesperson_name']} — Monthly Performance {year}",
+        title=f"{sp_row['salesperson_name']} — Monthly Performance {period.label}",
         height=280,
     )
 
@@ -205,6 +204,6 @@ with tab4:
         size_col="active_clients",
         label_col="salesperson_name",
         color_col="achievement_pct",
-        title=f"Salesperson Performance Matrix — {period_label}",
+        title=f"Salesperson Performance Matrix — {label}",
         height=420,
     )

@@ -10,7 +10,7 @@ import reporting._bootstrap  # noqa: F401
 
 import streamlit as st
 import pandas as pd
-from reporting.utils.filters import render_sidebar_filters, MONTH_NAMES
+from reporting.utils.filters import period_label, render_sidebar_filters
 from reporting.utils.formatters import (
     fmt_currency, fmt_pct, fmt_number, achievement_color, month_name
 )
@@ -30,31 +30,30 @@ from reporting.components.charts import (
 )
 from reporting.components.ranking_table import render_ranking_table
 from reporting.config import COLORS
+from reporting.utils.markup import html_table
 
 
 # ---- Filters ---------------------------------------------------------------
-f = render_sidebar_filters(show_region=True, show_channel=False, show_category=True)
-year       = f["year"]
-month      = f["month"]
-regions    = f["regions"]
-categories = f["categories"]
-mt         = f["meeting_type"]
+f = render_sidebar_filters(show_region=True, show_subregion=True,
+                           show_channel=False, show_category=True)
+period      = f["period"]
+regions     = f["regions"]
+subregions  = f["subregions"]
+categories  = f["categories"]
+mt          = f["meeting_type"]
 
-period_label = (
-    f"{MONTH_NAMES.get(month,'')} {year}" if month else
-    f"Q{f['quarter']} {year}" if f["quarter"] else f"Full Year {year}"
-)
-region_arg = regions[0] if (regions and len(regions) == 1) else None
-cat_arg    = categories[0] if (categories and len(categories) == 1) else None
-
-render_page_header("Product Performance", period_label, mt)
+# region_arg / cat_arg are GONE: they passed the filter through only when
+# EXACTLY ONE value was selected and dropped it silently for two or more.
+label = period_label(f)
+render_page_header("Product Performance", label, mt)
 
 
 # ---- Data ------------------------------------------------------------------
 with st.spinner("Loading product data…"):
-    cat_df   = get_category_performance(year, month, region_arg)
-    prod_df  = get_product_ranking(year, month, cat_arg, region_arg, limit=30)
-    innov_df = get_innovation_performance(year, month)
+    cat_df   = get_category_performance(period, None, regions, subregions=subregions)
+    prod_df  = get_product_ranking(period, None, categories, regions, limit=30,
+                                   subregions=subregions)
+    innov_df = get_innovation_performance(period, None, regions, subregions)
 
 if cat_df.empty:
     st.warning("No product data for the selected period.")
@@ -131,7 +130,8 @@ with tab2:
 
     cat_filter    = None if sel_cat == "All Categories" else sel_cat
     with st.spinner("Loading product ranking…"):
-        filtered_prod = get_product_ranking(year, month, cat_filter, region_arg, limit=30)
+        filtered_prod = get_product_ranking(period, None, cat_filter, regions,
+                                            limit=30, subregions=subregions)
 
     if filtered_prod.empty:
         st.info("No product data.")
@@ -171,20 +171,22 @@ with tab2:
                         {fmt_number(row.get('units_sold'))}</td>
                 </tr>
                 """
-            st.markdown(f"""
-            <div style="overflow-y:auto; max-height:400px;">
-            <table style="width:100%; border-collapse:collapse; font-size:0.83rem;">
-                <thead><tr style="background:{COLORS['bg_card_alt']}; color:{COLORS['text_secondary']};
-                           font-size:0.72rem; text-transform:uppercase;">
-                    <th style="text-align:left; padding:0.4rem 0.25rem;">Product</th>
-                    <th style="text-align:left; padding:0.4rem 0.25rem;">Subcategory</th>
-                    <th style="text-align:right; padding:0.4rem 0.25rem;">Revenue</th>
-                    <th style="text-align:right; padding:0.4rem 0.25rem;">Units</th>
-                </tr></thead>
-                <tbody>{rows_html}</tbody>
-            </table>
-            </div>
-            """, unsafe_allow_html=True)
+            # html_table, NOT st.markdown. rows_html is built inside a `for`
+            # inside a `with`, so every line arrives indented past four spaces
+            # and the rows are separated by blank lines -- CommonMark reads the
+            # first as a code block and the second as the end of the HTML
+            # block, which is why the raw <tr> tags were rendering on screen.
+            html_table(
+                headers_html=(
+                    '<th style="text-align:left; padding:0.4rem 0.25rem;">Product</th>'
+                    '<th style="text-align:left; padding:0.4rem 0.25rem;">Subcategory</th>'
+                    '<th style="text-align:right; padding:0.4rem 0.25rem;">Revenue</th>'
+                    '<th style="text-align:right; padding:0.4rem 0.25rem;">Units</th>'
+                ),
+                rows_html=rows_html,
+                colors=COLORS,
+                max_height="400px",
+            )
 
 
 # ====== TAB 3: Innovation Spotlight =========================================
@@ -233,7 +235,7 @@ with tab3:
 
 # ====== TAB 4: Trends =======================================================
 with tab4:
-    innov_trend = get_innovation_trend(year)
+    innov_trend = get_innovation_trend(period.whole(), regions, subregions)
 
     if not innov_trend.empty:
         innov_trend_pivot = innov_trend.pivot_table(
@@ -251,7 +253,7 @@ with tab4:
             y_cols=y_cols,
             names=y_cols,
             colors=[COLORS["chart"][3], COLORS["chart"][2]],
-            title=f"Innovation vs Standard Revenue Trend — {year}",
+            title=f"Innovation vs Standard Revenue Trend — {period.label}",
             x_label_fn=month_name,
             height=300,
         )
@@ -259,7 +261,8 @@ with tab4:
     st.markdown('<div class="spacer-sm"></div>', unsafe_allow_html=True)
     render_section_header("Category Monthly Trend")
 
-    cat_trend = get_category_monthly_trend(year)
+    cat_trend = get_category_monthly_trend(period.whole(), regions, subregions,
+                                           categories)
 
     if not cat_trend.empty:
         cats     = cat_trend["product_category"].unique()

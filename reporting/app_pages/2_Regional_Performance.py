@@ -10,7 +10,7 @@ import reporting._bootstrap  # noqa: F401
 
 import streamlit as st
 import pandas as pd
-from reporting.utils.filters import render_sidebar_filters, MONTH_NAMES
+from reporting.utils.filters import period_label, render_sidebar_filters
 from reporting.utils.formatters import (
     fmt_currency, fmt_pct, fmt_number, achievement_color, achievement_emoji, month_name
 )
@@ -28,26 +28,29 @@ from reporting.components.charts import (
 )
 from reporting.components.ranking_table import render_ranking_table
 from reporting.config import COLORS
+from reporting.utils.markup import html_block
 
 
 # ---- Filters ---------------------------------------------------------------
-f = render_sidebar_filters(show_region=True, show_channel=True)
-year     = f["year"]
-month    = f["month"]
-channels = f["channels"]
-mt       = f["meeting_type"]
+f = render_sidebar_filters(show_region=True, show_subregion=True, show_channel=True)
+period      = f["period"]
+regions     = f["regions"]
+subregions  = f["subregions"]
+channels    = f["channels"]
+mt          = f["meeting_type"]
 
-period_label = (
-    f"{MONTH_NAMES.get(month,'')} {year}" if month else
-    f"Q{f['quarter']} {year}" if f["quarter"] else f"Full Year {year}"
-)
-
-render_page_header("Regional Performance", period_label, mt)
+label = period_label(f)
+render_page_header("Regional Performance", label, mt)
 
 
 # ---- Data ------------------------------------------------------------------
+# THIS is the call the subregion bug lived in. The page groups BY subregion, so
+# an admin saw every subregion in the matrix while the sidebar showed three
+# selected -- the selection was returned by the sidebar and consumed by nobody.
+# `regions` was never read on this page either, so the region multiselect was
+# equally decorative.
 with st.spinner("Loading regional data…"):
-    reg_df = get_regional_summary(year, month, channels)
+    reg_df = get_regional_summary(period, None, channels, regions, subregions)
 
 if reg_df.empty:
     st.warning("No regional data for the selected period.")
@@ -149,7 +152,10 @@ with tab1:
             f'<th style="padding:0.3rem 0.5rem; text-align:center;">{col}</th>'
             for col in pivot_df.columns
         )
-        st.markdown(f"""
+        # html_block, NOT st.markdown: this markup is indented ~8 spaces and
+        # the rows are separated by blank lines, both of which CommonMark reads
+        # as "not HTML". See reporting/utils/markup.py.
+        html_block(f"""
         <div style="overflow-x:auto;">
         <table style="width:100%; border-collapse:collapse; font-size:0.83rem;">
             <thead>
@@ -162,7 +168,7 @@ with tab1:
             <tbody>{rows_html}</tbody>
         </table>
         </div>
-        """, unsafe_allow_html=True)
+        """)
 
 
 # ========= TAB 2: Drill-down ================================================
@@ -194,12 +200,13 @@ with tab2:
         col_trend, col_sub = st.columns([3, 2])
         with col_trend:
             with st.spinner("Loading trend…"):
-                trend_data = get_region_monthly_trend(year, selected_region)
+                trend_data = get_region_monthly_trend(period.whole(), selected_region,
+                                                      subregions)
             revenue_vs_target_chart(
                 trend_data,
                 x_col="month",
                 x_label_fn=month_name,
-                title=f"{selected_region} — Monthly Trend",
+                title=f"{selected_region} — Monthly Trend {period.label}",
                 height=280,
             )
 
@@ -215,7 +222,9 @@ with tab2:
 # ========= TAB 3: Category ==================================================
 with tab3:
     with st.spinner("Loading category breakdown…"):
-        cat_reg_df = get_region_category_breakdown(year, month, channels=channels)
+        cat_reg_df = get_region_category_breakdown(period, None, region=regions,
+                                                   channels=channels,
+                                                   subregions=subregions)
 
     if not cat_reg_df.empty:
         regions_for_cat = ["All Regions"] + sorted(cat_reg_df["region"].dropna().unique().tolist())

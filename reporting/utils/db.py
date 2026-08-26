@@ -286,6 +286,31 @@ def object_exists(name: str, logical: str = "bi") -> bool:
     return (not df.empty) and int(df.iloc[0]["n"]) > 0
 
 
+def object_columns(name: str, logical: str = "bi") -> set[str]:
+    """Lowercased column names of a view/table, or an empty set if absent.
+
+    Lets a query builder ask "does this view carry `subregion` yet?" instead of
+    assuming. Several bi views only gain region/subregion via
+    bi_views_rls_patch.sql (see the [PATCH] markers in reporting/auth/rls.py),
+    so a filter that is correct after the patch is a binder error before it.
+    Asking first turns that into a visible, explainable degradation.
+
+    Scoped to database AND schema for the same reason object_exists() is:
+    duckdb_columns() spans every attached database, and under the PostgreSQL
+    backend DuckLake attaches a second one for its own metadata.
+
+    Goes through query(), so it is cached for the 5-minute TTL like everything
+    else -- run reset_connection() after a `sqlmesh plan` that adds columns.
+    """
+    df = query(
+        "SELECT column_name FROM duckdb_columns() "
+        "WHERE database_name = ? AND schema_name = ? AND table_name = ?",
+        (CATALOG_ALIAS, schema(logical), name),
+        silent=True,
+    )
+    return {str(c).lower() for c in _first_col(df)}
+
+
 def _first_col(df: pd.DataFrame) -> list:
     """Safely extract the first column of a single-column result.
 
@@ -322,6 +347,25 @@ def available_years() -> list[int]:
         f"SELECT DISTINCT sale_year FROM fact_sales ORDER BY sale_year DESC"
     )
     return [int(v) for v in _first_col(df)]
+
+
+def available_year_months() -> list[tuple[int, int]]:
+    """Every (calendar year, month) pair that has sales, ascending.
+
+    The fiscal-year picker cannot be built from available_years() alone: FY2026
+    is Oct-2025..Sep-2026, so deciding which fiscal years have data -- and which
+    months to offer inside one -- needs the pairs, not the years. One query
+    feeds both bases, which also means the calendar and fiscal pickers can
+    never disagree about what exists.
+    """
+    df = query(
+        "SELECT DISTINCT sale_year, sale_month FROM fact_sales "
+        "WHERE sale_year IS NOT NULL AND sale_month IS NOT NULL "
+        "ORDER BY sale_year, sale_month"
+    )
+    if df.empty:
+        return []
+    return [(int(r[0]), int(r[1])) for r in df.itertuples(index=False)]
 
 
 def available_months(year: int) -> list[int]:
