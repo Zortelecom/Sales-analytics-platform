@@ -3,29 +3,8 @@ reporting/utils/queries.py
 All SQL query builders for the reporting pages.
 Returns pd.DataFrames via db.query().
 
-Fix applied (reporting-layer review):
-  - get_quarterly_summary(): the fallback branch (used when v_quarterly_kpi
-    doesn't exist) computed quarters with CEIL(month/3.0), i.e. calendar
-    quarters (Q1=Jan-Mar). Every other part of this app uses the company's
-    Oct-start fiscal year (see reporting/utils/filters.py QUARTER_MONTHS:
-    Q1=Oct-Dec, Q2=Jan-Mar, Q3=Apr-Jun, Q4=Jul-Sep), and the primary
-    v_quarterly_kpi path is built from dim_date's fiscal quarter mapping.
-    The fallback now derives the same fiscal quarter so the two code paths
-    agree — e.g. an October sale is Q1 either way, not Q1 normally but Q4
-    the moment the view happens to be missing.
-(2026-08) Schema threading
-  Views moved from serving.db into the lake, where SQLMesh namespaces them by
-  environment (bi__dev in dev, bi in prod). The SQL below is UNCHANGED: bare
-  names still resolve, because db.get_connection() sets a search path built
-  from the schemas that actually exist, and db.query() replays it on each
-  cursor (search_path does not inherit through cursor()).
 
-  Qualifying every reference by hand was the alternative and was rejected:
-  ~45 references across four views, several inside parameterised non-f-string
-  SQL that cannot take a {placeholder} without being rewritten. One resolution
-  point beats 45 edit sites.
-
-  If you add a query, keep using bare names and go through db.query().
+If you add a query, keep using bare names and go through db.query().
 """
 from __future__ import annotations
 import pandas as pd
@@ -572,18 +551,6 @@ def get_category_month_heatmap(year: int) -> pd.DataFrame:
 
 def _view_exists(view_name: str) -> bool:
     """True when a view/table exists in the bi schema.
-
-    Kept from the earlier fix: db.query() swallows duckdb.Error and returns an
-    empty DataFrame, so the previous try/except fallback in
-    get_quarterly_summary could never trigger — a missing view flashed a red
-    error and returned empty instead of falling back. Checking up front makes
-    the fallback real.
-
-    (2026-08) Delegates to db.object_exists. The old query hit
-    information_schema.tables with NO schema filter, so it matched an object of
-    that name in ANY schema of the lake — staging, raw, a SQLMesh physical
-    table. Against serving.db, which held one schema, that was harmless. Against
-    the lake it would report a view as present that the app cannot reach.
     """
     return object_exists(view_name, "bi")
 

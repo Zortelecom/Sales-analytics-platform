@@ -1,19 +1,6 @@
 """
 Publish the serving layer to files, for consumers that cannot attach the lake.
 
-WHAT THIS REPLACES
-──────────────────
-ServingLayerSync copied every mart table out of DuckLake into a standalone
-serving.db, then applied bi_views.sql on top. That existed because a DuckDB
-file catalog admits one writer, so BI tools could not read the lake while the
-pipeline wrote to it.
-
-With the views defined as SQLMesh models inside the lake, the copy is only
-needed for tools that cannot speak DuckDB at all:
-
-    Streamlit, Superset, Metabase, DBeaver  ->  ATTACH the lake directly
-    Power BI                                ->  Parquet published here
-    Excel                                   ->  CSV published here
 
 WHAT GETS PUBLISHED
 ───────────────────
@@ -36,24 +23,6 @@ file paths then do not change.
 So this module publishes FILES, not a database. No temp file, no atomic
 rename, no Quack, no post-sync view script.
 
-WHY NOT KEEP serving.db
-───────────────────────
-Every copy is a chance for the copy to disagree with the source, and the
-serving DB had no lineage: nothing connected a stale number in Power BI back
-to the model that produced it. bi_views.sql proved the point -- it selected
-fact_sales.unit_price_actual months after that column was renamed, and applied
-cleanly every night because it was raw SQL outside SQLMesh's knowledge.
-
-CONCURRENT READS DEPEND ON THE CATALOG BACKEND
-──────────────────────────────────────────────
-A DuckDB FILE catalog admits many readers or one writer, so a publish cannot
-run while SQLMesh writes -- sequence them, and have interactive tools read the
-published Parquet.
-
-A PostgreSQL catalog removes the restriction. Which one is in play is decided
-by PG_CATALOG_HOST in .env and by nothing in this module; every run logs the
-answer as `Source: ...` and stamps it into the manifest, so an export can
-always be traced back to the catalog that produced it.
 """
 from __future__ import annotations
 

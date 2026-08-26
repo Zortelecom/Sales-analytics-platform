@@ -2,20 +2,6 @@
 reporting/utils/filters.py
 Shared sidebar filter builder -- returns a FilterState dict used by all pages.
 
-Fixes in this revision
-----------------------
-1. The subregion block called `available_subregions()` with no argument,
-   throwing away the region-aware list computed immediately above it. Picking
-   "Littoral" still offered every subregion in the country. Now uses the
-   narrowed list.
-2. Selecting a region no longer leaves a stale subregion selected -- stale
-   values are dropped so the returned filter can't reference a subregion
-   outside the chosen regions.
-3. The "SCOPE" caption was rendered twice (once for region, once for
-   subregion). Rendered once now.
-4. `data_freshness` import moved to module level (it was inside the function).
-5. Option lists come from db.py, which applies row-level security -- a scoped
-   user is never offered a region they may not read.
 """
 from __future__ import annotations
 

@@ -4,40 +4,6 @@ Main entry point for the Sales Analytics Platform dashboard.
 
     streamlit run reporting/app.py        (from the project root)
 
-WHAT WAS BROKEN
----------------
-`streamlit run reporting/app.py` puts *reporting/* on sys.path, not the
-project root. So line 1 of the old app.py -- `import reporting._bootstrap` --
-raised ModuleNotFoundError before anything else ran. The page files worked
-because each one inserts the project root into sys.path *before* importing
-the package; app.py itself had no such guard.
-
-Two things followed from that crash:
-
-  * `st.set_page_config(layout="wide")` and the global CSS never ran, so
-    whichever page you clicked rendered at Streamlit's default centred width
-    and unstyled -- the narrow layout in Screenshot 135945.
-
-  * `st.navigation()` never ran either, so Streamlit fell back to legacy
-    multipage mode and auto-discovered `reporting/pages/*.py`. That is where
-    the phantom "app" entry at the top of the sidebar came from: in legacy
-    mode the entry-point script becomes the first nav item, and clicking it
-    re-ran the crashing app.py.
-
-  * Meanwhile the CSS contained `[data-testid="stSidebarNav"] { display:none }`
-    -- presumably to hide that legacy list. But `st.navigation()` renders into
-    the same container, so on the rare run where app.py *did* work you got a
-    wide layout with no navigation at all (Screenshot 140033).
-
-THE FIX
--------
-  * sys.path is fixed inline, before any `reporting.*` import.
-  * `reporting/pages/` is renamed to `reporting/app_pages/`, which removes
-    Streamlit's legacy auto-discovery entirely. `st.navigation` is now the
-    only navigation, and the `display:none` rule is gone from theme.py.
-  * Page config + CSS moved to reporting/theme.py so any entry point gets them.
-  * Auth gate runs before `pg.run()`; with legacy discovery gone there is no
-    URL that reaches a page without passing it.
 """
 # --- path bootstrap: must come before any `reporting.*` import ---------------
 import sys
